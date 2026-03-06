@@ -11,9 +11,9 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 interface Car { name: string; progress: number; speed: number; color: string; isPlayer: boolean; }
 
 const AI_SPEEDS = [
-  { name: 'AI 초급', speed: 3, color: '#48DBFB' },
-  { name: 'AI 중급', speed: 5, color: '#FECA57' },
-  { name: 'AI 고급', speed: 8, color: '#FF6B6B' },
+  { name: 'AI 초급', speed: 1.5, color: '#48DBFB' },
+  { name: 'AI 중급', speed: 3, color: '#FECA57' },
+  { name: 'AI 고급', speed: 5, color: '#FF6B6B' },
 ];
 
 export default function RaceGamePage() {
@@ -67,14 +67,24 @@ export default function RaceGamePage() {
     intervalRef.current = setInterval(() => {
       setCars(prev => prev.map(car => {
         if (car.isPlayer) return car;
-        const newProgress = Math.min(100, car.progress + car.speed * (0.3 + Math.random() * 0.4));
+        const newProgress = Math.min(100, car.progress + car.speed * (0.15 + Math.random() * 0.25));
         return { ...car, progress: newProgress };
       }));
-    }, 200);
+    }, 300);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [status]);
 
+  const handleProgress = (progress: number) => {
+    setPlayerProgress(progress);
+    setCars(prev => prev.map(car => car.isPlayer ? { ...car, progress } : car));
+    if (progress >= 100) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setStatus('finished');
+    }
+  };
+
   const handleComplete = (result: TypingResult) => {
+    setCars(prev => prev.map(car => car.isPlayer ? { ...car, progress: 100 } : car));
     if (intervalRef.current) clearInterval(intervalRef.current);
     setStatus('finished');
   };
@@ -120,7 +130,7 @@ export default function RaceGamePage() {
       </Card>
 
       {status === 'racing' && text && (
-        <TypingArea text={text} onComplete={handleComplete} />
+        <TypingArea text={text} onComplete={handleComplete} onProgress={handleProgress} />
       )}
 
       {status === 'finished' && (

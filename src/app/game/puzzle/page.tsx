@@ -15,7 +15,7 @@ export default function PuzzleGamePage() {
   const [status, setStatus] = useState<'menu' | 'playing' | 'gameover'>('menu');
   const [grid, setGrid] = useState<(Block | null)[][]>([]);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(180);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [input, setInput] = useState('');
   const [words, setWords] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +53,7 @@ export default function PuzzleGamePage() {
     setStatus('playing');
     setGrid(generateGrid());
     setScore(0);
-    setTimeLeft(180);
+    setTimeLeft(300);
     setInput('');
     inputRef.current?.focus();
   };

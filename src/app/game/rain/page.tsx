@@ -26,7 +26,7 @@ export default function RainGamePage() {
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
-  const [ph, setPh] = useState(7.0);
+  const [ph, setPh] = useState(10.0);
   const [input, setInput] = useState('');
   const [words, setWords] = useState<FallingWord[]>([]);
   const [wordPool, setWordPool] = useState<string[]>([]);
@@ -88,15 +88,15 @@ export default function RainGamePage() {
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
 
-    let phVal = 7.0;
+    let phVal = 10.0;
     let scoreVal = 0;
     let levelVal = 1;
     let comboVal = 0;
 
     const spawnWord = (now: number) => {
-      if (now - lastSpawnRef.current < Math.max(800 - levelVal * 50, 300)) return;
+      if (now - lastSpawnRef.current < Math.max(1200 - levelVal * 40, 500)) return;
       lastSpawnRef.current = now;
-      if (wordsRef.current.length >= 3 + levelVal * 2) return;
+      if (wordsRef.current.length >= 2 + levelVal) return;
 
       const text = pickRandom(wordPool) || '단어';
       const word: FallingWord = {
@@ -104,7 +104,7 @@ export default function RainGamePage() {
         text,
         x: randomBetween(50, W - 100),
         y: -30,
-        speed: 0.3 + levelVal * 0.08 + Math.random() * 0.2,
+        speed: 0.2 + levelVal * 0.05 + Math.random() * 0.15,
         color: pickRandom(COLORS),
       };
       wordsRef.current.push(word);
@@ -137,7 +137,7 @@ export default function RainGamePage() {
 
         // Check if hit ground
         if (word.y > H - 40) {
-          phVal -= 0.5;
+          phVal -= 0.3;
           setPh(phVal);
           soundManager?.play('keyError');
           if (phVal <= 0) {
@@ -178,7 +178,7 @@ export default function RainGamePage() {
       // pH bar
       ctx.fillStyle = 'rgba(30,30,74,0.8)';
       ctx.fillRect(20, H - 30, W - 40, 16);
-      const phRatio = Math.max(0, phVal / 7);
+      const phRatio = Math.max(0, phVal / 10);
       const phColor = phRatio > 0.5 ? '#00B894' : phRatio > 0.25 ? '#FDCB6E' : '#FF6B6B';
       ctx.fillStyle = phColor;
       ctx.fillRect(20, H - 30, (W - 40) * phRatio, 16);
@@ -217,7 +217,7 @@ export default function RainGamePage() {
       setCombo((c) => {
         const next = c + 1;
         setMaxCombo((m) => Math.max(m, next));
-        if (next % 10 === 0) setLevel((l) => l + 1);
+        if (next % 15 === 0) setLevel((l) => l + 1);
         return next;
       });
       soundManager?.play('explosion');

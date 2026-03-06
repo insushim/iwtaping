@@ -45,7 +45,7 @@ export const englishQuotes: { text: string; author: string }[] = [
   { text: 'Happiness is not something ready made. It comes from your own actions.', author: 'Dalai Lama' },
   { text: 'We must be willing to let go of the life we planned so as to have the life that is waiting for us.', author: 'Joseph Campbell' },
   { text: 'The mind is everything. What you think you become.', author: 'Buddha' },
-  { text: 'An unexamined life is not worth living.', author: 'Socrates' },
+  { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
   { text: 'Strive not to be a success, but rather to be of value.', author: 'Albert Einstein' },
   { text: 'Everything you have ever wanted is on the other side of fear.', author: 'George Addair' },
   { text: 'I have not failed. I have just found ten thousand ways that will not work.', author: 'Thomas Edison' },
