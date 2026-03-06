@@ -36,6 +36,13 @@ export default function RootLayout({
         <main className="pt-[var(--header-height)]">
           {children}
         </main>
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/sw.js');
+            });
+          }
+        `}} />
       </body>
     </html>
   );
