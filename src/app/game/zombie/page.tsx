@@ -24,6 +24,10 @@ export default function ZombieGamePage() {
   const animRef = useRef<number>(0);
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
+  const scoreRef = useRef(0);
+  const waveRef = useRef(1);
+  const hpRef = useRef(8);
+  const killCountRef = useRef(0);
 
   useEffect(() => {
     (async () => {
@@ -46,7 +50,9 @@ export default function ZombieGamePage() {
 
   const startGame = () => {
     setStatus('countdown'); setScore(0); setWave(1); setHp(8); setInput('');
-    zombiesRef.current = []; nextIdRef.current = 0; setCountdown(3);
+    zombiesRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;
+    scoreRef.current = 0; waveRef.current = 1; hpRef.current = 8; killCountRef.current = 0;
+    setCountdown(3);
   };
 
   useEffect(() => {
@@ -65,12 +71,13 @@ export default function ZombieGamePage() {
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
     const cx = W / 2, cy = H / 2;
-    let hpVal = 8;
 
     const loop = (time: number) => {
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#0A0A1A';
       ctx.fillRect(0, 0, W, H);
+
+      const currentWave = waveRef.current;
 
       // Player
       ctx.beginPath();
@@ -82,9 +89,9 @@ export default function ZombieGamePage() {
       ctx.stroke();
 
       // Spawn
-      if (time - lastSpawnRef.current > Math.max(2500 - wave * 60, 700)) {
+      if (time - lastSpawnRef.current > Math.max(2500 - currentWave * 60, 700)) {
         lastSpawnRef.current = time;
-        if (zombiesRef.current.length < 3 + wave) {
+        if (zombiesRef.current.length < 3 + currentWave) {
           const angle = Math.random() * Math.PI * 2;
           const dist = Math.max(W, H) * 0.55;
           zombiesRef.current.push({
@@ -93,7 +100,7 @@ export default function ZombieGamePage() {
             x: cx + Math.cos(angle) * dist,
             y: cy + Math.sin(angle) * dist,
             angle: Math.atan2(cy - (cy + Math.sin(angle) * dist), cx - (cx + Math.cos(angle) * dist)),
-            speed: 0.25 + wave * 0.03,
+            speed: 0.25 + currentWave * 0.03,
             color: pickRandom(['#00B894', '#FF6B6B', '#FDCB6E']),
           });
         }
@@ -106,8 +113,8 @@ export default function ZombieGamePage() {
         z.y += Math.sin(a) * z.speed;
         const dist = Math.hypot(z.x - cx, z.y - cy);
         if (dist < 25) {
-          hpVal--; setHp(hpVal); soundManager?.play('keyError');
-          if (hpVal <= 0) { setStatus('gameover'); cancelAnimationFrame(animRef.current); soundManager?.play('gameOver'); return; }
+          hpRef.current--; setHp(hpRef.current); soundManager?.play('keyError');
+          if (hpRef.current <= 0) { setStatus('gameover'); cancelAnimationFrame(animRef.current); soundManager?.play('gameOver'); return; }
           continue;
         }
 
@@ -133,13 +140,13 @@ export default function ZombieGamePage() {
       ctx.font = "bold 14px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${score}  Wave: ${wave}  HP: ${'❤'.repeat(hpVal)}`, 20, 30);
+      ctx.fillText(`Score: ${scoreRef.current}  Wave: ${waveRef.current}  HP: ${'❤'.repeat(Math.max(0, hpRef.current))}`, 20, 30);
 
       animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [status, wordPool, wave, score]);
+  }, [status, wordPool]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +154,14 @@ export default function ZombieGamePage() {
     const idx = zombiesRef.current.findIndex(z => z.text === input.trim());
     if (idx >= 0) {
       zombiesRef.current.splice(idx, 1);
-      setScore(s => s + input.length * 12);
+      scoreRef.current += input.length * 12;
+      setScore(scoreRef.current);
+      killCountRef.current += 1;
+      // Wave up every 10 kills
+      if (killCountRef.current % 10 === 0) {
+        waveRef.current += 1;
+        setWave(waveRef.current);
+      }
       soundManager?.play('explosion');
     }
     setInput('');

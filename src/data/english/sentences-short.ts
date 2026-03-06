@@ -1,6 +1,7 @@
 /**
  * Short English sentences for typing practice.
- * Categories: pangram, proverb, news, literature, tech, science, everyday, sports, business
+ * Categories: pangram, proverb, news, literature, tech, science, everyday, sports, business,
+ *             philosophy, history, nature, humor, motivation, education, health, travel
  */
 export const englishSentencesShort: { text: string; category: string }[] = [
   // Pangrams
@@ -48,6 +49,9 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'The government announced new measures to boost small business growth.', category: 'news' },
   { text: 'Archaeologists discovered ancient ruins that could rewrite regional history.', category: 'news' },
   { text: 'The national team secured a dramatic victory in the championship final.', category: 'news' },
+  { text: 'Researchers have identified a new species of deep-sea fish near volcanic ocean vents.', category: 'news' },
+  { text: 'The central bank raised interest rates for the third consecutive quarter this year.', category: 'news' },
+  { text: 'A historic agreement between neighboring countries aims to protect shared water resources.', category: 'news' },
 
   // Literature
   { text: 'It was the best of times, it was the worst of times.', category: 'literature' },
@@ -60,6 +64,8 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'Not all those who wander are lost.', category: 'literature' },
   { text: 'The only way out of the labyrinth of suffering is to forgive.', category: 'literature' },
   { text: 'So we beat on, boats against the current, borne back ceaselessly into the past.', category: 'literature' },
+  { text: 'In a hole in the ground there lived a hobbit.', category: 'literature' },
+  { text: 'It is only with the heart that one can see rightly; what is essential is invisible.', category: 'literature' },
 
   // Tech
   { text: 'Machine learning algorithms process vast amounts of data to identify patterns.', category: 'tech' },
@@ -72,6 +78,9 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'Application programming interfaces enable different software systems to communicate.', category: 'tech' },
   { text: 'Containers provide a consistent environment for developing and deploying applications.', category: 'tech' },
   { text: 'Agile methodology promotes iterative development and continuous feedback.', category: 'tech' },
+  { text: 'Microservices architecture breaks applications into small, independently deployable services.', category: 'tech' },
+  { text: 'Artificial intelligence is transforming industries from healthcare to transportation.', category: 'tech' },
+  { text: 'Continuous integration pipelines automatically test code changes before they reach production.', category: 'tech' },
 
   // Science
   { text: 'The human brain contains approximately eighty-six billion neurons.', category: 'science' },
@@ -84,6 +93,9 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'Mitochondria are often called the powerhouses of the cell.', category: 'science' },
   { text: 'Evolution by natural selection explains the diversity of life on Earth.', category: 'science' },
   { text: 'The observable universe contains an estimated two trillion galaxies.', category: 'science' },
+  { text: 'Black holes are regions of space where gravity is so strong that nothing can escape.', category: 'science' },
+  { text: 'The human body contains enough iron to make a small nail.', category: 'science' },
+  { text: 'Sound travels about four times faster through water than through air.', category: 'science' },
 
   // Everyday
   { text: 'She packed her bags and headed to the airport for her morning flight.', category: 'everyday' },
@@ -96,6 +108,9 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'He fixed the leaky faucet in the kitchen before breakfast.', category: 'everyday' },
   { text: 'She planted flowers in the garden and watered them every morning.', category: 'everyday' },
   { text: 'The dog eagerly waited by the door for its afternoon walk.', category: 'everyday' },
+  { text: 'They spent the rainy afternoon baking cookies and watching old movies together.', category: 'everyday' },
+  { text: 'He organized his desk drawers and finally found the keys he had been looking for.', category: 'everyday' },
+  { text: 'The morning commute was unusually quiet, and she arrived at work early for once.', category: 'everyday' },
 
   // Sports
   { text: 'The marathon runner crossed the finish line after four grueling hours.', category: 'sports' },
@@ -108,6 +123,9 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'The gymnast earned a perfect ten with a flawless floor routine.', category: 'sports' },
   { text: 'The coach credited the team spirit for their incredible comeback victory.', category: 'sports' },
   { text: 'The Olympic athlete dedicated her gold medal to her hometown supporters.', category: 'sports' },
+  { text: 'The underdog team pulled off a stunning upset in the quarterfinal round.', category: 'sports' },
+  { text: 'The figure skater landed a flawless triple axel to win the gold medal.', category: 'sports' },
+  { text: 'The referee made a controversial call that changed the outcome of the entire game.', category: 'sports' },
 
   // Business
   { text: 'The quarterly earnings report exceeded expectations, driving the stock price higher.', category: 'business' },
@@ -120,4 +138,103 @@ export const englishSentencesShort: { text: string; category: string }[] = [
   { text: 'The company launched a new product line targeting environmentally conscious consumers.', category: 'business' },
   { text: 'Remote work policies have permanently changed the modern workplace.', category: 'business' },
   { text: 'The annual conference attracted over five thousand attendees from thirty countries.', category: 'business' },
+  { text: 'Effective marketing strategies focus on understanding and meeting customer needs.', category: 'business' },
+  { text: 'The company restructured its operations to improve efficiency and reduce overhead costs.', category: 'business' },
+  { text: 'Venture capital firms invested heavily in artificial intelligence startups last year.', category: 'business' },
+
+  // Philosophy
+  { text: 'The unexamined life is not worth living, according to ancient wisdom.', category: 'philosophy' },
+  { text: 'We are what we repeatedly do; excellence is therefore a habit.', category: 'philosophy' },
+  { text: 'To be is to be perceived, and perception shapes our entire reality.', category: 'philosophy' },
+  { text: 'The only true wisdom is in knowing that you know nothing at all.', category: 'philosophy' },
+  { text: 'Happiness depends upon ourselves, not upon external circumstances.', category: 'philosophy' },
+  { text: 'Man is condemned to be free, for choice is unavoidable in life.', category: 'philosophy' },
+  { text: 'One cannot step into the same river twice, for it is always changing.', category: 'philosophy' },
+  { text: 'The mind is everything; what you think, you become over time.', category: 'philosophy' },
+  { text: 'He who has a why to live can bear almost any how.', category: 'philosophy' },
+  { text: 'The greatest wealth is to live content with little and want nothing more.', category: 'philosophy' },
+
+  // History
+  { text: 'The printing press transformed the spread of knowledge across medieval Europe.', category: 'history' },
+  { text: 'Ancient civilizations built remarkable structures that still stand thousands of years later.', category: 'history' },
+  { text: 'The discovery of penicillin revolutionized modern medicine and saved countless lives.', category: 'history' },
+  { text: 'Trade routes connected distant empires and facilitated cultural exchange for centuries.', category: 'history' },
+  { text: 'The industrial revolution fundamentally altered how goods were manufactured and distributed.', category: 'history' },
+  { text: 'Early explorers navigated uncharted oceans using only the stars and simple compasses.', category: 'history' },
+  { text: 'The fall of great empires often began with internal division and economic decline.', category: 'history' },
+  { text: 'Ancient philosophers laid the groundwork for modern science and democratic governance.', category: 'history' },
+  { text: 'The invention of the telegraph made long-distance communication possible for the first time.', category: 'history' },
+  { text: 'Libraries in the ancient world preserved knowledge that would otherwise have been lost forever.', category: 'history' },
+
+  // Nature
+  { text: 'Monarch butterflies migrate thousands of miles each year to reach their winter habitat.', category: 'nature' },
+  { text: 'The roots of a single oak tree can spread over an area the size of a tennis court.', category: 'nature' },
+  { text: 'Coral reefs support roughly a quarter of all known marine species on the planet.', category: 'nature' },
+  { text: 'Wolves communicate through a complex system of howls, body language, and scent marking.', category: 'nature' },
+  { text: 'The deepest part of the ocean remains more mysterious than the surface of the moon.', category: 'nature' },
+  { text: 'A single bolt of lightning can heat the surrounding air to five times the temperature of the sun.', category: 'nature' },
+  { text: 'Redwood trees can live for more than two thousand years and grow over three hundred feet tall.', category: 'nature' },
+  { text: 'Bees perform a waggle dance to communicate the location of flowers to their hive mates.', category: 'nature' },
+  { text: 'The Amazon rainforest produces about twenty percent of the world oxygen supply.', category: 'nature' },
+  { text: 'Salmon travel hundreds of miles upstream to return to the exact spot where they were born.', category: 'nature' },
+
+  // Humor / Fun
+  { text: 'I told my computer I needed a break, and now it will not stop sending me travel ads.', category: 'humor' },
+  { text: 'A balanced diet means holding a cookie in each hand at all times.', category: 'humor' },
+  { text: 'My bed is a magical place where I suddenly remember everything I forgot to do.', category: 'humor' },
+  { text: 'I am not lazy; I am simply on energy-saving mode until further notice.', category: 'humor' },
+  { text: 'The snooze button is a time machine that only travels five minutes into the future.', category: 'humor' },
+  { text: 'Running late is my cardio, and I have been getting a lot of exercise recently.', category: 'humor' },
+  { text: 'I finally found my spirit animal, and it is a sloth taking a nap on a branch.', category: 'humor' },
+  { text: 'My wallet is like an onion; opening it makes me want to cry every single time.', category: 'humor' },
+  { text: 'If Monday had a face, I would gently suggest it take a very long vacation.', category: 'humor' },
+  { text: 'I put my phone on airplane mode, but it has not flown anywhere yet.', category: 'humor' },
+
+  // Motivation
+  { text: 'The best time to plant a tree was twenty years ago; the second best time is now.', category: 'motivation' },
+  { text: 'Success is not final, and failure is not fatal; it is the courage to continue that counts.', category: 'motivation' },
+  { text: 'Every expert was once a beginner who refused to give up on their dream.', category: 'motivation' },
+  { text: 'Your limitation is only your imagination, so dare to think beyond boundaries.', category: 'motivation' },
+  { text: 'Small daily improvements over time lead to stunning and remarkable results.', category: 'motivation' },
+  { text: 'The harder you work for something, the greater you will feel when you achieve it.', category: 'motivation' },
+  { text: 'Do not wait for opportunity; create it with your own hands and determination.', category: 'motivation' },
+  { text: 'It always seems impossible until it is done, so start right now.', category: 'motivation' },
+  { text: 'Believe you can and you are already halfway there on the path to success.', category: 'motivation' },
+  { text: 'The only person you should try to be better than is the person you were yesterday.', category: 'motivation' },
+
+  // Education
+  { text: 'Critical thinking skills are essential for navigating the modern information landscape.', category: 'education' },
+  { text: 'Students learn best when they can connect new concepts to real-world experiences.', category: 'education' },
+  { text: 'Reading widely and consistently is one of the most effective ways to build vocabulary.', category: 'education' },
+  { text: 'Collaborative learning encourages students to share ideas and solve problems together.', category: 'education' },
+  { text: 'A growth mindset helps learners embrace challenges instead of avoiding them.', category: 'education' },
+  { text: 'Digital literacy has become just as important as traditional reading and writing skills.', category: 'education' },
+  { text: 'Asking thoughtful questions is often more valuable than memorizing the right answers.', category: 'education' },
+  { text: 'Lifelong learning keeps the mind sharp and opens doors to unexpected opportunities.', category: 'education' },
+  { text: 'Good teachers inspire curiosity and give students the confidence to explore new ideas.', category: 'education' },
+  { text: 'Spaced repetition is a proven technique for retaining information over the long term.', category: 'education' },
+
+  // Health
+  { text: 'Drinking enough water throughout the day supports digestion, energy, and overall health.', category: 'health' },
+  { text: 'Regular physical activity reduces the risk of heart disease and improves mental well-being.', category: 'health' },
+  { text: 'Quality sleep is just as important as diet and exercise for maintaining good health.', category: 'health' },
+  { text: 'Stretching before and after exercise helps prevent injuries and improves flexibility.', category: 'health' },
+  { text: 'A diet rich in fruits and vegetables provides essential vitamins and minerals the body needs.', category: 'health' },
+  { text: 'Chronic stress can weaken the immune system and contribute to a variety of health problems.', category: 'health' },
+  { text: 'Taking short breaks during long work sessions can reduce eye strain and mental fatigue.', category: 'health' },
+  { text: 'Maintaining good posture while sitting at a desk prevents back and neck pain over time.', category: 'health' },
+  { text: 'Meditation and deep breathing exercises can lower blood pressure and reduce anxiety levels.', category: 'health' },
+  { text: 'Walking ten thousand steps a day is a simple goal that promotes cardiovascular fitness.', category: 'health' },
+
+  // Travel
+  { text: 'Exploring a new city on foot is the best way to discover hidden gems and local culture.', category: 'travel' },
+  { text: 'Learning a few phrases in the local language makes traveling much more rewarding.', category: 'travel' },
+  { text: 'Packing light allows you to move freely and avoid the hassle of heavy luggage.', category: 'travel' },
+  { text: 'The best travel experiences often come from unplanned detours and spontaneous adventures.', category: 'travel' },
+  { text: 'Trying local street food is one of the most authentic ways to experience a new culture.', category: 'travel' },
+  { text: 'A good travel journal helps you remember the small details that photographs often miss.', category: 'travel' },
+  { text: 'Traveling during the off-season means fewer crowds and lower prices at popular destinations.', category: 'travel' },
+  { text: 'Visiting local markets gives travelers a glimpse into the daily life of a community.', category: 'travel' },
+  { text: 'The journey itself is often more memorable than the final destination you set out to reach.', category: 'travel' },
+  { text: 'Connecting with locals through homestays creates meaningful and lasting memories.', category: 'travel' },
 ];

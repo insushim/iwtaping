@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface Enemy { id: number; text: string; x: number; y: number; speed: number; hp: number; color: string; }
 
 export default function DefenseGamePage() {
+  const { settings } = useSettingsStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover' | 'victory'>('menu');
@@ -23,23 +25,38 @@ export default function DefenseGamePage() {
   const animRef = useRef<number>(0);
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
+  const scoreRef = useRef(0);
+  const waveRef = useRef(1);
+  const goldRef = useRef(0);
+  const castleHpRef = useRef(15);
+  const killCountRef = useRef(0);
 
   useEffect(() => {
     (async () => {
       try {
-        const mod = await import('@/data/korean/words-beginner');
-        const mod2 = await import('@/data/korean/words-intermediate');
-        setWordPool([...mod.koreanWordsBeginner.slice(0, 50), ...mod2.koreanWordsIntermediate.slice(0, 50)]);
+        if (settings.language === 'ko') {
+          const mod = await import('@/data/korean/words-beginner');
+          const mod2 = await import('@/data/korean/words-intermediate');
+          setWordPool([...mod.koreanWordsBeginner.slice(0, 50), ...mod2.koreanWordsIntermediate.slice(0, 50)]);
+        } else {
+          const mod = await import('@/data/english/words-common200');
+          setWordPool(mod.englishCommon200.filter(w => w.length >= 3).slice(0, 100));
+        }
       } catch {
-        setWordPool(['고블린', '오크', '트롤', '마법사', '드래곤', '기사', '전사', '궁수', '마법', '공격']);
+        setWordPool(settings.language === 'ko'
+          ? ['고블린', '오크', '트롤', '마법사', '드래곤', '기사', '전사', '궁수', '마법', '공격']
+          : ['goblin', 'orc', 'troll', 'wizard', 'dragon', 'knight', 'warrior', 'archer', 'magic', 'attack']);
       }
     })();
-  }, []);
+  }, [settings.language]);
 
   const startGame = () => {
     setStatus('countdown');
     setScore(0); setWave(1); setGold(0); setCastleHp(15);
     setInput(''); enemiesRef.current = []; nextIdRef.current = 0;
+    lastSpawnRef.current = 0;
+    scoreRef.current = 0; waveRef.current = 1; goldRef.current = 0;
+    castleHpRef.current = 15; killCountRef.current = 0;
     setCountdown(3);
   };
 
@@ -58,12 +75,14 @@ export default function DefenseGamePage() {
     if (!ctx) return;
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
-    let hpVal = 15;
 
     const loop = (time: number) => {
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#12122A';
       ctx.fillRect(0, 0, W, H);
+
+      const currentWave = waveRef.current;
+      const hpVal = castleHpRef.current;
 
       // Castle
       ctx.fillStyle = '#6C5CE7';
@@ -82,14 +101,14 @@ export default function DefenseGamePage() {
       ctx.fillRect(10, H / 2 + 50, 40 * (hpVal / 15), 6);
 
       // Spawn
-      if (time - lastSpawnRef.current > Math.max(3000 - wave * 80, 1000) && enemiesRef.current.length < 2 + wave) {
+      if (time - lastSpawnRef.current > Math.max(3000 - currentWave * 80, 1000) && enemiesRef.current.length < 2 + currentWave) {
         lastSpawnRef.current = time;
         const e: Enemy = {
           id: nextIdRef.current++,
           text: pickRandom(wordPool) || '적',
           x: W + 20,
           y: randomBetween(60, H - 60),
-          speed: 0.2 + wave * 0.03,
+          speed: 0.2 + currentWave * 0.03,
           hp: 1,
           color: pickRandom(['#FF6B6B', '#FECA57', '#FD79A8']),
         };
@@ -101,9 +120,9 @@ export default function DefenseGamePage() {
       for (const e of enemiesRef.current) {
         e.x -= e.speed;
         if (e.x < 60) {
-          hpVal--;
-          setCastleHp(hpVal);
-          if (hpVal <= 0) { setStatus('gameover'); cancelAnimationFrame(animRef.current); soundManager?.play('gameOver'); return; }
+          castleHpRef.current--;
+          setCastleHp(castleHpRef.current);
+          if (castleHpRef.current <= 0) { setStatus('gameover'); cancelAnimationFrame(animRef.current); soundManager?.play('gameOver'); return; }
           continue;
         }
 
@@ -129,13 +148,13 @@ export default function DefenseGamePage() {
       ctx.font = "bold 14px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${score}  Wave: ${wave}  Gold: ${gold}`, 20, 30);
+      ctx.fillText(`Score: ${scoreRef.current}  Wave: ${waveRef.current}  Gold: ${goldRef.current}`, 20, 30);
 
       animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [status, wordPool, wave, score, gold]);
+  }, [status, wordPool]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,8 +162,16 @@ export default function DefenseGamePage() {
     const idx = enemiesRef.current.findIndex(e => e.text === input.trim());
     if (idx >= 0) {
       enemiesRef.current.splice(idx, 1);
-      setScore(s => s + input.length * 10);
-      setGold(g => g + 5);
+      scoreRef.current += input.length * 10;
+      setScore(scoreRef.current);
+      goldRef.current += 5;
+      setGold(goldRef.current);
+      killCountRef.current += 1;
+      // Wave up every 8 kills
+      if (killCountRef.current % 8 === 0) {
+        waveRef.current += 1;
+        setWave(waveRef.current);
+      }
       soundManager?.play('explosion');
     }
     setInput('');

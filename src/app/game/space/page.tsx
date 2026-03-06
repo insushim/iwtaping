@@ -36,6 +36,11 @@ export default function SpaceGamePage() {
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
   const targetRef = useRef<number | null>(null);
+  const scoreRef = useRef(0);
+  const levelRef = useRef(1);
+  const comboRef = useRef(0);
+  const shieldRef = useRef(8);
+  const killCountRef = useRef(0);
 
   useEffect(() => {
     (async () => {
@@ -62,12 +67,17 @@ export default function SpaceGamePage() {
     setLevel(1);
     setCombo(0);
     setMaxCombo(0);
-    setShield(5);
+    setShield(8);
     setInput('');
     enemiesRef.current = [];
     nextIdRef.current = 0;
     lastSpawnRef.current = 0;
     targetRef.current = null;
+    scoreRef.current = 0;
+    levelRef.current = 1;
+    comboRef.current = 0;
+    shieldRef.current = 8;
+    killCountRef.current = 0;
     setCountdown(3);
   };
 
@@ -88,13 +98,14 @@ export default function SpaceGamePage() {
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
     const cx = W / 2, cy = H - 60;
-    let shieldVal = 8;
-    let scoreVal = 0;
 
     const loop = (time: number) => {
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#0A0A1A';
       ctx.fillRect(0, 0, W, H);
+
+      const currentLevel = levelRef.current;
+      const currentShield = shieldRef.current;
 
       // Stars
       for (let i = 0; i < 50; i++) {
@@ -121,9 +132,9 @@ export default function SpaceGamePage() {
       ctx.restore();
 
       // Spawn enemies
-      if (time - lastSpawnRef.current > Math.max(2500 - level * 80, 800)) {
+      if (time - lastSpawnRef.current > Math.max(2500 - currentLevel * 80, 800)) {
         lastSpawnRef.current = time;
-        if (enemiesRef.current.length < 3 + level) {
+        if (enemiesRef.current.length < 3 + currentLevel) {
           const angle = randomBetween(0, Math.PI * 2);
           const dist = Math.max(W, H) * 0.65;
           const enemy: Enemy = {
@@ -132,7 +143,7 @@ export default function SpaceGamePage() {
             x: cx + Math.cos(angle) * dist,
             y: cy + Math.sin(angle) * dist - H * 0.3,
             angle: 0,
-            speed: 0.2 + level * 0.03,
+            speed: 0.2 + currentLevel * 0.03,
             color: pickRandom(['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8']),
             typed: '',
           };
@@ -149,10 +160,10 @@ export default function SpaceGamePage() {
 
         const dist = Math.hypot(e.x - cx, e.y - cy);
         if (dist < 30) {
-          shieldVal--;
-          setShield(shieldVal);
+          shieldRef.current--;
+          setShield(shieldRef.current);
           soundManager?.play('keyError');
-          if (shieldVal <= 0) {
+          if (shieldRef.current <= 0) {
             setStatus('gameover');
             cancelAnimationFrame(animRef.current);
             soundManager?.play('gameOver');
@@ -199,13 +210,13 @@ export default function SpaceGamePage() {
       ctx.font = "bold 14px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${scoreVal}  Level: ${level}  Shield: ${'■'.repeat(shieldVal)}${'□'.repeat(Math.max(0, 8 - shieldVal))}`, 20, 30);
+      ctx.fillText(`Score: ${scoreRef.current}  Level: ${levelRef.current}  Shield: ${'■'.repeat(Math.max(0, shieldRef.current))}${'□'.repeat(Math.max(0, 8 - shieldRef.current))}`, 20, 30);
 
       animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [status, wordPool, level]);
+  }, [status, wordPool]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,10 +224,20 @@ export default function SpaceGamePage() {
     const idx = enemiesRef.current.findIndex(e => e.text === input.trim());
     if (idx >= 0) {
       enemiesRef.current.splice(idx, 1);
-      setScore(s => s + input.length * 15);
-      setCombo(c => { const n = c + 1; setMaxCombo(m => Math.max(m, n)); return n; });
+      scoreRef.current += input.length * 15;
+      setScore(scoreRef.current);
+      comboRef.current += 1;
+      setCombo(comboRef.current);
+      setMaxCombo(m => Math.max(m, comboRef.current));
+      killCountRef.current += 1;
+      // Level up every 10 kills
+      if (killCountRef.current % 10 === 0) {
+        levelRef.current += 1;
+        setLevel(levelRef.current);
+      }
       soundManager?.play('explosion');
     } else {
+      comboRef.current = 0;
       setCombo(0);
     }
     setInput('');
