@@ -1,0 +1,17 @@
+export const cssSnippets: string[] = [
+  `.container {\n  max-width: 1200px;\n  margin: 0 auto;\n  padding: 0 1rem;\n}`,
+  `.flex-center {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}`,
+  `.btn {\n  display: inline-flex;\n  align-items: center;\n  padding: 0.5rem 1rem;\n  border-radius: 0.5rem;\n  font-weight: 600;\n  transition: all 0.2s;\n}\n.btn:hover {\n  opacity: 0.9;\n  transform: translateY(-1px);\n}`,
+  `.card {\n  border-radius: 1rem;\n  overflow: hidden;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);\n  transition: transform 0.2s;\n}\n.card:hover {\n  transform: scale(1.02);\n}`,
+  `.grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));\n  gap: 1.5rem;\n}`,
+  `@keyframes fadeIn {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n.fade-in {\n  animation: fadeIn 0.3s ease-out;\n}`,
+  `.navbar {\n  position: fixed;\n  top: 0;\n  left: 0;\n  right: 0;\n  height: 64px;\n  display: flex;\n  align-items: center;\n  padding: 0 2rem;\n  backdrop-filter: blur(10px);\n  z-index: 50;\n}`,
+  `:root {\n  --primary: #6c5ce7;\n  --secondary: #00d2d3;\n  --bg: #0a0a1a;\n  --text: #e8e8ff;\n}`,
+  `.modal-overlay {\n  position: fixed;\n  inset: 0;\n  background: rgba(0, 0, 0, 0.5);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100;\n}`,
+  `.truncate {\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}`,
+  `@media (max-width: 768px) {\n  .sidebar {\n    display: none;\n  }\n  .main {\n    margin-left: 0;\n  }\n}`,
+  `.gradient-text {\n  background: linear-gradient(135deg, #6c5ce7, #00d2d3);\n  -webkit-background-clip: text;\n  -webkit-text-fill-color: transparent;\n}`,
+  `.scrollbar::-webkit-scrollbar {\n  width: 6px;\n}\n.scrollbar::-webkit-scrollbar-thumb {\n  background: #6c5ce7;\n  border-radius: 3px;\n}`,
+  `.tooltip {\n  position: relative;\n}\n.tooltip::after {\n  content: attr(data-tooltip);\n  position: absolute;\n  bottom: 100%;\n  left: 50%;\n  transform: translateX(-50%);\n  padding: 4px 8px;\n  border-radius: 4px;\n  font-size: 12px;\n  white-space: nowrap;\n  opacity: 0;\n  transition: opacity 0.2s;\n}`,
+  `.skeleton {\n  background: linear-gradient(90deg, #1a1a3e 25%, #2a2a5a 50%, #1a1a3e 75%);\n  background-size: 200% 100%;\n  animation: shimmer 1.5s infinite;\n}\n@keyframes shimmer {\n  0% { background-position: 200% 0; }\n  100% { background-position: -200% 0; }\n}`,
+];
