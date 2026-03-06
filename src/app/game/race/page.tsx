@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { TypingArea } from '@/components/typing/TypingArea';
 import { shuffleArray } from '@/lib/utils/helpers';
 import { TypingResult } from '@/types/typing';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface Car { name: string; progress: number; speed: number; color: string; isPlayer: boolean; }
 
@@ -16,6 +17,7 @@ const AI_SPEEDS = [
 ];
 
 export default function RaceGamePage() {
+  const { settings } = useSettingsStore();
   const [status, setStatus] = useState<'menu' | 'countdown' | 'racing' | 'finished'>('menu');
   const [text, setText] = useState('');
   const [cars, setCars] = useState<Car[]>([]);
@@ -25,11 +27,19 @@ export default function RaceGamePage() {
 
   const loadText = async () => {
     try {
-      const mod = await import('@/data/english/sentences-short');
-      const sentences = shuffleArray(mod.englishSentencesShort).slice(0, 3);
-      setText(sentences.map(s => s.text).join(' '));
+      if (settings.language === 'ko') {
+        const mod = await import('@/data/korean/sentences-short');
+        const sentences = shuffleArray(mod.koreanSentencesShort).slice(0, 3);
+        setText(sentences.map(s => s.text).join(' '));
+      } else {
+        const mod = await import('@/data/english/sentences-short');
+        const sentences = shuffleArray(mod.englishSentencesShort).slice(0, 3);
+        setText(sentences.map(s => s.text).join(' '));
+      }
     } catch {
-      setText('The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.');
+      setText(settings.language === 'ko'
+        ? '빠른 갈색 여우가 게으른 개를 뛰어넘습니다. 타이핑 연습은 꾸준히 하는 것이 중요합니다.'
+        : 'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.');
     }
   };
 

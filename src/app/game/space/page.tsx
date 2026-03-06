@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface Enemy {
   id: number;
@@ -18,6 +19,7 @@ interface Enemy {
 }
 
 export default function SpaceGamePage() {
+  const { settings } = useSettingsStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover'>('menu');
@@ -38,13 +40,21 @@ export default function SpaceGamePage() {
   useEffect(() => {
     (async () => {
       try {
-        const mod = await import('@/data/english/words-common200');
-        setWordPool(mod.englishCommon200.filter(w => w.length >= 3));
+        if (settings.language === 'ko') {
+          const mod = await import('@/data/korean/words-beginner');
+          const mod2 = await import('@/data/korean/words-intermediate');
+          setWordPool([...mod.koreanWordsBeginner, ...mod2.koreanWordsIntermediate].filter(w => w.length >= 2));
+        } else {
+          const mod = await import('@/data/english/words-common200');
+          setWordPool(mod.englishCommon200.filter(w => w.length >= 3));
+        }
       } catch {
-        setWordPool(['attack', 'defend', 'shield', 'laser', 'power', 'speed', 'combo', 'blast', 'force', 'star']);
+        setWordPool(settings.language === 'ko'
+          ? ['공격', '방어', '실드', '레이저', '파워', '스피드', '콤보', '블래스트', '포스', '별']
+          : ['attack', 'defend', 'shield', 'laser', 'power', 'speed', 'combo', 'blast', 'force', 'star']);
       }
     })();
-  }, []);
+  }, [settings.language]);
 
   const startGame = () => {
     setStatus('countdown');
@@ -252,8 +262,8 @@ export default function SpaceGamePage() {
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-[var(--key-border)] text-lg" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'" }} placeholder="Type the word..." autoComplete="off" autoFocus />
-        <Button type="submit" size="lg">Fire</Button>
+        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-[var(--key-border)] text-lg" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'" }} placeholder="단어를 입력하세요..." autoComplete="off" autoFocus />
+        <Button type="submit" size="lg">발사</Button>
       </form>
     </div>
   );
