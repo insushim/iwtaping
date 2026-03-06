@@ -1,0 +1,123 @@
+/**
+ * Short English sentences for typing practice.
+ * Categories: pangram, proverb, news, literature, tech, science, everyday, sports, business
+ */
+export const englishSentencesShort: { text: string; category: string }[] = [
+  // Pangrams
+  { text: 'The quick brown fox jumps over the lazy dog.', category: 'pangram' },
+  { text: 'Pack my box with five dozen liquor jugs.', category: 'pangram' },
+  { text: 'How vexingly quick daft zebras jump.', category: 'pangram' },
+  { text: 'The five boxing wizards jump quickly.', category: 'pangram' },
+  { text: 'Sphinx of black quartz, judge my vow.', category: 'pangram' },
+  { text: 'Two driven jocks help fax my big quiz.', category: 'pangram' },
+  { text: 'Waltz, bad nymph, for quick jigs vex.', category: 'pangram' },
+  { text: 'Glib jocks quiz nymph to vex dwarf.', category: 'pangram' },
+  { text: 'Jackdaws love my big sphinx of quartz.', category: 'pangram' },
+  { text: 'Mr. Jock, TV quiz PhD, bags few lynx.', category: 'pangram' },
+
+  // Proverbs
+  { text: 'A stitch in time saves nine.', category: 'proverb' },
+  { text: 'Actions speak louder than words.', category: 'proverb' },
+  { text: 'All that glitters is not gold.', category: 'proverb' },
+  { text: 'An apple a day keeps the doctor away.', category: 'proverb' },
+  { text: 'Better late than never.', category: 'proverb' },
+  { text: 'Birds of a feather flock together.', category: 'proverb' },
+  { text: 'Curiosity killed the cat.', category: 'proverb' },
+  { text: 'Do not count your chickens before they hatch.', category: 'proverb' },
+  { text: 'Every cloud has a silver lining.', category: 'proverb' },
+  { text: 'Fortune favors the bold.', category: 'proverb' },
+  { text: 'Honesty is the best policy.', category: 'proverb' },
+  { text: 'Knowledge is power.', category: 'proverb' },
+  { text: 'Look before you leap.', category: 'proverb' },
+  { text: 'Necessity is the mother of invention.', category: 'proverb' },
+  { text: 'Practice makes perfect.', category: 'proverb' },
+  { text: 'Rome was not built in a day.', category: 'proverb' },
+  { text: 'The pen is mightier than the sword.', category: 'proverb' },
+  { text: 'When in Rome, do as the Romans do.', category: 'proverb' },
+  { text: 'Where there is a will, there is a way.', category: 'proverb' },
+  { text: 'You cannot judge a book by its cover.', category: 'proverb' },
+
+  // News-style
+  { text: 'Scientists announced a breakthrough in renewable energy storage technology this week.', category: 'news' },
+  { text: 'The global economy showed signs of recovery after months of uncertainty.', category: 'news' },
+  { text: 'New research suggests that regular exercise improves cognitive function in older adults.', category: 'news' },
+  { text: 'The space agency confirmed plans to launch the next Mars mission in early spring.', category: 'news' },
+  { text: 'World leaders gathered at the summit to discuss climate change policy.', category: 'news' },
+  { text: 'A major technology company unveiled its latest artificial intelligence assistant.', category: 'news' },
+  { text: 'Experts warn that cybersecurity threats continue to evolve at an alarming rate.', category: 'news' },
+  { text: 'The government announced new measures to boost small business growth.', category: 'news' },
+  { text: 'Archaeologists discovered ancient ruins that could rewrite regional history.', category: 'news' },
+  { text: 'The national team secured a dramatic victory in the championship final.', category: 'news' },
+
+  // Literature
+  { text: 'It was the best of times, it was the worst of times.', category: 'literature' },
+  { text: 'Call me Ishmael.', category: 'literature' },
+  { text: 'All happy families are alike; each unhappy family is unhappy in its own way.', category: 'literature' },
+  { text: 'It is a truth universally acknowledged that a single man must be in want of a wife.', category: 'literature' },
+  { text: 'In the beginning God created the heavens and the earth.', category: 'literature' },
+  { text: 'It was a bright cold day in April, and the clocks were striking thirteen.', category: 'literature' },
+  { text: 'All animals are equal, but some animals are more equal than others.', category: 'literature' },
+  { text: 'Not all those who wander are lost.', category: 'literature' },
+  { text: 'The only way out of the labyrinth of suffering is to forgive.', category: 'literature' },
+  { text: 'So we beat on, boats against the current, borne back ceaselessly into the past.', category: 'literature' },
+
+  // Tech
+  { text: 'Machine learning algorithms process vast amounts of data to identify patterns.', category: 'tech' },
+  { text: 'The latest software update includes critical security patches and performance improvements.', category: 'tech' },
+  { text: 'Cloud computing enables businesses to scale their infrastructure on demand.', category: 'tech' },
+  { text: 'Open source software has fundamentally changed the way developers build applications.', category: 'tech' },
+  { text: 'Quantum computers can solve problems that classical computers cannot handle efficiently.', category: 'tech' },
+  { text: 'Version control systems help teams collaborate on code without conflicts.', category: 'tech' },
+  { text: 'Responsive design ensures that websites display properly on all device sizes.', category: 'tech' },
+  { text: 'Application programming interfaces enable different software systems to communicate.', category: 'tech' },
+  { text: 'Containers provide a consistent environment for developing and deploying applications.', category: 'tech' },
+  { text: 'Agile methodology promotes iterative development and continuous feedback.', category: 'tech' },
+
+  // Science
+  { text: 'The human brain contains approximately eighty-six billion neurons.', category: 'science' },
+  { text: 'Water expands when it freezes, which is unusual for most liquids.', category: 'science' },
+  { text: 'Photosynthesis converts sunlight into chemical energy in plants.', category: 'science' },
+  { text: 'The speed of light in a vacuum is approximately three hundred million meters per second.', category: 'science' },
+  { text: 'DNA carries the genetic instructions for the development of all living organisms.', category: 'science' },
+  { text: 'Gravity is the force that attracts objects with mass toward each other.', category: 'science' },
+  { text: 'The periodic table organizes chemical elements by their atomic number and properties.', category: 'science' },
+  { text: 'Mitochondria are often called the powerhouses of the cell.', category: 'science' },
+  { text: 'Evolution by natural selection explains the diversity of life on Earth.', category: 'science' },
+  { text: 'The observable universe contains an estimated two trillion galaxies.', category: 'science' },
+
+  // Everyday
+  { text: 'She packed her bags and headed to the airport for her morning flight.', category: 'everyday' },
+  { text: 'The children played in the park while their parents enjoyed the sunshine.', category: 'everyday' },
+  { text: 'He brewed a fresh pot of coffee and sat down to read the newspaper.', category: 'everyday' },
+  { text: 'The neighbors organized a barbecue to celebrate the start of summer.', category: 'everyday' },
+  { text: 'After a long day at work, she relaxed on the couch with a good book.', category: 'everyday' },
+  { text: 'They walked along the beach and watched the sunset over the ocean.', category: 'everyday' },
+  { text: 'The family gathered around the dinner table to share a home-cooked meal.', category: 'everyday' },
+  { text: 'He fixed the leaky faucet in the kitchen before breakfast.', category: 'everyday' },
+  { text: 'She planted flowers in the garden and watered them every morning.', category: 'everyday' },
+  { text: 'The dog eagerly waited by the door for its afternoon walk.', category: 'everyday' },
+
+  // Sports
+  { text: 'The marathon runner crossed the finish line after four grueling hours.', category: 'sports' },
+  { text: 'The basketball team won the championship with a last-second three-pointer.', category: 'sports' },
+  { text: 'The swimmer broke the world record in the hundred-meter freestyle event.', category: 'sports' },
+  { text: 'The tennis match went to five sets before the underdog claimed victory.', category: 'sports' },
+  { text: 'The goalkeeper made a spectacular diving save to keep the score level.', category: 'sports' },
+  { text: 'The pitcher threw a perfect game, retiring all twenty-seven batters in order.', category: 'sports' },
+  { text: 'The cycling team completed the mountain stage in record-breaking time.', category: 'sports' },
+  { text: 'The gymnast earned a perfect ten with a flawless floor routine.', category: 'sports' },
+  { text: 'The coach credited the team spirit for their incredible comeback victory.', category: 'sports' },
+  { text: 'The Olympic athlete dedicated her gold medal to her hometown supporters.', category: 'sports' },
+
+  // Business
+  { text: 'The quarterly earnings report exceeded expectations, driving the stock price higher.', category: 'business' },
+  { text: 'The startup secured twenty million dollars in its latest funding round.', category: 'business' },
+  { text: 'Strong leadership is essential for navigating periods of organizational change.', category: 'business' },
+  { text: 'The merger between the two companies created the largest firm in the industry.', category: 'business' },
+  { text: 'Customer satisfaction surveys revealed a significant improvement over last year.', category: 'business' },
+  { text: 'The board of directors approved the new strategic plan for the next five years.', category: 'business' },
+  { text: 'Supply chain disruptions forced manufacturers to seek alternative suppliers.', category: 'business' },
+  { text: 'The company launched a new product line targeting environmentally conscious consumers.', category: 'business' },
+  { text: 'Remote work policies have permanently changed the modern workplace.', category: 'business' },
+  { text: 'The annual conference attracted over five thousand attendees from thirty countries.', category: 'business' },
+];

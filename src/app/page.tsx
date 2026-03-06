@@ -1,65 +1,131 @@
-import Image from "next/image";
+'use client';
+
+import Link from 'next/link';
+import { useState, useEffect, useCallback } from 'react';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+
+const SLOGAN = '손끝으로 여는 무한한 세계';
+const DEMO_TEXTS = [
+  '빠른 갈색 여우가 게으른 개를 뛰어넘습니다.',
+  'The quick brown fox jumps over the lazy dog.',
+  '세 살 버릇 여든까지 간다.',
+  '천 리 길도 한 걸음부터 시작된다.',
+];
+
+const practiceCards = [
+  { href: '/practice/position', icon: '🎯', title: '자리 연습', desc: '홈키부터 전체 키보드까지 단계별 연습' },
+  { href: '/practice/word', icon: '📝', title: '낱말 연습', desc: '초급/중급/고급 낱말 타이핑' },
+  { href: '/practice/short', icon: '💬', title: '짧은 글', desc: '속담, 명언, 일상 문장 연습' },
+  { href: '/practice/long', icon: '📖', title: '긴 글', desc: '문학, 에세이, 필사 연습' },
+  { href: '/practice/code', icon: '💻', title: '코드 타이핑', desc: 'Python, JS, HTML 코드 연습' },
+  { href: '/test/speed', icon: '⚡', title: '속도 테스트', desc: '15초~120초 타이핑 속도 측정' },
+];
+
+const gameCards = [
+  { href: '/game/rain', icon: '🌧️', title: '산성비', desc: '떨어지는 단어를 입력해서 제거' },
+  { href: '/game/space', icon: '🚀', title: '우주 방어', desc: '적 우주선의 단어를 입력해서 격파' },
+  { href: '/game/race', icon: '🏎️', title: '타이핑 레이스', desc: 'AI와 타이핑 속도 대결' },
+  { href: '/game/defense', icon: '🏰', title: '킹덤 디펜스', desc: '성을 지키며 타이핑하는 전략 게임' },
+  { href: '/game/zombie', icon: '🧟', title: '좀비 서바이벌', desc: '좀비를 물리치며 생존하기' },
+  { href: '/game/puzzle', icon: '🧩', title: '워드 퍼즐', desc: '블록을 맞추는 단어 퍼즐 게임' },
+];
 
 export default function Home() {
+  const [sloganIdx, setSloganIdx] = useState(0);
+  const [sloganText, setSloganText] = useState('');
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i <= SLOGAN.length) {
+        setSloganText(SLOGAN.slice(0, i));
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="max-w-[1400px] mx-auto px-4 py-8">
+      {/* Hero Section */}
+      <section className="text-center py-16 md:py-24">
+        <h1
+          className="text-5xl md:text-7xl font-extrabold neon-text mb-4"
+          style={{ fontFamily: "'Outfit', sans-serif", color: 'var(--color-primary)' }}
+        >
+          TypingVerse
+        </h1>
+        <p className="text-xl md:text-2xl h-8" style={{ color: 'var(--text-secondary)', fontFamily: "'Noto Sans KR', sans-serif" }}>
+          {sloganText}
+          <span className="caret-blink" style={{ borderRight: '2px solid var(--color-secondary)' }}>&nbsp;</span>
+        </p>
+        <div className="mt-8 flex justify-center gap-4">
+          <Link href="/practice">
+            <Button size="lg">연습 시작</Button>
+          </Link>
+          <Link href="/game">
+            <Button variant="secondary" size="lg">게임 플레이</Button>
+          </Link>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Practice Modes */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          연습 모드
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {practiceCards.map((card) => (
+            <Link key={card.href} href={card.href} className="no-underline">
+              <Card hoverable className="p-6 h-full">
+                <div className="text-3xl mb-3">{card.icon}</div>
+                <h3 className="text-lg font-bold mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{card.title}</h3>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
+              </Card>
+            </Link>
+          ))}
         </div>
-      </main>
+      </section>
+
+      {/* Game Modes */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          게임 모드
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {gameCards.map((card) => (
+            <Link key={card.href} href={card.href} className="no-underline">
+              <Card hoverable className="p-6 h-full">
+                <div className="text-3xl mb-3">{card.icon}</div>
+                <h3 className="text-lg font-bold mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{card.title}</h3>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Quick Stats */}
+      <section className="text-center py-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: '연습 모드', value: '5가지' },
+            { label: '게임', value: '6종' },
+            { label: '언어', value: '한/영' },
+            { label: '연습 콘텐츠', value: '2000+' },
+          ].map((stat) => (
+            <Card key={stat.label} className="p-4">
+              <div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--color-secondary)' }}>
+                {stat.value}
+              </div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
+            </Card>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

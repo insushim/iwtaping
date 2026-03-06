@@ -1,0 +1,17 @@
+export const htmlSnippets: string[] = [
+  `<div class="container">\n  <h1>Hello World</h1>\n  <p>Welcome to my website.</p>\n</div>`,
+  `<nav class="navbar">\n  <a href="/">Home</a>\n  <a href="/about">About</a>\n  <a href="/contact">Contact</a>\n</nav>`,
+  `<form action="/submit" method="post">\n  <label for="name">Name:</label>\n  <input type="text" id="name" name="name" required />\n  <button type="submit">Submit</button>\n</form>`,
+  `<table>\n  <thead>\n    <tr><th>Name</th><th>Age</th></tr>\n  </thead>\n  <tbody>\n    <tr><td>Alice</td><td>30</td></tr>\n    <tr><td>Bob</td><td>25</td></tr>\n  </tbody>\n</table>`,
+  `<ul class="list">\n  <li>First item</li>\n  <li>Second item</li>\n  <li>Third item</li>\n</ul>`,
+  `<header>\n  <h1 class="logo">Brand</h1>\n  <nav>\n    <a href="#features">Features</a>\n    <a href="#pricing">Pricing</a>\n  </nav>\n</header>`,
+  `<section class="hero">\n  <h2>Welcome</h2>\n  <p>Build something amazing today.</p>\n  <a href="/start" class="btn">Get Started</a>\n</section>`,
+  `<footer>\n  <p>&copy; 2024 Company. All rights reserved.</p>\n  <div class="links">\n    <a href="/privacy">Privacy</a>\n    <a href="/terms">Terms</a>\n  </div>\n</footer>`,
+  `<div class="card">\n  <img src="photo.jpg" alt="Photo" />\n  <div class="card-body">\n    <h3>Card Title</h3>\n    <p>Card description text here.</p>\n  </div>\n</div>`,
+  `<select id="country" name="country">\n  <option value="">Select</option>\n  <option value="kr">Korea</option>\n  <option value="us">United States</option>\n  <option value="jp">Japan</option>\n</select>`,
+  `<meta charset="UTF-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n<title>My Page</title>\n<link rel="stylesheet" href="styles.css" />`,
+  `<dialog id="modal">\n  <h2>Modal Title</h2>\n  <p>Modal content goes here.</p>\n  <button onclick="this.closest('dialog').close()">Close</button>\n</dialog>`,
+  `<details>\n  <summary>Click to expand</summary>\n  <p>This is the hidden content that appears when expanded.</p>\n</details>`,
+  `<picture>\n  <source srcset="image.webp" type="image/webp" />\n  <source srcset="image.jpg" type="image/jpeg" />\n  <img src="image.jpg" alt="Responsive image" />\n</picture>`,
+  `<article>\n  <h2>Blog Post Title</h2>\n  <time datetime="2024-01-15">January 15, 2024</time>\n  <p>This is the first paragraph of the blog post.</p>\n</article>`,
+];
