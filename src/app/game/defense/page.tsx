@@ -15,7 +15,7 @@ export default function DefenseGamePage() {
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
   const [gold, setGold] = useState(0);
-  const [castleHp, setCastleHp] = useState(10);
+  const [castleHp, setCastleHp] = useState(15);
   const [input, setInput] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
@@ -38,7 +38,7 @@ export default function DefenseGamePage() {
 
   const startGame = () => {
     setStatus('countdown');
-    setScore(0); setWave(1); setGold(0); setCastleHp(10);
+    setScore(0); setWave(1); setGold(0); setCastleHp(15);
     setInput(''); enemiesRef.current = []; nextIdRef.current = 0;
     setCountdown(3);
   };
@@ -58,7 +58,7 @@ export default function DefenseGamePage() {
     if (!ctx) return;
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
-    let hpVal = 10;
+    let hpVal = 15;
 
     const loop = (time: number) => {
       ctx.clearRect(0, 0, W, H);
@@ -78,18 +78,18 @@ export default function DefenseGamePage() {
       // HP bar
       ctx.fillStyle = '#1A1A3E';
       ctx.fillRect(10, H / 2 + 50, 40, 6);
-      ctx.fillStyle = hpVal > 5 ? '#00B894' : hpVal > 2 ? '#FDCB6E' : '#FF6B6B';
-      ctx.fillRect(10, H / 2 + 50, 40 * (hpVal / 10), 6);
+      ctx.fillStyle = hpVal > 8 ? '#00B894' : hpVal > 4 ? '#FDCB6E' : '#FF6B6B';
+      ctx.fillRect(10, H / 2 + 50, 40 * (hpVal / 15), 6);
 
       // Spawn
-      if (time - lastSpawnRef.current > Math.max(2500 - wave * 100, 800) && enemiesRef.current.length < 3 + wave) {
+      if (time - lastSpawnRef.current > Math.max(3000 - wave * 80, 1000) && enemiesRef.current.length < 2 + wave) {
         lastSpawnRef.current = time;
         const e: Enemy = {
           id: nextIdRef.current++,
           text: pickRandom(wordPool) || '적',
           x: W + 20,
           y: randomBetween(60, H - 60),
-          speed: 0.3 + wave * 0.05,
+          speed: 0.2 + wave * 0.03,
           hp: 1,
           color: pickRandom(['#FF6B6B', '#FECA57', '#FD79A8']),
         };

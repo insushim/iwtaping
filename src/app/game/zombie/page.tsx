@@ -16,7 +16,7 @@ export default function ZombieGamePage() {
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover'>('menu');
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
-  const [hp, setHp] = useState(5);
+  const [hp, setHp] = useState(8);
   const [input, setInput] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
@@ -45,7 +45,7 @@ export default function ZombieGamePage() {
   }, [settings.language]);
 
   const startGame = () => {
-    setStatus('countdown'); setScore(0); setWave(1); setHp(5); setInput('');
+    setStatus('countdown'); setScore(0); setWave(1); setHp(8); setInput('');
     zombiesRef.current = []; nextIdRef.current = 0; setCountdown(3);
   };
 
@@ -65,7 +65,7 @@ export default function ZombieGamePage() {
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
     const cx = W / 2, cy = H / 2;
-    let hpVal = 5;
+    let hpVal = 8;
 
     const loop = (time: number) => {
       ctx.clearRect(0, 0, W, H);
@@ -82,9 +82,9 @@ export default function ZombieGamePage() {
       ctx.stroke();
 
       // Spawn
-      if (time - lastSpawnRef.current > Math.max(2000 - wave * 80, 500)) {
+      if (time - lastSpawnRef.current > Math.max(2500 - wave * 60, 700)) {
         lastSpawnRef.current = time;
-        if (zombiesRef.current.length < 4 + wave * 2) {
+        if (zombiesRef.current.length < 3 + wave) {
           const angle = Math.random() * Math.PI * 2;
           const dist = Math.max(W, H) * 0.55;
           zombiesRef.current.push({
@@ -93,7 +93,7 @@ export default function ZombieGamePage() {
             x: cx + Math.cos(angle) * dist,
             y: cy + Math.sin(angle) * dist,
             angle: Math.atan2(cy - (cy + Math.sin(angle) * dist), cx - (cx + Math.cos(angle) * dist)),
-            speed: 0.4 + wave * 0.05,
+            speed: 0.25 + wave * 0.03,
             color: pickRandom(['#00B894', '#FF6B6B', '#FDCB6E']),
           });
         }
@@ -133,7 +133,7 @@ export default function ZombieGamePage() {
       ctx.font = "bold 14px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${score}  Wave: ${wave}  HP: ${'❤️'.repeat(hpVal)}`, 20, 30);
+      ctx.fillText(`Score: ${score}  Wave: ${wave}  HP: ${'❤'.repeat(hpVal)}`, 20, 30);
 
       animRef.current = requestAnimationFrame(loop);
     };

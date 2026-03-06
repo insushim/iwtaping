@@ -12,11 +12,12 @@ interface TypingAreaProps {
   text: string;
   onComplete?: (result: TypingResult) => void;
   onRestart?: () => void;
+  onProgress?: (progress: number) => void;
   showKeyboard?: boolean;
   className?: string;
 }
 
-export function TypingArea({ text, onComplete, onRestart, className = '' }: TypingAreaProps) {
+export function TypingArea({ text, onComplete, onRestart, onProgress, className = '' }: TypingAreaProps) {
   const settings = useSettingsStore((s) => s.settings);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -42,6 +43,13 @@ export function TypingArea({ text, onComplete, onRestart, className = '' }: Typi
     },
     soundEnabled: settings.keySound,
   });
+
+  // Report progress
+  useEffect(() => {
+    if (text.length > 0 && onProgress) {
+      onProgress((currentIndex / text.length) * 100);
+    }
+  }, [currentIndex, text.length, onProgress]);
 
   // Focus input on mount and click
   useEffect(() => {

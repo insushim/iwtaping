@@ -27,7 +27,7 @@ export default function SpaceGamePage() {
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
-  const [shield, setShield] = useState(5);
+  const [shield, setShield] = useState(8);
   const [input, setInput] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
@@ -88,7 +88,7 @@ export default function SpaceGamePage() {
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
     const cx = W / 2, cy = H - 60;
-    let shieldVal = 5;
+    let shieldVal = 8;
     let scoreVal = 0;
 
     const loop = (time: number) => {
@@ -121,18 +121,18 @@ export default function SpaceGamePage() {
       ctx.restore();
 
       // Spawn enemies
-      if (time - lastSpawnRef.current > Math.max(2000 - level * 100, 600)) {
+      if (time - lastSpawnRef.current > Math.max(2500 - level * 80, 800)) {
         lastSpawnRef.current = time;
-        if (enemiesRef.current.length < 5 + level) {
+        if (enemiesRef.current.length < 3 + level) {
           const angle = randomBetween(0, Math.PI * 2);
-          const dist = Math.max(W, H) * 0.6;
+          const dist = Math.max(W, H) * 0.65;
           const enemy: Enemy = {
             id: nextIdRef.current++,
-            text: pickRandom(wordPool) || 'enemy',
+            text: pickRandom(wordPool) || '적',
             x: cx + Math.cos(angle) * dist,
             y: cy + Math.sin(angle) * dist - H * 0.3,
             angle: 0,
-            speed: 0.3 + level * 0.05,
+            speed: 0.2 + level * 0.03,
             color: pickRandom(['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8']),
             typed: '',
           };
@@ -199,7 +199,7 @@ export default function SpaceGamePage() {
       ctx.font = "bold 14px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${scoreVal}  Level: ${level}  Shield: ${'■'.repeat(shieldVal)}${'□'.repeat(5 - shieldVal)}`, 20, 30);
+      ctx.fillText(`Score: ${scoreVal}  Level: ${level}  Shield: ${'■'.repeat(shieldVal)}${'□'.repeat(Math.max(0, 8 - shieldVal))}`, 20, 30);
 
       animRef.current = requestAnimationFrame(loop);
     };
