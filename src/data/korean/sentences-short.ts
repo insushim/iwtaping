@@ -213,4 +213,15 @@ export const koreanSentencesShort: { text: string; category: string }[] = [
   { text: '일회용품 사용을 줄이는 것이 환경 보호의 시작이다', category: 'nature' },
   { text: '깨끗한 물은 모든 생명체에 필수적인 자원이다', category: 'nature' },
   { text: '도시 녹지 공간이 시민들의 삶의 질을 높인다', category: 'nature' },
+
+  // 추가 일상/교양 문장 (misc) - 9개
+  { text: '독서는 마음의 양식이며 생각의 밑거름이다', category: 'misc' },
+  { text: '음악은 언어의 장벽을 넘어 감동을 전한다', category: 'misc' },
+  { text: '여행은 편견을 없애는 가장 좋은 방법이다', category: 'misc' },
+  { text: '건강한 식습관이 건강한 몸을 만든다', category: 'misc' },
+  { text: '규칙적인 운동이 스트레스를 해소해 준다', category: 'misc' },
+  { text: '외국어를 배우면 새로운 세계가 열린다', category: 'misc' },
+  { text: '봉사 활동은 나눔의 기쁨을 알게 해준다', category: 'misc' },
+  { text: '시간 관리가 성공적인 삶의 열쇠이다', category: 'misc' },
+  { text: '감사하는 마음이 행복의 시작이다', category: 'misc' },
 ];
