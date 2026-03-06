@@ -65,11 +65,20 @@ export default function RaceGamePage() {
   useEffect(() => {
     if (status !== 'racing') return;
     intervalRef.current = setInterval(() => {
-      setCars(prev => prev.map(car => {
-        if (car.isPlayer) return car;
-        const newProgress = Math.min(100, car.progress + car.speed * (0.15 + Math.random() * 0.25));
-        return { ...car, progress: newProgress };
-      }));
+      setCars(prev => {
+        const updated = prev.map(car => {
+          if (car.isPlayer) return car;
+          const newProgress = Math.min(100, car.progress + car.speed * (0.15 + Math.random() * 0.25));
+          return { ...car, progress: newProgress };
+        });
+        // Check if any AI finished
+        const aiFinished = updated.some(c => !c.isPlayer && c.progress >= 100);
+        if (aiFinished) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          setTimeout(() => setStatus('finished'), 0);
+        }
+        return updated;
+      });
     }, 300);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [status]);
