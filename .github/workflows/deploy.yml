@@ -1,0 +1,321 @@
+name: Deploy & Build APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: out/
+
+  deploy-cloudflare:
+    needs: build-web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: out/
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy out --project-name=typingverse
+
+  build-apk:
+    needs: build-web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: out/
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create Android WebView project
+        run: |
+          mkdir -p android-app/app/src/main/java/com/typingverse/app
+          mkdir -p android-app/app/src/main/res/values
+          mkdir -p android-app/app/src/main/res/xml
+          mkdir -p android-app/app/src/main/assets/www
+
+          # Copy web build
+          cp -r out/* android-app/app/src/main/assets/www/
+
+          # Create settings.gradle
+          cat > android-app/settings.gradle << 'SETTINGS'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          rootProject.name = "TypingVerse"
+          include ':app'
+          SETTINGS
+
+          # Build gradle (root)
+          cat > android-app/build.gradle << 'ROOT_GRADLE'
+          plugins {
+              id 'com.android.application' version '8.2.0' apply false
+          }
+          ROOT_GRADLE
+
+          # App build.gradle
+          cat > android-app/app/build.gradle << 'APP_GRADLE'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.typingverse.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.typingverse.app"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'androidx.webkit:webkit:1.9.0'
+          }
+          APP_GRADLE
+
+          # gradle.properties
+          cat > android-app/gradle.properties << 'PROPS'
+          android.useAndroidX=true
+          PROPS
+
+          # AndroidManifest.xml
+          cat > android-app/app/src/main/AndroidManifest.xml << 'MANIFEST'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:allowBackup="true"
+                  android:label="TypingVerse"
+                  android:theme="@style/Theme.TypingVerse"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          MANIFEST
+
+          # Theme
+          cat > android-app/app/src/main/res/values/themes.xml << 'THEME'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.TypingVerse" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:statusBarColor">#0A0A1A</item>
+                  <item name="android:navigationBarColor">#0A0A1A</item>
+                  <item name="android:windowBackground">#0A0A1A</item>
+              </style>
+          </resources>
+          THEME
+
+          # network_security_config.xml
+          cat > android-app/app/src/main/res/xml/network_security_config.xml << 'NET'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <base-config cleartextTrafficPermitted="true" />
+          </network-security-config>
+          NET
+
+          # MainActivity.java
+          cat > android-app/app/src/main/java/com/typingverse/app/MainActivity.java << 'JAVA'
+          package com.typingverse.app;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowManager;
+          import android.content.SharedPreferences;
+          import org.json.JSONObject;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+              private static final String PREF_NAME = "typingverse_update";
+              private static final String CURRENT_VERSION = "1.0.0";
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
+                  getWindow().setFlags(
+                      WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                      WindowManager.LayoutParams.FLAG_FULLSCREEN
+                  );
+
+                  webView = new WebView(this);
+                  setContentView(webView);
+
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setAllowFileAccess(true);
+                  settings.setAllowContentAccess(true);
+                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient());
+
+                  webView.loadUrl("file:///android_asset/www/index.html");
+
+                  checkForUpdate();
+              }
+
+              private void checkForUpdate() {
+                  new Thread(() -> {
+                      try {
+                          java.net.URL url = new java.net.URL(
+                              "https://api.github.com/repos/insushim/iwtaping/releases/latest"
+                          );
+                          java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                          conn.setRequestMethod("GET");
+                          java.io.InputStream is = conn.getInputStream();
+                          java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is));
+                          StringBuilder sb = new StringBuilder();
+                          String line;
+                          while ((line = br.readLine()) != null) sb.append(line);
+                          br.close();
+
+                          JSONObject json = new JSONObject(sb.toString());
+                          String latestVersion = json.getString("tag_name").replace("v", "");
+
+                          if (!latestVersion.equals(CURRENT_VERSION)) {
+                              String downloadUrl = json.getJSONArray("assets")
+                                  .getJSONObject(0).getString("browser_download_url");
+                              runOnUiThread(() -> {
+                                  webView.loadUrl("javascript:alert('New version " + latestVersion + " available! Please update from GitHub Releases.')");
+                              });
+                          }
+                      } catch (Exception e) {
+                          // Silent fail - no update check
+                      }
+                  }).start();
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          JAVA
+
+          # Gradle wrapper
+          cd android-app
+          gradle wrapper --gradle-version 8.5 2>/dev/null || true
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build APK
+        working-directory: android-app
+        run: |
+          chmod +x gradlew 2>/dev/null || true
+          ./gradlew assembleRelease --no-daemon 2>/dev/null || ./gradlew assembleDebug --no-daemon
+
+      - name: Find APK
+        id: find-apk
+        run: |
+          APK=$(find android-app -name "*.apk" | head -1)
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: typingverse-apk
+          path: ${{ steps.find-apk.outputs.apk_path }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-apk, deploy-cloudflare]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: typingverse-apk
+          path: ./apk/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./apk/*.apk
+          body: |
+            ## TypingVerse ${{ github.ref_name }}
+
+            ### Changes
+            - See commit history for details
+
+            ### Download
+            - **APK**: Download the APK file below to install on Android
+            - **Web**: Visit the Cloudflare Pages deployment
+            - **iOS**: Open the web app in Safari and tap "Add to Home Screen"
+          draft: false
+          prerelease: false
