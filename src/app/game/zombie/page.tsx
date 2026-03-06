@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface Zombie { id: number; text: string; x: number; y: number; angle: number; speed: number; color: string; }
 
 export default function ZombieGamePage() {
+  const { settings } = useSettingsStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover'>('menu');
@@ -26,13 +28,21 @@ export default function ZombieGamePage() {
   useEffect(() => {
     (async () => {
       try {
-        const m = await import('@/data/english/words-common200');
-        setWordPool(m.englishCommon200.filter(w => w.length >= 3 && w.length <= 8));
+        if (settings.language === 'ko') {
+          const mod = await import('@/data/korean/words-beginner');
+          const mod2 = await import('@/data/korean/words-intermediate');
+          setWordPool([...mod.koreanWordsBeginner, ...mod2.koreanWordsIntermediate].filter(w => w.length >= 2 && w.length <= 4));
+        } else {
+          const m = await import('@/data/english/words-common200');
+          setWordPool(m.englishCommon200.filter(w => w.length >= 3 && w.length <= 8));
+        }
       } catch {
-        setWordPool(['zombie', 'brain', 'attack', 'defend', 'survive', 'escape', 'fight', 'health', 'weapon', 'shield']);
+        setWordPool(settings.language === 'ko'
+          ? ['좀비', '두뇌', '공격', '방어', '생존', '탈출', '전투', '체력', '무기', '방패']
+          : ['zombie', 'brain', 'attack', 'defend', 'survive', 'escape', 'fight', 'health', 'weapon', 'shield']);
       }
     })();
-  }, []);
+  }, [settings.language]);
 
   const startGame = () => {
     setStatus('countdown'); setScore(0); setWave(1); setHp(5); setInput('');
@@ -166,8 +176,8 @@ export default function ZombieGamePage() {
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-[var(--key-border)] text-lg" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'" }} placeholder="Type to shoot..." autoComplete="off" autoFocus />
-        <Button type="submit" size="lg">Shoot</Button>
+        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-[var(--key-border)] text-lg" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'" }} placeholder="단어를 입력하세요..." autoComplete="off" autoFocus />
+        <Button type="submit" size="lg">사격</Button>
       </form>
     </div>
   );
