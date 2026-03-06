@@ -28,7 +28,7 @@ const gameCards = [
   { href: '/game/race', icon: '🏎️', title: '타이핑 레이스', desc: 'AI와 타이핑 속도 대결' },
   { href: '/game/defense', icon: '🏰', title: '킹덤 디펜스', desc: '성을 지키며 타이핑하는 전략 게임' },
   { href: '/game/zombie', icon: '🧟', title: '좀비 서바이벌', desc: '좀비를 물리치며 생존하기' },
-  { href: '/game/puzzle', icon: '🧩', title: '워드 퍼즐', desc: '블록을 맞추는 단어 퍼즐 게임' },
+  { href: '/game/puzzle', icon: '🔗', title: '끝말잇기', desc: '마지막 글자로 시작하는 단어를 이어가세요' },
 ];
 
 export default function Home() {
