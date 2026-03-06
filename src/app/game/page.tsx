@@ -9,7 +9,7 @@ const games = [
   { href: '/game/race', icon: '🏎️', title: '타이핑 레이스', desc: 'AI 라이벌과 타이핑 속도 대결', difficulty: '보통' },
   { href: '/game/defense', icon: '🏰', title: '킹덤 디펜스', desc: '성을 지키며 타이핑하는 전략 게임', difficulty: '어려움' },
   { href: '/game/zombie', icon: '🧟', title: '좀비 서바이벌', desc: '좀비를 물리치며 생존하기', difficulty: '어려움' },
-  { href: '/game/puzzle', icon: '🧩', title: '워드 퍼즐', desc: '블록을 맞추는 단어 퍼즐 게임', difficulty: '쉬움' },
+  { href: '/game/puzzle', icon: '🔗', title: '끝말잇기', desc: '마지막 글자로 시작하는 단어를 이어가세요', difficulty: '쉬움~보통' },
 ];
 
 export default function GamePage() {

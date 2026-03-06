@@ -3,9 +3,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { useGameStore } from '@/stores/useGameStore';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface FallingWord {
   id: number;
@@ -19,6 +19,7 @@ interface FallingWord {
 const COLORS = ['#6C5CE7', '#00D2D3', '#FF6B6B', '#FECA57', '#00B894', '#FD79A8'];
 
 export default function RainGamePage() {
+  const { settings } = useSettingsStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover'>('menu');
@@ -35,19 +36,30 @@ export default function RainGamePage() {
   const animFrameRef = useRef<number>(0);
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
+  const scoreRef = useRef(0);
+  const levelRef = useRef(1);
+  const comboRef = useRef(0);
+  const phRef = useRef(10.0);
 
   // Load word pool
   useEffect(() => {
     (async () => {
       try {
-        const mod = await import('@/data/korean/words-beginner');
-        const mod2 = await import('@/data/korean/words-intermediate');
-        setWordPool([...mod.koreanWordsBeginner, ...mod2.koreanWordsIntermediate]);
+        if (settings.language === 'ko') {
+          const mod = await import('@/data/korean/words-beginner');
+          const mod2 = await import('@/data/korean/words-intermediate');
+          setWordPool([...mod.koreanWordsBeginner, ...mod2.koreanWordsIntermediate]);
+        } else {
+          const mod = await import('@/data/english/words-common200');
+          setWordPool(mod.englishCommon200.filter(w => w.length >= 3));
+        }
       } catch {
-        setWordPool(['사과', '바다', '하늘', '나무', '구름', '별빛', '노을', '달빛', '마음', '사랑', '희망', '음악', '여행', '자동차', '컴퓨터', '프로그램']);
+        setWordPool(settings.language === 'ko'
+          ? ['사과', '바다', '하늘', '나무', '구름', '별빛', '노을', '달빛', '마음', '사랑', '희망', '음악', '여행', '자동차', '컴퓨터', '프로그램']
+          : ['apple', 'ocean', 'sky', 'tree', 'cloud', 'star', 'sunset', 'moon', 'heart', 'love', 'hope', 'music', 'travel', 'car', 'computer', 'program']);
       }
     })();
-  }, []);
+  }, [settings.language]);
 
   const startGame = () => {
     setStatus('countdown');
@@ -55,12 +67,16 @@ export default function RainGamePage() {
     setLevel(1);
     setCombo(0);
     setMaxCombo(0);
-    setPh(7.0);
+    setPh(10.0);
     setInput('');
     wordsRef.current = [];
     setWords([]);
     nextIdRef.current = 0;
     lastSpawnRef.current = 0;
+    scoreRef.current = 0;
+    levelRef.current = 1;
+    comboRef.current = 0;
+    phRef.current = 10.0;
     setCountdown(3);
   };
 
@@ -88,12 +104,8 @@ export default function RainGamePage() {
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
 
-    let phVal = 10.0;
-    let scoreVal = 0;
-    let levelVal = 1;
-    let comboVal = 0;
-
     const spawnWord = (now: number) => {
+      const levelVal = levelRef.current;
       if (now - lastSpawnRef.current < Math.max(1200 - levelVal * 40, 500)) return;
       lastSpawnRef.current = now;
       if (wordsRef.current.length >= 2 + levelVal) return;
@@ -137,10 +149,10 @@ export default function RainGamePage() {
 
         // Check if hit ground
         if (word.y > H - 40) {
-          phVal -= 0.3;
-          setPh(phVal);
+          phRef.current -= 0.3;
+          setPh(phRef.current);
           soundManager?.play('keyError');
-          if (phVal <= 0) {
+          if (phRef.current <= 0) {
             setStatus('gameover');
             cancelAnimationFrame(animFrameRef.current);
             soundManager?.play('gameOver');
@@ -151,6 +163,7 @@ export default function RainGamePage() {
 
         // Draw word bubble
         ctx.save();
+        ctx.font = "bold 16px 'JetBrains Mono', 'Noto Sans KR', monospace";
         const metrics = ctx.measureText(word.text);
         const padding = 12;
         const bubbleW = metrics.width + padding * 2;
@@ -163,7 +176,6 @@ export default function RainGamePage() {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        ctx.font = "bold 16px 'JetBrains Mono', 'Noto Sans KR', monospace";
         ctx.fillStyle = word.color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -176,6 +188,7 @@ export default function RainGamePage() {
       setWords([...alive]);
 
       // pH bar
+      const phVal = phRef.current;
       ctx.fillStyle = 'rgba(30,30,74,0.8)';
       ctx.fillRect(20, H - 30, W - 40, 16);
       const phRatio = Math.max(0, phVal / 10);
@@ -191,11 +204,11 @@ export default function RainGamePage() {
       ctx.font = "bold 14px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${scoreVal}`, 20, 30);
-      ctx.fillText(`Level: ${levelVal}`, 20, 50);
-      if (comboVal > 1) {
+      ctx.fillText(`Score: ${scoreRef.current}`, 20, 30);
+      ctx.fillText(`Level: ${levelRef.current}`, 20, 50);
+      if (comboRef.current > 1) {
         ctx.fillStyle = '#FD79A8';
-        ctx.fillText(`${comboVal}x Combo!`, 20, 70);
+        ctx.fillText(`${comboRef.current}x Combo!`, 20, 70);
       }
 
       animFrameRef.current = requestAnimationFrame(loop);
@@ -213,15 +226,18 @@ export default function RainGamePage() {
     if (idx >= 0) {
       wordsRef.current.splice(idx, 1);
       const points = input.length * 10;
-      setScore((s) => s + points);
-      setCombo((c) => {
-        const next = c + 1;
-        setMaxCombo((m) => Math.max(m, next));
-        if (next % 15 === 0) setLevel((l) => l + 1);
-        return next;
-      });
+      scoreRef.current += points;
+      setScore(scoreRef.current);
+      comboRef.current += 1;
+      setCombo(comboRef.current);
+      setMaxCombo((m) => Math.max(m, comboRef.current));
+      if (comboRef.current % 15 === 0) {
+        levelRef.current += 1;
+        setLevel(levelRef.current);
+      }
       soundManager?.play('explosion');
     } else {
+      comboRef.current = 0;
       setCombo(0);
     }
     setInput('');
