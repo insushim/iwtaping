@@ -154,7 +154,7 @@ export default function SpaceGamePage() {
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
-    const cx = W / 2, cy = H - 70;
+    const cx = W / 2, cy = H * 0.55;
     const particles = particlesRef.current;
     const shake = shakeRef.current;
 
@@ -197,7 +197,7 @@ export default function SpaceGamePage() {
             return (candidates[Math.floor(Math.random() * candidates.length)] || (isKorean ? '최종보스' : 'destroyer'));
           })(),
           x: cx + Math.cos(angle) * dist,
-          y: cy + Math.sin(angle) * dist - H * 0.3,
+          y: cy + Math.sin(angle) * dist - H * 0.15,
           angle: 0,
           speed: isBoss ? 0.15 + currentLevel * 0.01 : 0.25 + currentLevel * 0.04,
           color: isBoss ? '#FF0000' : ['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8', '#48DBFB', '#A29BFE'][Math.floor(Math.random() * 6)],
