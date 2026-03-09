@@ -6,6 +6,8 @@ import { TextDisplay } from './TextDisplay';
 import { LiveStats } from './LiveStats';
 import { ResultPanel } from './ResultPanel';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useTypingStore } from '@/stores/useTypingStore';
+import { useStatsStore } from '@/stores/useStatsStore';
 import { calculateKPM, calculateAccuracy } from '@/lib/typing/wpm-calculator';
 import { soundManager } from '@/lib/sound/sound-manager';
 
@@ -32,6 +34,8 @@ interface JamoTypingAreaProps {
 
 export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: JamoTypingAreaProps) {
   const settings = useSettingsStore((s) => s.settings);
+  const addSession = useTypingStore((s) => s.addSession);
+  const recordSession = useStatsStore((s) => s.recordSession);
   const [charStates, setCharStates] = useState<CharState[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [status, setStatus] = useState<'ready' | 'typing' | 'finished'>('ready');
@@ -177,6 +181,8 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
           problemKeys: [],
         };
         setResult(res);
+        addSession({ mode: 'word', language: 'ko', text, result: res, timestamp: Date.now() });
+        recordSession(res);
         onComplete?.(res);
       }
     };
