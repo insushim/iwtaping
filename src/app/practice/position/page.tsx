@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TypingArea } from '@/components/typing/TypingArea';
+import { JamoTypingArea } from '@/components/typing/JamoTypingArea';
 import { VirtualKeyboard } from '@/components/keyboard/VirtualKeyboard';
 import { useKeyHighlight } from '@/components/keyboard/KeyHighlight';
 import { loadKeyboardLayout } from '@/components/keyboard/KeyboardLayout';
@@ -10,6 +11,17 @@ import { Card } from '@/components/ui/Card';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { KeyboardLayoutData } from '@/types/keyboard';
 import { TypingResult } from '@/types/typing';
+
+// Check if text contains only individual jamo (not composed syllables)
+function isJamoOnly(text: string): boolean {
+  for (const char of text) {
+    if (char === ' ') continue;
+    const code = char.charCodeAt(0);
+    // Korean jamo range: 0x3131 (ㄱ) to 0x3163 (ㅣ)
+    if (code < 0x3131 || code > 0x3163) return false;
+  }
+  return true;
+}
 
 export default function PositionPracticePage() {
   const [level, setLevel] = useState(1);
@@ -49,6 +61,14 @@ export default function PositionPracticePage() {
 
   const maxLevel = drills.length || 15;
 
+  const handleRestart = () => {
+    const drill = drills.find((d) => d.level === level);
+    if (drill) setText(drill.drillText.join(' '));
+  };
+
+  // Determine if current text needs jamo mode (Korean jamo-only levels)
+  const useJamoMode = lang === 'ko' && text.length > 0 && isJamoOnly(text);
+
   return (
     <div className="max-w-[900px] mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Outfit', sans-serif" }}>자리 연습</h1>
@@ -83,13 +103,21 @@ export default function PositionPracticePage() {
       {drills[level - 1] && (
         <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
           {drills[level - 1]?.title}
+          {useJamoMode && (
+            <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.2)', color: 'var(--color-primary-light)' }}>
+              자모 직접 입력
+            </span>
+          )}
         </p>
       )}
 
-      {text && <TypingArea text={text} onRestart={() => {
-        const drill = drills.find((d) => d.level === level);
-        if (drill) setText(drill.drillText.join(' '));
-      }} />}
+      {text && (
+        useJamoMode ? (
+          <JamoTypingArea text={text} onRestart={handleRestart} />
+        ) : (
+          <TypingArea text={text} onRestart={handleRestart} />
+        )
+      )}
 
       {layout && (
         <div className="mt-6">
