@@ -319,22 +319,29 @@ export class WordGenerator {
       }
     }
 
-    // 3. Generate procedural words to fill up
-    while (pool.length < count * 3) {
-      this.proceduralSeed++;
-      const word = language === 'ko'
-        ? generateKoreanWord(this.proceduralSeed)
-        : generateEnglishWord(this.proceduralSeed);
-      pool.push(word);
+    // 3. Fill pool from all categories if still not enough (Korean: curated only, no procedural nonsense)
+    if (pool.length < count) {
+      const banks = language === 'ko' ? KOREAN_BANKS : ENGLISH_BANKS;
+      for (const cat of Object.keys(banks)) {
+        pool.push(...banks[cat]);
+      }
+      pool = [...new Set(pool)];
+    }
+    // 4. For English only, generate procedural words if still short
+    if (language === 'en') {
+      while (pool.length < count * 2) {
+        this.proceduralSeed++;
+        pool.push(generateEnglishWord(this.proceduralSeed));
+      }
     }
 
-    // 4. Filter by length
+    // 5. Filter by length
     pool = pool.filter(w => w.length >= minLength && w.length <= maxLength);
 
-    // 5. Remove duplicates
+    // 6. Remove duplicates
     pool = [...new Set(pool)];
 
-    // 6. Shuffle
+    // 7. Shuffle
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
