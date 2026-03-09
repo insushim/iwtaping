@@ -13,13 +13,14 @@ interface LiveStatsProps {
 
 export function LiveStats({ speed, accuracy, combo, progress, status, speedUnit }: LiveStatsProps) {
   const unitLabel = speedUnit === 'kpm' ? '타/분' : speedUnit === 'wpm' ? 'WPM' : 'CPM';
+  const displaySpeed = speedUnit === 'wpm' ? speed / 5 : speedUnit === 'cpm' ? speed * 0.8 : speed;
 
   return (
     <div className="flex items-center gap-6 flex-wrap">
       <div className="flex items-center gap-2">
         <span className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>속도</span>
         <span className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--color-primary)' }}>
-          {Math.round(speed)}
+          {Math.round(displaySpeed)}
         </span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{unitLabel}</span>
       </div>

@@ -17,7 +17,7 @@ export function TextDisplay({ charStates, currentIndex, caretStyle = 'line', fon
 
   useEffect(() => {
     if (caretRef.current) {
-      caretRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      caretRef.current.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior });
     }
   }, [currentIndex]);
 

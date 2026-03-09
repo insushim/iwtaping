@@ -155,35 +155,20 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     // e.key === 'Process' means the key is being handled by IME
     if (e.key === 'Process' || e.isComposing) return;
 
+    // Skip control keys (Backspace, Enter, etc.) - only record printable characters
+    if (e.key.length !== 1 && e.key !== ' ') return;
+
     const now = Date.now();
     const isCorrect = currentIndex < text.length && e.key === text[currentIndex];
 
-    totalCountRef.current++;
-    if (isCorrect) {
-      setCombo((prev) => {
-        const next = prev + 1;
-        setMaxCombo((m) => Math.max(m, next));
-        return next;
-      });
-      if (soundEnabled && soundManager) {
-        if (e.key === ' ') soundManager.play('keySpace');
-        else if (e.key === 'Enter') soundManager.play('keyEnter');
-        else soundManager.play('keyClick', Math.random() * 3);
-      }
-    } else if (e.key.length === 1) {
-      setCombo(0);
-      if (soundEnabled && soundManager) soundManager.play('keyError');
-    }
-
+    // Only record keystroke - combo/sound/totalCount are handled in handleInput
     keystrokesRef.current.push({
       timestamp: now,
       isCorrect,
       key: e.key,
       code: e.code,
     });
-
-    setLiveAccuracy(calculateAccuracy(correctCountRef.current, totalCountRef.current));
-  }, [status, currentIndex, text, soundEnabled]);
+  }, [status, currentIndex, text]);
 
   const getResult = useCallback((): TypingResult => {
     const now = Date.now();

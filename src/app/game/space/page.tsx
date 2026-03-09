@@ -148,8 +148,12 @@ export default function SpaceGamePage() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const W = canvas.width = canvas.offsetWidth;
-    const H = canvas.height = canvas.offsetHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.offsetWidth;
+    const H = canvas.offsetHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
     const cx = W / 2, cy = H - 70;
     const particles = particlesRef.current;
     const shake = shakeRef.current;
@@ -187,7 +191,11 @@ export default function SpaceGamePage() {
 
         const enemy: Enemy = {
           id: nextIdRef.current++,
-          text: isBoss ? (isKorean ? wordPool.filter(w => w.length >= 4)[Math.floor(Math.random() * 20)] || '최종보스' : wordPool.filter(w => w.length >= 6)[Math.floor(Math.random() * 20)] || 'destroyer') : word,
+          text: (() => {
+            if (!isBoss) return word;
+            const candidates = wordPool.filter(w => w.length >= (isKorean ? 4 : 6));
+            return (candidates[Math.floor(Math.random() * candidates.length)] || (isKorean ? '최종보스' : 'destroyer'));
+          })(),
           x: cx + Math.cos(angle) * dist,
           y: cy + Math.sin(angle) * dist - H * 0.3,
           angle: 0,
