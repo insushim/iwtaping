@@ -22,6 +22,7 @@ interface Enemy {
   color: string;
   type: number;
   spawnTime: number;
+  dying?: boolean;
 }
 
 interface Arrow {
@@ -191,32 +192,35 @@ export default function DefenseGamePage() {
       // Update & draw enemies
       const alive: Enemy[] = [];
       for (const e of enemiesRef.current) {
-        e.x -= e.speed;
+        if (!e.dying) {
+          e.x -= e.speed;
 
-        // Hit castle
-        if (e.x < 90) {
-          castleHpRef.current--;
-          setCastleHp(castleHpRef.current);
-          shake.shake(5);
-          particles.emit(90, e.y, 8, {
-            speed: 2, life: 20, size: 3,
-            colors: ['#FF6B6B', '#FF9F43'],
-          });
-          if (castleHpRef.current <= 0) {
-            particles.explode(55, H * 0.75, 2);
-            setStatus('gameover');
-            cancelAnimationFrame(animRef.current);
-            soundManager?.play('gameOver');
-            ctx.restore();
-            return;
+          // Hit castle
+          if (e.x < 90) {
+            castleHpRef.current--;
+            setCastleHp(castleHpRef.current);
+            shake.shake(5);
+            particles.emit(90, e.y, 8, {
+              speed: 2, life: 20, size: 3,
+              colors: ['#FF6B6B', '#FF9F43'],
+            });
+            if (castleHpRef.current <= 0) {
+              particles.explode(55, H * 0.75, 2);
+              setStatus('gameover');
+              cancelAnimationFrame(animRef.current);
+              soundManager?.play('gameOver');
+              ctx.restore();
+              return;
+            }
+            soundManager?.play('keyError');
+            continue;
           }
-          soundManager?.play('keyError');
-          continue;
         }
 
-        // Draw enemy soldier
+        // Draw enemy soldier (dying enemies flash)
         ctx.save();
         ctx.translate(e.x, e.y);
+        if (e.dying) ctx.globalAlpha = 0.4 + Math.sin(time * 0.02) * 0.3;
 
         // Body
         ctx.fillStyle = e.color;
@@ -245,18 +249,35 @@ export default function DefenseGamePage() {
 
         ctx.restore();
 
-        // Word bubble
-        drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: 13 });
+        // Word bubble (hide for dying enemies)
+        if (!e.dying) {
+          drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: 13 });
+        }
         alive.push(e);
       }
       enemiesRef.current = alive;
 
-      // Update & draw arrows
+      // Update & draw arrows (arrows hit dying enemies)
       const aliveArrows: Arrow[] = [];
       for (const a of arrowsRef.current) {
         a.x += Math.cos(a.angle) * a.speed;
         a.y += Math.sin(a.angle) * a.speed;
         if (a.x > W + 20 || a.x < -20 || a.y < -20 || a.y > H + 20) continue;
+
+        // Check if arrow hit its target
+        const target = enemiesRef.current.find(e => e.id === a.targetId && e.dying);
+        if (target) {
+          const dx = a.x - target.x;
+          const dy = a.y - target.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 25) {
+            // Arrow hit! Explode and remove enemy
+            particles.explode(target.x, target.y, 0.7);
+            shake.shake(3);
+            soundManager?.play('explosion');
+            enemiesRef.current = enemiesRef.current.filter(e => e.id !== target.id);
+            continue; // Arrow consumed
+          }
+        }
 
         ctx.save();
         ctx.translate(a.x, a.y);
@@ -325,16 +346,20 @@ export default function DefenseGamePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    const idx = enemiesRef.current.findIndex(e => e.text === input.trim());
+    const idx = enemiesRef.current.findIndex(e => !e.dying && e.text === input.trim());
     if (idx >= 0) {
       const enemy = enemiesRef.current[idx];
-      // Fire arrow
-      const angle = Math.atan2(enemy.y - (canvasRef.current!.offsetHeight * 0.75 - 55), enemy.x - 55);
-      arrowsRef.current.push({ x: 55, y: canvasRef.current!.offsetHeight * 0.75 - 55, targetId: enemy.id, speed: 10, angle });
-
-      particlesRef.current.explode(enemy.x, enemy.y, 0.7);
-      shakeRef.current.shake(3);
-      enemiesRef.current.splice(idx, 1);
+      // Mark as dying (don't remove yet - arrow must hit first)
+      enemy.dying = true;
+      enemy.speed = 0;
+      // Fire arrow toward enemy
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const castleTop = canvas.offsetHeight * 0.75 - 55;
+        const angle = Math.atan2(enemy.y - castleTop, enemy.x - 55);
+        arrowsRef.current.push({ x: 55, y: castleTop, targetId: enemy.id, speed: 12, angle });
+      }
+      // Score updates immediately (player gets feedback)
       scoreRef.current += input.length * 10;
       setScore(scoreRef.current);
       goldRef.current += 5 + Math.floor(input.length / 2);
@@ -345,13 +370,11 @@ export default function DefenseGamePage() {
         waveRef.current += 1;
         setWave(waveRef.current);
         soundManager?.play('levelUp');
-        // Repair castle
         if (castleHpRef.current < 20) {
           castleHpRef.current = Math.min(20, castleHpRef.current + 2);
           setCastleHp(castleHpRef.current);
         }
       }
-      soundManager?.play('explosion');
     } else {
       soundManager?.play('keyError');
     }

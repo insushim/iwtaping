@@ -28,6 +28,7 @@ interface Enemy {
   maxHp: number;
   isBoss: boolean;
   spawnTime: number;
+  dying?: boolean;
 }
 
 interface Projectile {
@@ -206,33 +207,34 @@ export default function SpaceGamePage() {
       // === UPDATE & DRAW ENEMIES ===
       const alive: Enemy[] = [];
       for (const e of enemiesRef.current) {
-        e.x += Math.cos(e.angle) * e.speed;
-        e.y += Math.sin(e.angle) * e.speed;
+        if (!e.dying) {
+          e.x += Math.cos(e.angle) * e.speed;
+          e.y += Math.sin(e.angle) * e.speed;
 
-        const dist = Math.hypot(e.x - cx, e.y - cy);
+          const dist = Math.hypot(e.x - cx, e.y - cy);
 
-        // Hit player
-        if (dist < 35) {
-          shieldRef.current--;
-          setShield(shieldRef.current);
-          shake.shake(8);
-          particles.explode(e.x, e.y, 0.5);
-          soundManager?.play('keyError');
-          if (shieldRef.current <= 0) {
-            particles.explode(cx, cy, 2);
-            setStatus('gameover');
-            cancelAnimationFrame(animRef.current);
-            soundManager?.play('gameOver');
-            ctx.restore();
-            return;
+          // Hit player
+          if (dist < 35) {
+            shieldRef.current--;
+            setShield(shieldRef.current);
+            shake.shake(8);
+            particles.explode(e.x, e.y, 0.5);
+            soundManager?.play('keyError');
+            if (shieldRef.current <= 0) {
+              particles.explode(cx, cy, 2);
+              setStatus('gameover');
+              cancelAnimationFrame(animRef.current);
+              soundManager?.play('gameOver');
+              ctx.restore();
+              return;
+            }
+            continue;
           }
-          continue;
         }
 
         // Draw enemy ship
         const age = (time - e.spawnTime) / 1000;
-        const pulseAlpha = 0.8 + Math.sin(time * 0.005 + e.id) * 0.2;
-        ctx.globalAlpha = Math.min(1, age * 2); // fade in
+        ctx.globalAlpha = e.dying ? (0.3 + Math.sin(time * 0.02) * 0.2) : Math.min(1, age * 2);
 
         const scale = e.isBoss ? 1.8 : 1;
         ctx.save();
@@ -242,22 +244,24 @@ export default function SpaceGamePage() {
         drawEnemyShip(ctx, e.x, e.y, e.shipType, time, e.color);
         ctx.restore();
 
-        // Draw word bubble
-        const isTargeted = targetRef.current === e.id;
-        drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
-          targeted: isTargeted,
-          fontSize: e.isBoss ? 16 : 14,
-        });
+        // Draw word bubble (hide for dying enemies)
+        if (!e.dying) {
+          const isTargeted = targetRef.current === e.id;
+          drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
+            targeted: isTargeted,
+            fontSize: e.isBoss ? 16 : 14,
+          });
 
-        // Boss health bar
-        if (e.isBoss) {
-          drawShieldBar(ctx, e.x - 30, e.y + 40, e.hp, e.maxHp, 60);
-        }
+          // Boss health bar
+          if (e.isBoss) {
+            drawShieldBar(ctx, e.x - 30, e.y + 40, e.hp, e.maxHp, 60);
+          }
 
-        // Draw laser to targeted enemy
-        if (isTargeted && e.typed.length > 0) {
-          drawLaser(ctx, cx, cy - 20, e.x, e.y, time, '#00D2D3');
-          particles.laserHit(e.x, e.y);
+          // Draw laser to targeted enemy
+          if (isTargeted && e.typed.length > 0) {
+            drawLaser(ctx, cx, cy - 20, e.x, e.y, time, '#00D2D3');
+            particles.laserHit(e.x, e.y);
+          }
         }
 
         ctx.globalAlpha = 1;
@@ -271,13 +275,17 @@ export default function SpaceGamePage() {
         p.x += Math.cos(p.angle) * p.speed;
         p.y += Math.sin(p.angle) * p.speed;
 
-        // Check if hit target
-        const target = enemiesRef.current.find(e => e.id === p.targetId);
+        // Check if hit target (dying enemies)
+        const target = enemiesRef.current.find(e => e.id === p.targetId && e.dying);
         if (target) {
           const d = Math.hypot(p.x - target.x, p.y - target.y);
-          if (d < 20) {
-            particles.explode(target.x, target.y, target.isBoss ? 1.5 : 0.8);
-            continue;
+          if (d < 25) {
+            // Missile hit! Destroy enemy
+            particles.explode(target.x, target.y, target.isBoss ? 2 : 1);
+            shake.shake(target.isBoss ? 10 : 4);
+            soundManager?.play('explosion');
+            enemiesRef.current = enemiesRef.current.filter(e => e.id !== target.id);
+            continue; // Missile consumed
           }
         }
 
@@ -328,7 +336,7 @@ export default function SpaceGamePage() {
     if (!input.trim()) return;
 
     const trimmed = input.trim();
-    const idx = enemiesRef.current.findIndex(e => e.text === trimmed);
+    const idx = enemiesRef.current.findIndex(e => !e.dying && e.text === trimmed);
 
     if (idx >= 0) {
       const enemy = enemiesRef.current[idx];
@@ -348,10 +356,9 @@ export default function SpaceGamePage() {
         });
       }
 
-      // Destroy enemy
-      particlesRef.current.explode(enemy.x, enemy.y, enemy.isBoss ? 2 : 1);
-      shakeRef.current.shake(enemy.isBoss ? 10 : 4);
-      enemiesRef.current.splice(idx, 1);
+      // Mark enemy as dying (missile must hit first)
+      enemy.dying = true;
+      enemy.speed = 0;
 
       const basePoints = trimmed.length * 15;
       const comboBonus = Math.floor(comboRef.current / 5) * 0.5;
@@ -377,7 +384,7 @@ export default function SpaceGamePage() {
           setShield(shieldRef.current);
         }
       }
-      soundManager?.play('explosion');
+      // explosion sound plays on missile impact in animation loop
     } else {
       comboRef.current = 0;
       setCombo(0);
