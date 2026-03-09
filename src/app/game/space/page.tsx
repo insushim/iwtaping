@@ -1,11 +1,18 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
-import { pickRandom, randomBetween } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { wordGenerator } from '@/lib/content/word-generator';
+import {
+  ParticleSystem, ScreenShake,
+  createStarfield, drawStarfield, drawNebula, drawSpaceBackground,
+  drawPlayerShip, drawEnemyShip, drawLaser, drawMissile,
+  drawShieldBar, drawHUD, drawWordBubble,
+  type Star,
+} from '@/lib/game/renderer';
 
 interface Enemy {
   id: number;
@@ -16,6 +23,20 @@ interface Enemy {
   speed: number;
   color: string;
   typed: string;
+  shipType: number;
+  hp: number;
+  maxHp: number;
+  isBoss: boolean;
+  spawnTime: number;
+}
+
+interface Projectile {
+  x: number;
+  y: number;
+  targetId: number;
+  speed: number;
+  angle: number;
+  type: 'laser' | 'missile';
 }
 
 export default function SpaceGamePage() {
@@ -27,11 +48,14 @@ export default function SpaceGamePage() {
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
-  const [shield, setShield] = useState(8);
+  const [shield, setShield] = useState(10);
   const [input, setInput] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
+  const [destroyCount, setDestroyCount] = useState(0);
+
   const enemiesRef = useRef<Enemy[]>([]);
+  const projectilesRef = useRef<Projectile[]>([]);
   const animRef = useRef<number>(0);
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
@@ -39,45 +63,72 @@ export default function SpaceGamePage() {
   const scoreRef = useRef(0);
   const levelRef = useRef(1);
   const comboRef = useRef(0);
-  const shieldRef = useRef(8);
+  const shieldRef = useRef(10);
   const killCountRef = useRef(0);
+  const starsRef = useRef<Star[]>([]);
+  const particlesRef = useRef(new ParticleSystem());
+  const shakeRef = useRef(new ScreenShake());
+  const isKorean = settings.language === 'ko';
 
+  // Load word pool with procedural generation
   useEffect(() => {
+    wordGenerator.reset();
+    const words = wordGenerator.getWords({
+      language: settings.language,
+      theme: 'space',
+      difficulty: 1,
+      count: 500,
+      minLength: settings.language === 'ko' ? 2 : 3,
+      maxLength: settings.language === 'ko' ? 6 : 12,
+    });
+
+    // Also load base data
     (async () => {
       try {
         if (settings.language === 'ko') {
           const mod = await import('@/data/korean/words-beginner');
           const mod2 = await import('@/data/korean/words-intermediate');
-          setWordPool([...mod.koreanWordsBeginner, ...mod2.koreanWordsIntermediate].filter(w => w.length >= 2));
+          const base = [...mod.koreanWordsBeginner, ...mod2.koreanWordsIntermediate].filter(w => w.length >= 2);
+          setWordPool([...new Set([...base, ...words])]);
         } else {
           const mod = await import('@/data/english/words-common200');
-          setWordPool(mod.englishCommon200.filter(w => w.length >= 3));
+          const mod2 = await import('@/data/english/words-common1000');
+          const base = [...mod.englishCommon200, ...mod2.englishCommon1000].filter(w => w.length >= 3);
+          setWordPool([...new Set([...base, ...words])]);
         }
       } catch {
-        setWordPool(settings.language === 'ko'
-          ? ['공격', '방어', '실드', '레이저', '파워', '스피드', '콤보', '블래스트', '포스', '별']
-          : ['attack', 'defend', 'shield', 'laser', 'power', 'speed', 'combo', 'blast', 'force', 'star']);
+        setWordPool(words);
       }
     })();
   }, [settings.language]);
 
+  // Refresh word pool on level up
+  useEffect(() => {
+    if (level > 1) {
+      const newWords = wordGenerator.getWords({
+        language: settings.language,
+        theme: 'space',
+        difficulty: Math.min(10, level),
+        count: 200,
+        minLength: settings.language === 'ko' ? 2 : 3,
+        maxLength: settings.language === 'ko' ? Math.min(8, 3 + level) : Math.min(14, 4 + level),
+      });
+      setWordPool(prev => [...new Set([...prev, ...newWords])]);
+    }
+  }, [level, settings.language]);
+
   const startGame = () => {
     setStatus('countdown');
-    setScore(0);
-    setLevel(1);
-    setCombo(0);
-    setMaxCombo(0);
-    setShield(8);
-    setInput('');
-    enemiesRef.current = [];
-    nextIdRef.current = 0;
-    lastSpawnRef.current = 0;
+    setScore(0); setLevel(1); setCombo(0); setMaxCombo(0);
+    setShield(10); setInput(''); setDestroyCount(0);
+    enemiesRef.current = []; projectilesRef.current = [];
+    nextIdRef.current = 0; lastSpawnRef.current = 0;
     targetRef.current = null;
-    scoreRef.current = 0;
-    levelRef.current = 1;
-    comboRef.current = 0;
-    shieldRef.current = 8;
-    killCountRef.current = 0;
+    scoreRef.current = 0; levelRef.current = 1; comboRef.current = 0;
+    shieldRef.current = 10; killCountRef.current = 0;
+    particlesRef.current = new ParticleSystem();
+    shakeRef.current = new ScreenShake();
+    wordGenerator.reset();
     setCountdown(3);
   };
 
@@ -89,6 +140,7 @@ export default function SpaceGamePage() {
     return () => clearTimeout(t);
   }, [status, countdown]);
 
+  // Main game loop
   useEffect(() => {
     if (status !== 'playing') return;
     const canvas = canvasRef.current;
@@ -97,160 +149,297 @@ export default function SpaceGamePage() {
     if (!ctx) return;
     const W = canvas.width = canvas.offsetWidth;
     const H = canvas.height = canvas.offsetHeight;
-    const cx = W / 2, cy = H - 60;
+    const cx = W / 2, cy = H - 70;
+    const particles = particlesRef.current;
+    const shake = shakeRef.current;
+
+    // Initialize starfield
+    if (starsRef.current.length === 0) {
+      starsRef.current = createStarfield(120, W, H);
+    }
 
     const loop = (time: number) => {
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = '#0A0A1A';
-      ctx.fillRect(0, 0, W, H);
-
       const currentLevel = levelRef.current;
       const currentShield = shieldRef.current;
+      const shakeOffset = shake.update();
 
-      // Stars
-      for (let i = 0; i < 50; i++) {
-        const sx = (i * 73 + time * 0.01) % W;
-        const sy = (i * 137 + time * 0.005) % H;
-        ctx.fillStyle = `rgba(232,232,255,${0.3 + Math.sin(time * 0.002 + i) * 0.2})`;
-        ctx.fillRect(sx, sy, 1.5, 1.5);
-      }
-
-      // Player ship
       ctx.save();
-      ctx.translate(cx, cy);
-      ctx.fillStyle = '#6C5CE7';
-      ctx.beginPath();
-      ctx.moveTo(0, -20);
-      ctx.lineTo(-15, 15);
-      ctx.lineTo(0, 8);
-      ctx.lineTo(15, 15);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#A29BFE';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.restore();
+      ctx.translate(shakeOffset.x, shakeOffset.y);
 
-      // Spawn enemies
-      if (time - lastSpawnRef.current > Math.max(2500 - currentLevel * 80, 800)) {
+      // === BACKGROUND ===
+      drawSpaceBackground(ctx, W, H, time);
+      drawStarfield(ctx, starsRef.current, time, 0.015);
+      drawNebula(ctx, W, H, time);
+
+      // === PLAYER SHIP ===
+      drawPlayerShip(ctx, cx, cy, time, currentShield > 0);
+
+      // === SPAWN ENEMIES ===
+      const spawnInterval = Math.max(2200 - currentLevel * 100, 600);
+      const maxEnemies = Math.min(3 + currentLevel, 15);
+      if (time - lastSpawnRef.current > spawnInterval && enemiesRef.current.length < maxEnemies) {
         lastSpawnRef.current = time;
-        if (enemiesRef.current.length < 3 + currentLevel) {
-          const angle = randomBetween(0, Math.PI * 2);
-          const dist = Math.max(W, H) * 0.65;
-          const enemy: Enemy = {
-            id: nextIdRef.current++,
-            text: pickRandom(wordPool) || '적',
-            x: cx + Math.cos(angle) * dist,
-            y: cy + Math.sin(angle) * dist - H * 0.3,
-            angle: 0,
-            speed: 0.2 + currentLevel * 0.03,
-            color: pickRandom(['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8']),
-            typed: '',
-          };
-          enemy.angle = Math.atan2(cy - enemy.y, cx - enemy.x);
-          enemiesRef.current.push(enemy);
-        }
+        const isBoss = currentLevel > 3 && killCountRef.current > 0 && killCountRef.current % 20 === 0 && !enemiesRef.current.some(e => e.isBoss);
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.max(W, H) * 0.65;
+        const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '적기' : 'enemy');
+
+        const enemy: Enemy = {
+          id: nextIdRef.current++,
+          text: isBoss ? (isKorean ? wordPool.filter(w => w.length >= 4)[Math.floor(Math.random() * 20)] || '최종보스' : wordPool.filter(w => w.length >= 6)[Math.floor(Math.random() * 20)] || 'destroyer') : word,
+          x: cx + Math.cos(angle) * dist,
+          y: cy + Math.sin(angle) * dist - H * 0.3,
+          angle: 0,
+          speed: isBoss ? 0.15 + currentLevel * 0.01 : 0.25 + currentLevel * 0.04,
+          color: isBoss ? '#FF0000' : ['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8', '#48DBFB', '#A29BFE'][Math.floor(Math.random() * 6)],
+          typed: '',
+          shipType: isBoss ? 2 : Math.floor(Math.random() * 4),
+          hp: isBoss ? 1 : 1,
+          maxHp: isBoss ? 1 : 1,
+          isBoss,
+          spawnTime: time,
+        };
+        enemy.angle = Math.atan2(cy - enemy.y, cx - enemy.x);
+        enemiesRef.current.push(enemy);
       }
 
-      // Update & draw enemies
+      // === UPDATE & DRAW ENEMIES ===
       const alive: Enemy[] = [];
       for (const e of enemiesRef.current) {
         e.x += Math.cos(e.angle) * e.speed;
         e.y += Math.sin(e.angle) * e.speed;
 
         const dist = Math.hypot(e.x - cx, e.y - cy);
-        if (dist < 30) {
+
+        // Hit player
+        if (dist < 35) {
           shieldRef.current--;
           setShield(shieldRef.current);
+          shake.shake(8);
+          particles.explode(e.x, e.y, 0.5);
           soundManager?.play('keyError');
           if (shieldRef.current <= 0) {
+            particles.explode(cx, cy, 2);
             setStatus('gameover');
             cancelAnimationFrame(animRef.current);
             soundManager?.play('gameOver');
+            ctx.restore();
             return;
           }
           continue;
         }
 
-        // Draw enemy
-        ctx.save();
-        ctx.font = "bold 14px 'JetBrains Mono', monospace";
-        const metrics = ctx.measureText(e.text);
-        const bw = metrics.width + 16;
-        ctx.fillStyle = 'rgba(30,30,74,0.9)';
-        ctx.beginPath();
-        ctx.roundRect(e.x - bw / 2, e.y - 14, bw, 28, 6);
-        ctx.fill();
-        ctx.strokeStyle = e.color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.fillStyle = e.color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(e.text, e.x, e.y);
+        // Draw enemy ship
+        const age = (time - e.spawnTime) / 1000;
+        const pulseAlpha = 0.8 + Math.sin(time * 0.005 + e.id) * 0.2;
+        ctx.globalAlpha = Math.min(1, age * 2); // fade in
 
-        // Draw laser if targeted
-        if (targetRef.current === e.id && e.typed.length > 0) {
-          ctx.strokeStyle = '#00D2D3';
-          ctx.lineWidth = 2;
-          ctx.globalAlpha = 0.5;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy - 20);
-          ctx.lineTo(e.x, e.y);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
+        const scale = e.isBoss ? 1.8 : 1;
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.scale(scale, scale);
+        ctx.translate(-e.x, -e.y);
+        drawEnemyShip(ctx, e.x, e.y, e.shipType, time, e.color);
         ctx.restore();
 
+        // Draw word bubble
+        const isTargeted = targetRef.current === e.id;
+        drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
+          targeted: isTargeted,
+          fontSize: e.isBoss ? 16 : 14,
+        });
+
+        // Boss health bar
+        if (e.isBoss) {
+          drawShieldBar(ctx, e.x - 30, e.y + 40, e.hp, e.maxHp, 60);
+        }
+
+        // Draw laser to targeted enemy
+        if (isTargeted && e.typed.length > 0) {
+          drawLaser(ctx, cx, cy - 20, e.x, e.y, time, '#00D2D3');
+          particles.laserHit(e.x, e.y);
+        }
+
+        ctx.globalAlpha = 1;
         alive.push(e);
       }
       enemiesRef.current = alive;
 
-      // HUD
-      ctx.font = "bold 14px 'JetBrains Mono', monospace";
-      ctx.fillStyle = '#E8E8FF';
+      // === UPDATE PROJECTILES ===
+      const aliveProjectiles: Projectile[] = [];
+      for (const p of projectilesRef.current) {
+        p.x += Math.cos(p.angle) * p.speed;
+        p.y += Math.sin(p.angle) * p.speed;
+
+        // Check if hit target
+        const target = enemiesRef.current.find(e => e.id === p.targetId);
+        if (target) {
+          const d = Math.hypot(p.x - target.x, p.y - target.y);
+          if (d < 20) {
+            particles.explode(target.x, target.y, target.isBoss ? 1.5 : 0.8);
+            continue;
+          }
+        }
+
+        // Off screen
+        if (p.x < -50 || p.x > W + 50 || p.y < -50 || p.y > H + 50) continue;
+
+        drawMissile(ctx, p.x, p.y, p.angle, time);
+        aliveProjectiles.push(p);
+      }
+      projectilesRef.current = aliveProjectiles;
+
+      // === PARTICLES ===
+      particles.update();
+      particles.draw(ctx);
+
+      // === HUD ===
+      drawHUD(ctx, {
+        score: scoreRef.current,
+        level: levelRef.current,
+        combo: comboRef.current,
+        label: isKorean ? 'LEVEL' : 'LEVEL',
+      }, W);
+
+      // Shield bar
+      drawShieldBar(ctx, 20, H - 25, currentShield, 10, 200);
+      ctx.font = "10px 'Noto Sans KR', sans-serif";
+      ctx.fillStyle = 'rgba(232,232,255,0.5)';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${scoreRef.current}  Level: ${levelRef.current}  Shield: ${'■'.repeat(Math.max(0, shieldRef.current))}${'□'.repeat(Math.max(0, 8 - shieldRef.current))}`, 20, 30);
+      ctx.fillText(isKorean ? '방어막' : 'SHIELD', 20, H - 30);
+
+      // Kill counter
+      ctx.font = "11px 'JetBrains Mono', monospace";
+      ctx.fillStyle = 'rgba(232,232,255,0.4)';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${isKorean ? '격파' : 'KILLS'}: ${killCountRef.current}`, W - 20, H - 10);
+
+      ctx.restore();
 
       animRef.current = requestAnimationFrame(loop);
     };
+
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [status, wordPool]);
+  }, [status, wordPool, isKorean]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    const idx = enemiesRef.current.findIndex(e => e.text === input.trim());
+
+    const trimmed = input.trim();
+    const idx = enemiesRef.current.findIndex(e => e.text === trimmed);
+
     if (idx >= 0) {
+      const enemy = enemiesRef.current[idx];
+
+      // Fire projectile
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const W = canvas.offsetWidth;
+        const cx = W / 2, cy = canvas.offsetHeight - 70;
+        const angle = Math.atan2(enemy.y - cy, enemy.x - cx);
+        projectilesRef.current.push({
+          x: cx, y: cy - 20,
+          targetId: enemy.id,
+          speed: 12,
+          angle,
+          type: 'missile',
+        });
+      }
+
+      // Destroy enemy
+      particlesRef.current.explode(enemy.x, enemy.y, enemy.isBoss ? 2 : 1);
+      shakeRef.current.shake(enemy.isBoss ? 10 : 4);
       enemiesRef.current.splice(idx, 1);
-      scoreRef.current += input.length * 15;
+
+      const basePoints = trimmed.length * 15;
+      const comboBonus = Math.floor(comboRef.current / 5) * 0.5;
+      const bossBonus = enemy.isBoss ? 5 : 1;
+      const points = Math.round(basePoints * (1 + comboBonus) * bossBonus);
+
+      scoreRef.current += points;
       setScore(scoreRef.current);
       comboRef.current += 1;
       setCombo(comboRef.current);
       setMaxCombo(m => Math.max(m, comboRef.current));
       killCountRef.current += 1;
+      setDestroyCount(killCountRef.current);
+
       // Level up every 10 kills
       if (killCountRef.current % 10 === 0) {
         levelRef.current += 1;
         setLevel(levelRef.current);
+        soundManager?.play('levelUp');
+        // Restore 1 shield on level up
+        if (shieldRef.current < 10) {
+          shieldRef.current = Math.min(10, shieldRef.current + 1);
+          setShield(shieldRef.current);
+        }
       }
       soundManager?.play('explosion');
     } else {
       comboRef.current = 0;
       setCombo(0);
+      soundManager?.play('keyError');
     }
     setInput('');
     targetRef.current = null;
-  };
+  }, [input]);
+
+  // Auto-target as user types
+  useEffect(() => {
+    if (!input.trim()) { targetRef.current = null; return; }
+    const match = enemiesRef.current.find(e => e.text.startsWith(input.trim()));
+    if (match) {
+      targetRef.current = match.id;
+      match.typed = input.trim();
+    } else {
+      targetRef.current = null;
+    }
+  }, [input]);
 
   if (status === 'menu') {
     return (
       <div className="max-w-[900px] mx-auto px-4 py-8 text-center">
-        <div className="text-6xl mb-4">🚀</div>
-        <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>우주 방어</h1>
-        <p className="mb-8" style={{ color: 'var(--text-secondary)' }}>적 우주선의 단어를 입력해서 격파하세요!</p>
-        <Button size="lg" onClick={startGame}>게임 시작</Button>
+        <div className="text-7xl mb-4">
+          <svg viewBox="0 0 80 80" width="80" height="80" className="mx-auto">
+            <defs>
+              <linearGradient id="shipGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#A29BFE"/>
+                <stop offset="100%" stopColor="#6C5CE7"/>
+              </linearGradient>
+            </defs>
+            <rect width="80" height="80" rx="16" fill="#0A0A2E"/>
+            <circle cx="15" cy="12" r="1" fill="#E8E8FF" opacity="0.6"/>
+            <circle cx="65" cy="18" r="1.2" fill="#A29BFE" opacity="0.5"/>
+            <circle cx="55" cy="60" r="0.8" fill="#E8E8FF" opacity="0.4"/>
+            <g transform="translate(40,45)">
+              <polygon points="0,-18 -12,10 0,5 12,10" fill="url(#shipGrad)"/>
+              <polygon points="0,-18 -7,5 0,8 7,5" fill="#8B7CF7"/>
+              <polygon points="0,-14 -4,-4 0,-2 4,-4" fill="#48DBFB"/>
+              <ellipse cx="0" cy="14" rx="5" ry="8" fill="#6C5CE7" opacity="0.4"/>
+            </g>
+          </svg>
+        </div>
+        <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          {isKorean ? '우주 방어' : 'Space Defense'}
+        </h1>
+        <p className="mb-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          {isKorean ? '적 우주선의 단어를 입력해서 격파하세요!' : 'Type words to destroy enemy ships!'}
+        </p>
+        <div className="max-w-md mx-auto mb-6">
+          <Card className="p-4 text-left">
+            <ul className="text-xs space-y-1" style={{ color: 'var(--text-secondary)' }}>
+              <li>{isKorean ? '• 적 우주선에 표시된 단어를 입력하면 격파' : '• Type displayed words to destroy enemies'}</li>
+              <li>{isKorean ? '• 10기 격파할 때마다 레벨 업' : '• Level up every 10 kills'}</li>
+              <li>{isKorean ? '• 콤보로 보너스 점수 획득' : '• Chain combos for bonus points'}</li>
+              <li>{isKorean ? '• 보스 적기 등장 시 긴 단어 입력 필요' : '• Boss enemies require longer words'}</li>
+              <li>{isKorean ? '• 레벨 업 시 방어막 1 회복' : '• Shield +1 on level up'}</li>
+            </ul>
+          </Card>
+        </div>
+        <Button size="lg" onClick={startGame}>{isKorean ? '게임 시작' : 'Start Game'}</Button>
       </div>
     );
   }
@@ -266,13 +455,31 @@ export default function SpaceGamePage() {
   if (status === 'gameover') {
     return (
       <div className="max-w-[900px] mx-auto px-4 py-8 text-center">
-        <h1 className="text-3xl font-bold mb-4" style={{ color: 'var(--color-error)' }}>게임 오버</h1>
-        <div className="grid grid-cols-3 gap-4 mb-8 max-w-md mx-auto">
-          <Card className="p-4"><div className="text-xs" style={{ color: 'var(--text-muted)' }}>점수</div><div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-primary)' }}>{score}</div></Card>
-          <Card className="p-4"><div className="text-xs" style={{ color: 'var(--text-muted)' }}>레벨</div><div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-secondary)' }}>{level}</div></Card>
-          <Card className="p-4"><div className="text-xs" style={{ color: 'var(--text-muted)' }}>콤보</div><div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-combo)' }}>{maxCombo}</div></Card>
+        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-error)', fontFamily: "'Outfit'" }}>
+          {isKorean ? '게임 오버' : 'Game Over'}
+        </h1>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+          {isKorean ? '우주선이 파괴되었습니다' : 'Your ship has been destroyed'}
+        </p>
+        <div className="grid grid-cols-4 gap-3 mb-8 max-w-lg mx-auto">
+          <Card className="p-3">
+            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '점수' : 'SCORE'}</div>
+            <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-primary)' }}>{score}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '레벨' : 'LEVEL'}</div>
+            <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-secondary)' }}>{level}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '최대 콤보' : 'MAX COMBO'}</div>
+            <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-combo)' }}>{maxCombo}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '격파' : 'KILLS'}</div>
+            <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: '#00B894' }}>{destroyCount}</div>
+          </Card>
         </div>
-        <Button size="lg" onClick={startGame}>다시 시작</Button>
+        <Button size="lg" onClick={startGame}>{isKorean ? '다시 시작' : 'Retry'}</Button>
       </div>
     );
   }
@@ -283,8 +490,17 @@ export default function SpaceGamePage() {
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-[var(--key-border)] text-lg" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'" }} placeholder="단어를 입력하세요..." autoComplete="off" autoFocus />
-        <Button type="submit" size="lg">발사</Button>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          className="flex-1 px-4 py-3 rounded-xl border border-[var(--key-border)] text-lg"
+          style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'" }}
+          placeholder={isKorean ? '단어를 입력하세요...' : 'Type the word...'}
+          autoComplete="off"
+          autoFocus
+        />
+        <Button type="submit" size="lg">{isKorean ? '발사' : 'Fire'}</Button>
       </form>
     </div>
   );

@@ -14,6 +14,21 @@ export const metadata: Metadata = {
   title: "TypingVerse - 타이핑버스",
   description: "손끝으로 여는 무한한 세계 - 종합 타자연습 웹앱",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icons/icon-192.png',
+  },
+  openGraph: {
+    title: 'TypingVerse - 타이핑버스',
+    description: '손끝으로 여는 무한한 세계 - 종합 타자연습 웹앱',
+    siteName: 'TypingVerse',
+    type: 'website',
+    images: [{ url: '/og-image.svg', width: 1200, height: 630 }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

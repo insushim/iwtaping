@@ -1,5 +1,5 @@
 {
-  "name": "TypingVerse",
+  "name": "TypingVerse - 타이핑버스",
   "short_name": "TypingVerse",
   "description": "손끝으로 여는 무한한 세계 - 종합 타자연습 웹앱",
   "start_url": "/",
@@ -7,7 +7,13 @@
   "background_color": "#0A0A1A",
   "theme_color": "#6C5CE7",
   "orientation": "portrait-primary",
+  "categories": ["education", "games", "productivity"],
   "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
@@ -17,6 +23,12 @@
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

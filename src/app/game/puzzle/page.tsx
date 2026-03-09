@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { wordGenerator } from '@/lib/content/word-generator';
 
 interface WordEntry {
   word: string;
@@ -30,26 +31,34 @@ export default function PuzzleGamePage() {
   const chainEndRef = useRef<HTMLDivElement>(null);
   const isKorean = settings.language === 'ko';
 
-  // Load word pool
+  // Load word pool with massive expansion
   useEffect(() => {
+    wordGenerator.reset();
+    const extraWords = wordGenerator.getWords({
+      language: settings.language,
+      difficulty: 5,
+      count: 500,
+      minLength: 2,
+    });
     (async () => {
       try {
         if (isKorean) {
           const m1 = await import('@/data/korean/words-beginner');
           const m2 = await import('@/data/korean/words-intermediate');
-          setWordPool([...m1.koreanWordsBeginner, ...m2.koreanWordsIntermediate].filter(w => w.length >= 2));
+          setWordPool([...new Set([...m1.koreanWordsBeginner, ...m2.koreanWordsIntermediate, ...extraWords])].filter(w => w.length >= 2));
         } else {
           const m1 = await import('@/data/english/words-common200');
           const m2 = await import('@/data/english/words-common1000');
-          setWordPool([...new Set([...m1.englishCommon200, ...m2.englishCommon1000])].filter(w => w.length >= 3));
+          setWordPool([...new Set([...m1.englishCommon200, ...m2.englishCommon1000, ...extraWords])].filter(w => w.length >= 3));
         }
       } catch {
-        setWordPool(isKorean
-          ? ['사과', '과일', '일출', '출발', '발자국', '국어', '어머니', '니트', '트럭', '럭비']
-          : ['apple', 'elephant', 'tiger', 'rabbit', 'turtle', 'eagle', 'eel', 'lion', 'newt']);
+        setWordPool(extraWords.length > 0 ? extraWords :
+          (isKorean
+            ? ['사과', '과일', '일출', '출발', '발자국', '국어', '어머니', '니트', '트럭', '럭비']
+            : ['apple', 'elephant', 'tiger', 'rabbit', 'turtle', 'eagle', 'eel', 'lion', 'newt']));
       }
     })();
-  }, [isKorean]);
+  }, [isKorean, settings.language]);
 
   const getLastChar = useCallback((word: string): string => {
     if (isKorean) {
