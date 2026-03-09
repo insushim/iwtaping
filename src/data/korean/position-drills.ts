@@ -121,7 +121,7 @@ export const koreanPositionDrills: PositionDrill[] = [
       '갸배',
       '걔데',
       '뱌져',
-      '갸배',
+      '뎨배',
       '뎌겨',
       '뱌겨',
     ],
