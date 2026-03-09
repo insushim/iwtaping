@@ -1,7 +1,6 @@
 export interface UserProfile {
   id: string;
   nickname: string;
-  email?: string;
   avatarUrl?: string;
   createdAt: number;
 }

@@ -39,15 +39,15 @@ const KOREAN_BANKS: Record<string, string[]> = {
     '퀘스트','모험','원정','수호자','파수꾼','여왕','마왕','마신','천사','악마',
     '봉인','해방','부활','강화','합성','제련','각성','진화','변신','소멸',
   ],
-  // 좀비/공포
-  horror: [
-    '좀비','감염','바이러스','백신','항체','면역','격리','봉쇄','탈출','구조',
-    '생존자','피난처','바리케이드','무기','탄약','식량','의약품','통조림','라디오','손전등',
-    '두뇌','변이','돌연변이','포자','독소','해독','증상','발열','출혈','괴사',
-    '어둠','안개','폐허','지하실','지하벙커','병원','연구소','실험실','군사기지','경찰서',
-    '화염병','산탄총','저격총','기관총','수류탄','도끼','야구방망이','쇠파이프','전기톱','십자가',
-    '묘지','관','해골','유령','늑대인간','뱀파이어','마녀','저주','부적','성수',
-    '포위','습격','매복','기습','저항','반격','돌파','철수','합류','기지',
+  // 탐험/모험
+  adventure: [
+    '탐험','모험','발견','보물','지도','나침반','탐사','원정','여행','항해',
+    '정글','사막','빙하','화산','동굴','협곡','폭포','오아시스','해변','산봉우리',
+    '배낭','텐트','침낭','랜턴','로프','망원경','카메라','일기장','수첩','도감',
+    '생존','캠프','모닥불','별관측','일출','일몰','오로라','무지개','안개','이슬',
+    '야생동물','발자국','흔적','단서','비밀통로','숨겨진문','열쇠','암호','수수께끼','퍼즐',
+    '용기','지혜','우정','협동','인내','도전','극복','성장','희망','기적',
+    '대장','탐험가','과학자','조종사','항해사','기록원','구조대','안내자','동료','팀워크',
   ],
   // 레이싱/속도
   racing: [
@@ -165,13 +165,13 @@ const ENGLISH_BANKS: Record<string, string[]> = {
     'mithril','adamant','obsidian','crystal','emerald','sapphire','ruby','diamond','amethyst','topaz',
     'quest','adventure','expedition','crusade','pilgrimage','prophecy','destiny','legend','myth','saga',
   ],
-  horror: [
-    'zombie','undead','infected','survivor','quarantine','outbreak','pandemic','mutation','antidote','vaccine',
-    'barricade','bunker','shelter','fortress','safehouse','hideout','evacuation','rescue','supply','ration',
-    'darkness','shadow','phantom','specter','wraith','banshee','revenant','ghoul','vampire','werewolf',
-    'shotgun','rifle','machete','crossbow','grenade','molotov','flamethrower','chainsaw','crowbar','hatchet',
-    'cemetery','catacombs','morgue','asylum','laboratory','hospital','warehouse','sewer','tunnel','basement',
-    'nightmare','dread','terror','horror','panic','paranoia','hallucinate','delirium','madness','sanity',
+  adventure: [
+    'explore','discover','treasure','compass','journey','voyage','expedition','quest','adventure','navigate',
+    'jungle','desert','glacier','volcano','canyon','waterfall','oasis','island','mountain','forest',
+    'backpack','lantern','telescope','binoculars','journal','notebook','camera','flashlight','rope','tent',
+    'campfire','sunrise','sunset','rainbow','starlight','moonbeam','aurora','breeze','horizon','landscape',
+    'wildlife','footprint','trail','mystery','puzzle','riddle','clue','secret','passage','doorway',
+    'courage','wisdom','friendship','teamwork','patience','challenge','overcome','growth','hope','wonder',
   ],
   racing: [
     'accelerate','velocity','throttle','turbo','nitrous','boost','drift','overtake','slipstream','downforce',
