@@ -7,6 +7,8 @@ import { TextDisplay } from './TextDisplay';
 import { LiveStats } from './LiveStats';
 import { ResultPanel } from './ResultPanel';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useTypingStore } from '@/stores/useTypingStore';
+import { useStatsStore } from '@/stores/useStatsStore';
 
 interface TypingAreaProps {
   text: string;
@@ -19,6 +21,8 @@ interface TypingAreaProps {
 
 export function TypingArea({ text, onComplete, onRestart, onProgress, className = '' }: TypingAreaProps) {
   const settings = useSettingsStore((s) => s.settings);
+  const addSession = useTypingStore((s) => s.addSession);
+  const recordSession = useStatsStore((s) => s.recordSession);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState('');
   const [result, setResult] = useState<TypingResult | null>(null);
@@ -39,6 +43,9 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
     text,
     onComplete: (r) => {
       setResult(r);
+      // Record session for ranking & stats
+      addSession({ mode: 'word', language: settings.language || 'ko', text, result: r, timestamp: Date.now() });
+      recordSession(r);
       onComplete?.(r);
     },
     soundEnabled: settings.keySound,
