@@ -93,6 +93,7 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     }
 
     // Composition complete or direct input
+    const prevLength = inputRef.current.length;
     inputRef.current = newInput;
     const newStates: CharState[] = text.split('').map((char, i) => {
       if (i < newInput.length) {
@@ -114,24 +115,51 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     }
     correctCountRef.current = correct;
 
+    // Track newly finalized characters (for Korean IME combo/accuracy)
+    for (let i = prevLength; i < newInput.length; i++) {
+      if (i < text.length) {
+        // Ensure totalCount covers composed characters that handleKeyDown skipped
+        totalCountRef.current = Math.max(totalCountRef.current, i + 1);
+        const charCorrect = newInput[i] === text[i];
+        if (charCorrect) {
+          setCombo((prev) => {
+            const next = prev + 1;
+            setMaxCombo((m) => Math.max(m, next));
+            return next;
+          });
+          if (soundEnabled && soundManager) {
+            if (newInput[i] === ' ') soundManager.play('keySpace');
+            else soundManager.play('keyClick', Math.random() * 3);
+          }
+        } else {
+          setCombo(0);
+          if (soundEnabled && soundManager) soundManager.play('keyError');
+        }
+      }
+    }
+    setLiveAccuracy(calculateAccuracy(correctCountRef.current, Math.max(totalCountRef.current, 1)));
+
     // Check completion
     if (newInput.length >= text.length) {
       setStatus('finished');
       const result = getResult();
       onComplete?.(result);
     }
-  }, [status, text, onComplete]);
+  }, [status, text, onComplete, soundEnabled]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (status === 'finished') return;
     if (e.key === 'Escape' || e.key === 'Tab') return;
+
+    // Skip IME composition events (Korean, Japanese, etc.)
+    // e.key === 'Process' means the key is being handled by IME
+    if (e.key === 'Process' || e.isComposing) return;
 
     const now = Date.now();
     const isCorrect = currentIndex < text.length && e.key === text[currentIndex];
 
     totalCountRef.current++;
     if (isCorrect) {
-      correctCountRef.current++;
       setCombo((prev) => {
         const next = prev + 1;
         setMaxCombo((m) => Math.max(m, next));
