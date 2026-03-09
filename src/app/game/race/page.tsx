@@ -12,9 +12,9 @@ import { generateKoreanSentence, generateEnglishSentence } from '@/lib/content/w
 interface Car { name: string; progress: number; speed: number; color: string; isPlayer: boolean; }
 
 const AI_SPEEDS = [
-  { name: 'AI 초급', speed: 1.5, color: '#48DBFB' },
-  { name: 'AI 중급', speed: 3, color: '#FECA57' },
-  { name: 'AI 고급', speed: 5, color: '#FF6B6B' },
+  { name: 'AI 초급', speed: 0.5, color: '#48DBFB' },
+  { name: 'AI 중급', speed: 1.2, color: '#FECA57' },
+  { name: 'AI 고급', speed: 2.2, color: '#FF6B6B' },
 ];
 
 export default function RaceGamePage() {
@@ -75,17 +75,20 @@ export default function RaceGamePage() {
       setCars(prev => {
         const updated = prev.map(car => {
           if (car.isPlayer) return car;
-          const newProgress = Math.min(100, car.progress + car.speed * (0.15 + Math.random() * 0.25));
+          // Natural speed variation: sometimes pause, sometimes burst
+          const variation = 0.3 + Math.random() * 1.4; // 0.3x ~ 1.7x
+          const newProgress = Math.min(100, car.progress + car.speed * 0.2 * variation);
           return { ...car, progress: newProgress };
         });
-        const aiFinished = updated.some(c => !c.isPlayer && c.progress >= 100);
-        if (aiFinished) {
+        // End race if any AI finishes
+        const anyFinished = updated.some(c => !c.isPlayer && c.progress >= 100);
+        if (anyFinished) {
           if (intervalRef.current) clearInterval(intervalRef.current);
           setTimeout(() => setStatus('finished'), 0);
         }
         return updated;
       });
-    }, 300);
+    }, 500);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [status]);
 
