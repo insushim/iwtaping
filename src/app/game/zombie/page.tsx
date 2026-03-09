@@ -52,7 +52,7 @@ export default function ZombieGamePage() {
   useEffect(() => {
     wordGenerator.reset();
     const words = wordGenerator.getWords({
-      language: settings.language, theme: 'horror', difficulty: 1, count: 500,
+      language: settings.language, theme: 'adventure', difficulty: 1, count: 500,
       minLength: settings.language === 'ko' ? 2 : 3,
       maxLength: settings.language === 'ko' ? 5 : 8,
     });
@@ -76,7 +76,7 @@ export default function ZombieGamePage() {
   useEffect(() => {
     if (wave > 1) {
       const newWords = wordGenerator.getWords({
-        language: settings.language, theme: 'horror', difficulty: Math.min(10, wave), count: 100,
+        language: settings.language, theme: 'adventure', difficulty: Math.min(10, wave), count: 100,
       });
       setWordPool(prev => [...new Set([...prev, ...newWords])]);
     }
@@ -252,9 +252,9 @@ export default function ZombieGamePage() {
         ctx.globalAlpha = fadeIn;
         drawZombie(ctx, z.x, z.y, time, z.color);
 
-        // Blood trail
+        // Slime trail
         if (z.type === 1) {
-          ctx.fillStyle = 'rgba(179,57,57,0.15)';
+          ctx.fillStyle = 'rgba(0,184,148,0.15)';
           ctx.beginPath();
           ctx.arc(z.x - Math.cos(a) * 10, z.y - Math.sin(a) * 10, 3, 0, Math.PI * 2);
           ctx.fill();
