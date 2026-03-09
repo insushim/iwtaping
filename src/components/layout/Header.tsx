@@ -10,7 +10,6 @@ const navItems = [
   { href: '/test', label: '테스트', icon: '⏱️' },
   { href: '/game', label: '게임', icon: '🎮' },
   { href: '/stats', label: '통계', icon: '📊' },
-  { href: '/ranking', label: '랭킹', icon: '🏆' },
   { href: '/settings', label: '설정', icon: '⚙️' },
 ];
 
