@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A0A2E"/>
+      <stop offset="100%" style="stop-color:#1A1A4E"/>
+    </linearGradient>
+    <linearGradient id="key" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B7CF7"/>
+      <stop offset="100%" style="stop-color:#6C5CE7"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A29BFE"/>
+      <stop offset="100%" style="stop-color:#6C5CE7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <circle cx="80" cy="90" r="2" fill="#E8E8FF" opacity="0.7"/>
+  <circle cx="420" cy="70" r="1.5" fill="#E8E8FF" opacity="0.5"/>
+  <circle cx="390" cy="160" r="2" fill="#A29BFE" opacity="0.6"/>
+  <circle cx="120" cy="400" r="1.5" fill="#E8E8FF" opacity="0.4"/>
+  <circle cx="450" cy="300" r="1.5" fill="#E8E8FF" opacity="0.5"/>
+  <g transform="translate(256,310)">
+    <rect x="-140" y="-30" width="38" height="32" rx="6" fill="url(#key)" opacity="0.9"/>
+    <rect x="-96" y="-30" width="38" height="32" rx="6" fill="url(#key)" opacity="0.85"/>
+    <rect x="-52" y="-30" width="38" height="32" rx="6" fill="url(#key)" opacity="0.9"/>
+    <rect x="-8" y="-30" width="38" height="32" rx="6" fill="#A29BFE" opacity="0.95"/>
+    <rect x="36" y="-30" width="38" height="32" rx="6" fill="url(#key)" opacity="0.85"/>
+    <rect x="80" y="-30" width="38" height="32" rx="6" fill="url(#key)" opacity="0.9"/>
+    <rect x="-118" y="10" width="38" height="32" rx="6" fill="url(#key)" opacity="0.8"/>
+    <rect x="-74" y="10" width="38" height="32" rx="6" fill="url(#key)" opacity="0.85"/>
+    <rect x="-30" y="10" width="38" height="32" rx="6" fill="url(#key)" opacity="0.9"/>
+    <rect x="14" y="10" width="38" height="32" rx="6" fill="url(#key)" opacity="0.8"/>
+    <rect x="58" y="10" width="38" height="32" rx="6" fill="url(#key)" opacity="0.85"/>
+    <rect x="-80" y="50" width="160" height="28" rx="8" fill="url(#key)" opacity="0.75"/>
+    <text x="12" y="-8" text-anchor="middle" fill="#FFF" font-size="16" font-family="monospace" font-weight="bold">T</text>
+  </g>
+  <text x="256" y="200" text-anchor="middle" fill="url(#glow)" font-size="120" font-family="sans-serif" font-weight="900" letter-spacing="-5">TV</text>
+  <circle cx="420" cy="220" r="6" fill="#00D2D3"/>
+</svg>
