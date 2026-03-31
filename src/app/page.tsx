@@ -76,8 +76,8 @@ export default function Home() {
 
         <div className="relative z-10">
           {/* Mascot */}
-          <div className="flex justify-center mb-4">
-            <Mascot mood="happy" size={100} showBubble />
+          <div className="flex justify-center mb-6">
+            <Mascot mood="happy" size={90} showBubble />
           </div>
 
           <h1
