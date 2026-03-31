@@ -42,7 +42,7 @@ export const defaultSettings: UserSettings = {
   caretStyle: 'line',
   smoothCaret: true,
   fontSize: 'md',
-  theme: 'dark',
+  theme: 'light',
   colorTheme: 'neon',
   bgEffect: 'particle',
   gameBgm: true,
