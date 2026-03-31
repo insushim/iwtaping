@@ -44,16 +44,25 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
   const [liveSpeed, setLiveSpeed] = useState(0);
   const [liveAccuracy, setLiveAccuracy] = useState(100);
   const [result, setResult] = useState<TypingResult | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const startTimeRef = useRef<number | null>(null);
   const correctCountRef = useRef(0);
   const totalCountRef = useRef(0);
   const speedHistoryRef = useRef<number[]>([]);
+  const currentIndexRef = useRef(0);
+  const statusRef = useRef<'ready' | 'typing' | 'finished'>('ready');
+
+  // Keep refs in sync
+  currentIndexRef.current = currentIndex;
+  statusRef.current = status;
 
   // Initialize char states
   useEffect(() => {
     setCharStates(text.split('').map((char, i) => ({ char, status: i === 0 ? 'current' : 'pending' })));
     setCurrentIndex(0);
+    currentIndexRef.current = 0;
     setStatus('ready');
+    statusRef.current = 'ready';
     setCombo(0);
     setMaxCombo(0);
     setLiveSpeed(0);
@@ -63,6 +72,8 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     correctCountRef.current = 0;
     totalCountRef.current = 0;
     speedHistoryRef.current = [];
+    // Focus the hidden input
+    setTimeout(() => inputRef.current?.focus(), 100);
   }, [text]);
 
   // Speed interval
@@ -82,7 +93,9 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
   const handleRestart = useCallback(() => {
     setCharStates(text.split('').map((char, i) => ({ char, status: i === 0 ? 'current' : 'pending' })));
     setCurrentIndex(0);
+    currentIndexRef.current = 0;
     setStatus('ready');
+    statusRef.current = 'ready';
     setCombo(0);
     setMaxCombo(0);
     setLiveSpeed(0);
@@ -92,104 +105,145 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     correctCountRef.current = 0;
     totalCountRef.current = 0;
     speedHistoryRef.current = [];
+    setTimeout(() => inputRef.current?.focus(), 100);
     onRestart?.();
   }, [text, onRestart]);
 
-  // Keydown handler - directly maps physical keys to jamo
+  // Process a single jamo input
+  const processJamo = useCallback((jamo: string) => {
+    if (statusRef.current === 'finished') return;
+
+    if (statusRef.current === 'ready') {
+      setStatus('typing');
+      statusRef.current = 'typing';
+      startTimeRef.current = Date.now();
+    }
+
+    const idx = currentIndexRef.current;
+    if (idx >= text.length) return;
+
+    const targetChar = text[idx];
+    const isCorrect = jamo === targetChar;
+    totalCountRef.current++;
+
+    if (isCorrect) {
+      correctCountRef.current++;
+      setCombo((prev) => {
+        const next = prev + 1;
+        setMaxCombo((m) => Math.max(m, next));
+        return next;
+      });
+      if (settings.keySound && soundManager) {
+        soundManager.play('keyClick', Math.random() * 3);
+      }
+    } else {
+      setCombo(0);
+      if (settings.keySound && soundManager) {
+        soundManager.play('keyError');
+      }
+    }
+
+    setLiveAccuracy(calculateAccuracy(correctCountRef.current, totalCountRef.current));
+
+    setCharStates((prev) => {
+      const next = [...prev];
+      next[idx] = { char: targetChar, status: isCorrect ? 'correct' : 'incorrect' };
+      if (idx + 1 < next.length) {
+        next[idx + 1] = { char: next[idx + 1].char, status: 'current' };
+      }
+      return next;
+    });
+
+    const nextIdx = idx + 1;
+    setCurrentIndex(nextIdx);
+    currentIndexRef.current = nextIdx;
+
+    // Check completion
+    if (nextIdx >= text.length) {
+      setStatus('finished');
+      statusRef.current = 'finished';
+      const elapsed = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
+      const res: TypingResult = {
+        kpm: calculateKPM(text.substring(0, correctCountRef.current), elapsed),
+        wpm: 0,
+        cpm: 0,
+        accuracy: calculateAccuracy(correctCountRef.current, totalCountRef.current),
+        maxSpeed: speedHistoryRef.current.length > 0 ? Math.max(...speedHistoryRef.current) : 0,
+        consistency: 0,
+        totalKeystrokes: totalCountRef.current,
+        correctKeystrokes: correctCountRef.current,
+        errorKeystrokes: totalCountRef.current - correctCountRef.current,
+        elapsedTime: elapsed,
+        fingerAccuracy: {} as TypingResult['fingerAccuracy'],
+        keyAccuracy: {},
+        speedHistory: [...speedHistoryRef.current],
+        problemKeys: [],
+      };
+      setResult(res);
+      addSession({ mode: 'word', language: 'ko', text, result: res, timestamp: Date.now() });
+      recordSession(res);
+      onComplete?.(res);
+    }
+  }, [text, settings.keySound, onComplete, addSession, recordSession]);
+
+  // Keydown handler - tries physical key mapping first
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (status === 'finished') return;
+      if (statusRef.current === 'finished') return;
       if (e.key === 'Escape') {
         handleRestart();
         return;
       }
 
-      // Determine the jamo for this key
+      // Try physical key mapping (works when IME is off or e.code isn't 'Process')
+      const code = e.code;
       let jamo: string | undefined;
-      if (e.code === 'Space') {
+
+      if (code === 'Space' || e.key === ' ') {
         jamo = ' ';
-      } else if (e.shiftKey && DUBEOLSIK_SHIFT[e.code]) {
-        jamo = DUBEOLSIK_SHIFT[e.code];
-      } else if (DUBEOLSIK[e.code]) {
-        jamo = DUBEOLSIK[e.code];
-      }
-
-      if (!jamo) return;
-      e.preventDefault(); // Prevent IME from activating
-
-      if (status === 'ready') {
-        setStatus('typing');
-        startTimeRef.current = Date.now();
-      }
-
-      const idx = currentIndex;
-      if (idx >= text.length) return;
-
-      const targetChar = text[idx];
-      const isCorrect = jamo === targetChar;
-      totalCountRef.current++;
-
-      if (isCorrect) {
-        correctCountRef.current++;
-        setCombo((prev) => {
-          const next = prev + 1;
-          setMaxCombo((m) => Math.max(m, next));
-          return next;
-        });
-        if (settings.keySound && soundManager) {
-          soundManager.play('keyClick', Math.random() * 3);
+        e.preventDefault();
+      } else if (code && code !== 'Process') {
+        if (e.shiftKey && DUBEOLSIK_SHIFT[code]) {
+          jamo = DUBEOLSIK_SHIFT[code];
+        } else if (DUBEOLSIK[code]) {
+          jamo = DUBEOLSIK[code];
         }
-      } else {
-        setCombo(0);
-        if (settings.keySound && soundManager) {
-          soundManager.play('keyError');
-        }
+        if (jamo) e.preventDefault();
       }
+      // If IME intercepted (code === 'Process'), let the hidden input handle it
 
-      setLiveAccuracy(calculateAccuracy(correctCountRef.current, totalCountRef.current));
-
-      setCharStates((prev) => {
-        const next = [...prev];
-        next[idx] = { char: targetChar, status: isCorrect ? 'correct' : 'incorrect' };
-        if (idx + 1 < next.length) {
-          next[idx + 1] = { char: next[idx + 1].char, status: 'current' };
-        }
-        return next;
-      });
-
-      const nextIdx = idx + 1;
-      setCurrentIndex(nextIdx);
-
-      // Check completion
-      if (nextIdx >= text.length) {
-        setStatus('finished');
-        const elapsed = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
-        const res: TypingResult = {
-          kpm: calculateKPM(text.substring(0, correctCountRef.current), elapsed),
-          wpm: 0,
-          cpm: 0,
-          accuracy: calculateAccuracy(correctCountRef.current, totalCountRef.current),
-          maxSpeed: speedHistoryRef.current.length > 0 ? Math.max(...speedHistoryRef.current) : 0,
-          consistency: 0,
-          totalKeystrokes: totalCountRef.current,
-          correctKeystrokes: correctCountRef.current,
-          errorKeystrokes: totalCountRef.current - correctCountRef.current,
-          elapsedTime: elapsed,
-          fingerAccuracy: {} as TypingResult['fingerAccuracy'],
-          keyAccuracy: {},
-          speedHistory: [...speedHistoryRef.current],
-          problemKeys: [],
-        };
-        setResult(res);
-        addSession({ mode: 'word', language: 'ko', text, result: res, timestamp: Date.now() });
-        recordSession(res);
-        onComplete?.(res);
+      if (jamo) {
+        processJamo(jamo);
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [status, currentIndex, text, settings.keySound, handleRestart, onComplete]);
+  }, [handleRestart, processJamo]);
+
+  // Hidden input handler - catches IME-composed jamo characters
+  const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const value = input.value;
+    if (!value) return;
+
+    // Process each character that was typed via IME
+    for (const char of value) {
+      const charCode = char.charCodeAt(0);
+      // Accept jamo (ㄱ-ㅎ, ㅏ-ㅣ) and space
+      if ((charCode >= 0x3131 && charCode <= 0x3163) || char === ' ') {
+        processJamo(char);
+      }
+    }
+
+    // Clear the input
+    input.value = '';
+  }, [processJamo]);
+
+  // Focus input on click
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
 
   if (result && status === 'finished') {
     return (
@@ -202,7 +256,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
   }
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} onClick={focusInput}>
       <LiveStats
         speed={liveSpeed}
         accuracy={liveAccuracy}
@@ -213,7 +267,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
       />
 
       <div
-        className="relative mt-4 p-6 rounded-xl border border-[var(--key-border)] min-h-[120px]"
+        className="relative mt-4 p-6 rounded-xl border border-[var(--key-border)] cursor-text min-h-[120px]"
         style={{ background: 'var(--bg-card)' }}
       >
         <TextDisplay
@@ -221,6 +275,32 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
           currentIndex={currentIndex}
           caretStyle={settings.caretStyle}
           fontSize={settings.fontSize}
+        />
+
+        {/* Hidden input to capture IME-composed jamo */}
+        <input
+          ref={inputRef}
+          className="absolute opacity-0 w-0 h-0"
+          style={{ position: 'absolute', left: -9999 }}
+          onInput={handleInput}
+          onCompositionEnd={(e) => {
+            // When IME finishes composing, the result character appears
+            const input = e.currentTarget;
+            const value = input.value;
+            if (value) {
+              for (const char of value) {
+                const charCode = char.charCodeAt(0);
+                if ((charCode >= 0x3131 && charCode <= 0x3163) || char === ' ') {
+                  processJamo(char);
+                }
+              }
+              input.value = '';
+            }
+          }}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
         />
       </div>
 
