@@ -138,35 +138,91 @@ export default function RainGamePage() {
       ctx.save();
       ctx.translate(shakeOffset.x, shakeOffset.y);
 
-      // Background - dark stormy sky
+      // Background - dramatic stormy sky
       const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, '#06061A');
-      grad.addColorStop(0.4, '#0C0C28');
-      grad.addColorStop(0.8, '#141438');
-      grad.addColorStop(1, '#1A1A4A');
+      grad.addColorStop(0, '#030310');
+      grad.addColorStop(0.3, '#0A0820');
+      grad.addColorStop(0.6, '#120E30');
+      grad.addColorStop(0.8, '#1A1545');
+      grad.addColorStop(1, '#0D0B25');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
-      // Stars (dimmer, storm sky)
+      // Stars (dimmer through storm)
       drawStarfield(ctx, starsRef.current, time, 0.005);
 
-      // Lightning effect (occasional)
-      if (currentLevel > 3 && Math.random() < 0.003) {
-        ctx.fillStyle = 'rgba(200,200,255,0.08)';
+      // Dramatic storm clouds (layered, moving)
+      ctx.save();
+      for (let layer = 0; layer < 3; layer++) {
+        const speed = 0.008 + layer * 0.005;
+        const opacity = 0.15 + layer * 0.1;
+        const yBase = -20 + layer * 25;
+        for (let i = 0; i < 6; i++) {
+          const cx = (i * 180 + time * speed + layer * 100) % (W + 300) - 150;
+          const cloudGrad = ctx.createRadialGradient(cx, yBase, 10, cx, yBase, 100 + layer * 30);
+          cloudGrad.addColorStop(0, `rgba(40,30,80,${opacity})`);
+          cloudGrad.addColorStop(0.6, `rgba(25,20,50,${opacity * 0.5})`);
+          cloudGrad.addColorStop(1, 'transparent');
+          ctx.fillStyle = cloudGrad;
+          ctx.beginPath();
+          ctx.ellipse(cx, yBase, 130 + layer * 20, 35 + layer * 10, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // Lightning effect (dramatic fork)
+      if (currentLevel > 3 && Math.random() < 0.004) {
+        ctx.save();
+        // Screen flash
+        ctx.fillStyle = 'rgba(180,170,255,0.12)';
         ctx.fillRect(0, 0, W, H);
-      }
-
-      // Rain particles
-      drawRainEffect(ctx, W, H, time, Math.min(3, 0.5 + currentLevel * 0.3));
-
-      // Cloud shadows at top
-      for (let i = 0; i < 5; i++) {
-        const cx = (i * 200 + time * 0.01) % (W + 200) - 100;
-        ctx.fillStyle = 'rgba(20,20,50,0.4)';
+        // Lightning bolt
+        ctx.strokeStyle = 'rgba(200,200,255,0.8)';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#A29BFE';
+        ctx.shadowBlur = 15;
         ctx.beginPath();
-        ctx.ellipse(cx, -10, 120, 40, 0, 0, Math.PI * 2);
-        ctx.fill();
+        let lx = W * 0.3 + Math.random() * W * 0.4;
+        let ly = 0;
+        ctx.moveTo(lx, ly);
+        for (let s = 0; s < 6; s++) {
+          lx += (Math.random() - 0.5) * 40;
+          ly += H * 0.12 + Math.random() * H * 0.05;
+          ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
       }
+
+      // Enhanced rain (dense, angled, variable)
+      ctx.save();
+      const rainIntensity = Math.min(3, 0.5 + currentLevel * 0.3);
+      const rainCount = Math.floor(50 * rainIntensity);
+      ctx.strokeStyle = 'rgba(120,100,220,0.2)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < rainCount; i++) {
+        const rx = (i * 47 + time * 0.2) % (W + 40) - 20;
+        const ry = (i * 97 + time * 0.6) % (H + 20) - 10;
+        const len = 10 + Math.sin(i * 0.7) * 5;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx - 1.5, ry + len);
+        ctx.stroke();
+      }
+      // Heavier rain drops
+      ctx.strokeStyle = 'rgba(140,120,240,0.12)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < Math.floor(rainCount * 0.3); i++) {
+        const rx = (i * 131 + time * 0.15) % W;
+        const ry = (i * 211 + time * 0.5) % H;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx - 2, ry + 14);
+        ctx.stroke();
+      }
+      ctx.restore();
 
       // Spawn word
       if (time - lastSpawnRef.current > Math.max(1200 - currentLevel * 50, 400) && wordsRef.current.length < 2 + currentLevel) {
@@ -211,19 +267,32 @@ export default function RainGamePage() {
           continue;
         }
 
-        // Draw word with enhanced style
+        // Draw word with glowing droplet style
         const glow = 0.5 + Math.sin(time * 0.003 + word.glowPhase) * 0.3;
         ctx.save();
         ctx.translate(word.x, word.y);
         ctx.rotate(Math.sin(time * 0.001 + word.id) * word.rotation);
 
-        // Droplet effect behind word
+        // Neon droplet shape
         ctx.beginPath();
-        ctx.moveTo(0, -20);
-        ctx.quadraticCurveTo(-8, -10, -6, 0);
-        ctx.quadraticCurveTo(0, 6, 6, 0);
-        ctx.quadraticCurveTo(8, -10, 0, -20);
-        ctx.fillStyle = `rgba(108,92,231,${0.1 * glow})`;
+        ctx.moveTo(0, -22);
+        ctx.bezierCurveTo(-12, -8, -10, 6, 0, 10);
+        ctx.bezierCurveTo(10, 6, 12, -8, 0, -22);
+        ctx.closePath();
+        // Droplet glow
+        ctx.shadowColor = word.color;
+        ctx.shadowBlur = 8 + glow * 6;
+        ctx.fillStyle = `rgba(108,92,231,${0.08 + glow * 0.06})`;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Droplet outline
+        ctx.strokeStyle = `${word.color}44`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Droplet highlight
+        ctx.beginPath();
+        ctx.ellipse(-3, -10, 2.5, 5, -0.3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${0.06 + glow * 0.04})`;
         ctx.fill();
 
         ctx.restore();
@@ -237,21 +306,55 @@ export default function RainGamePage() {
       particles.update();
       particles.draw(ctx);
 
-      // Ground/water line
-      const waterGrad = ctx.createLinearGradient(0, H - 45, 0, H);
-      waterGrad.addColorStop(0, 'rgba(108,92,231,0.05)');
-      waterGrad.addColorStop(1, 'rgba(108,92,231,0.2)');
+      // Enhanced water surface
+      const waterGrad = ctx.createLinearGradient(0, H - 55, 0, H);
+      waterGrad.addColorStop(0, 'rgba(108,92,231,0.02)');
+      waterGrad.addColorStop(0.3, 'rgba(80,60,200,0.12)');
+      waterGrad.addColorStop(0.7, 'rgba(60,40,180,0.2)');
+      waterGrad.addColorStop(1, 'rgba(40,25,140,0.35)');
       ctx.fillStyle = waterGrad;
-      ctx.fillRect(0, H - 45, W, 45);
-      // Water ripples
-      ctx.strokeStyle = 'rgba(108,92,231,0.15)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 8; i++) {
-        const rx = (i * 120 + time * 0.05) % W;
+      ctx.fillRect(0, H - 55, W, 55);
+
+      // Animated waves
+      ctx.save();
+      ctx.strokeStyle = 'rgba(120,100,231,0.15)';
+      ctx.lineWidth = 1.5;
+      for (let wave = 0; wave < 3; wave++) {
+        const waveY = H - 50 + wave * 8;
         ctx.beginPath();
-        ctx.ellipse(rx, H - 40, 20, 3, 0, 0, Math.PI * 2);
+        for (let wx = 0; wx <= W; wx += 4) {
+          const wy = waveY + Math.sin(wx * 0.02 + time * 0.002 + wave * 1.5) * 3;
+          if (wx === 0) ctx.moveTo(wx, wy);
+          else ctx.lineTo(wx, wy);
+        }
         ctx.stroke();
       }
+      ctx.restore();
+
+      // Water ripples (impact rings)
+      ctx.save();
+      for (let i = 0; i < 12; i++) {
+        const rx = (i * 95 + time * 0.04) % W;
+        const ripplePhase = (time * 0.003 + i * 1.2) % (Math.PI * 2);
+        const rippleSize = 8 + Math.sin(ripplePhase) * 12;
+        const rippleAlpha = Math.max(0, 0.12 - rippleSize * 0.004);
+        ctx.strokeStyle = `rgba(140,120,240,${rippleAlpha})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.ellipse(rx, H - 42 + Math.sin(i) * 4, rippleSize, rippleSize * 0.2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Water surface highlight
+      ctx.save();
+      const surfGlow = ctx.createLinearGradient(0, H - 52, 0, H - 48);
+      surfGlow.addColorStop(0, 'transparent');
+      surfGlow.addColorStop(0.5, 'rgba(160,140,255,0.08)');
+      surfGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = surfGlow;
+      ctx.fillRect(0, H - 52, W, 4);
+      ctx.restore();
 
       // pH bar
       const phVal = phRef.current;
