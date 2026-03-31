@@ -1579,9 +1579,9 @@ export function drawSoldierEnemy(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.restore();
 }
 
-// ===== HIGH-QUALITY CHARACTER RENDERING =====
+// ===== HIGH-QUALITY ENHANCED RENDERER FUNCTIONS =====
 
-export function drawZombieSprite(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, variant: number, walkPhase: number, time: number) {
+export function drawEnhancedZombie(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, variant: number, walkPhase: number, time: number) {
   ctx.save();
 
   const scale = size / 60; // Base size 60px
@@ -1589,83 +1589,91 @@ export function drawZombieSprite(ctx: CanvasRenderingContext2D, x: number, y: nu
   const bodyWidth = 25 * scale;
 
   // Walking animation offset
-  const walkOffset = Math.sin(walkPhase) * 3 * scale;
   const armSwing = Math.sin(walkPhase) * 0.3;
 
-  // Ground shadow
-  ctx.fillStyle = 'rgba(139, 69, 138, 0.3)'; // Neon purple shadow
+  // Ground shadow with neon glow
+  ctx.fillStyle = 'rgba(139, 69, 138, 0.4)'; // Neon purple shadow
+  ctx.shadowColor = '#8B458A';
+  ctx.shadowBlur = 8;
   ctx.beginPath();
   ctx.ellipse(x, y + bodyHeight/2 + 5*scale, bodyWidth*0.8, 5*scale, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
   ctx.translate(x, y);
   ctx.scale(scale, scale);
 
   // Variant-specific adjustments
   let bodyScale = 1;
-  let legOffset = 0;
-  if (variant === 1) { // Fat zombie
+  let colorScheme = { base: '#7FFF7F', mid: '#50C878', dark: '#2E8B57' }; // Green
+
+  if (variant === 1) { // Fat zombie - purple theme
     bodyScale = 1.4;
-  } else if (variant === 2) { // Crawler
-    legOffset = 15;
+    colorScheme = { base: '#DDA0DD', mid: '#9370DB', dark: '#4B0082' };
+  } else if (variant === 2) { // Crawler - cyan theme
     ctx.scale(1, 0.7); // Squash vertically
+    colorScheme = { base: '#E0FFFF', mid: '#00FFFF', dark: '#008B8B' };
   }
 
-  // Body gradient (cute neon green)
+  // Body gradient with cyberpunk neon effect
   const bodyGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, bodyWidth);
-  bodyGradient.addColorStop(0, '#7FFF7F'); // Bright neon green
-  bodyGradient.addColorStop(0.7, '#50C878'); // Emerald
-  bodyGradient.addColorStop(1, '#2E8B57'); // Sea green
+  bodyGradient.addColorStop(0, colorScheme.base);
+  bodyGradient.addColorStop(0.7, colorScheme.mid);
+  bodyGradient.addColorStop(1, colorScheme.dark);
 
-  // Main body
+  // Main body with glow
+  ctx.shadowColor = colorScheme.mid;
+  ctx.shadowBlur = 10;
   ctx.fillStyle = bodyGradient;
   ctx.beginPath();
   ctx.ellipse(0, 0, bodyWidth * bodyScale, bodyHeight, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
-  // Cute torn clothes (neon accents)
-  ctx.fillStyle = '#E6E6FA'; // Lavender
+  // Cyberpunk clothing with neon trim
+  ctx.fillStyle = '#2C1810'; // Dark brown base
   ctx.beginPath();
   ctx.rect(-bodyWidth/2, -5, bodyWidth, 15);
   ctx.fill();
 
-  // Torn edges (darker overlay)
-  ctx.fillStyle = '#9370DB'; // Medium slate blue
-  for (let i = 0; i < 3; i++) {
-    const tearX = -bodyWidth/2 + i * 8;
-    ctx.beginPath();
-    ctx.moveTo(tearX, -5);
-    ctx.lineTo(tearX + 3, 5);
-    ctx.lineTo(tearX + 6, -2);
-    ctx.fill();
-  }
+  // Glowing neon trim on clothes
+  ctx.strokeStyle = '#00FFFF'; // Cyan
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#00FFFF';
+  ctx.shadowBlur = 8;
+  ctx.setLineDash([3, 2]);
+  ctx.beginPath();
+  ctx.rect(-bodyWidth/2 + 1, -4, bodyWidth - 2, 13);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 0;
 
-  // Legs (with walking animation)
-  const legY = bodyHeight/2 + legOffset;
-  ctx.fillStyle = '#32CD32'; // Lime green
+  // Animated legs with walking motion
+  const legY = bodyHeight/2;
+  ctx.fillStyle = colorScheme.mid;
 
-  // Left leg
+  // Left leg with rotation
   ctx.save();
   ctx.translate(-8, legY);
-  ctx.rotate(Math.sin(walkPhase) * 0.2);
+  ctx.rotate(Math.sin(walkPhase * 2) * 0.3);
   ctx.beginPath();
   ctx.ellipse(0, 5, 4, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // Right leg
+  // Right leg with opposite rotation
   ctx.save();
   ctx.translate(8, legY);
-  ctx.rotate(-Math.sin(walkPhase) * 0.2);
+  ctx.rotate(-Math.sin(walkPhase * 2) * 0.3);
   ctx.beginPath();
   ctx.ellipse(0, 5, 4, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // Arms (swinging)
-  ctx.fillStyle = '#32CD32';
+  // Animated arms
+  ctx.fillStyle = colorScheme.mid;
 
-  // Left arm
+  // Left arm with swinging motion
   ctx.save();
   ctx.translate(-bodyWidth/2 - 5, -5);
   ctx.rotate(armSwing);
@@ -1674,7 +1682,7 @@ export function drawZombieSprite(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.fill();
   ctx.restore();
 
-  // Right arm
+  // Right arm with opposite swing
   ctx.save();
   ctx.translate(bodyWidth/2 + 5, -5);
   ctx.rotate(-armSwing);
@@ -1683,889 +1691,87 @@ export function drawZombieSprite(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.fill();
   ctx.restore();
 
-  // Head
-  const headGradient = ctx.createRadialGradient(0, -bodyHeight/2 - 8, 0, 0, -bodyHeight/2 - 8, 12);
-  headGradient.addColorStop(0, '#98FB98'); // Pale green
-  headGradient.addColorStop(1, '#228B22'); // Forest green
+  // Head with detailed gradient and glow
+  const headGradient = ctx.createRadialGradient(-3, -bodyHeight/2 - 10, 0, 0, -bodyHeight/2 - 8, 12);
+  headGradient.addColorStop(0, colorScheme.base);
+  headGradient.addColorStop(0.8, colorScheme.mid);
+  headGradient.addColorStop(1, colorScheme.dark);
 
+  ctx.shadowColor = colorScheme.mid;
+  ctx.shadowBlur = 6;
   ctx.fillStyle = headGradient;
   ctx.beginPath();
   ctx.ellipse(0, -bodyHeight/2 - 8, 12, 12, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
-  // Cute glowing eyes (neon cyan)
-  ctx.shadowColor = '#00FFFF';
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = '#FF1493'; // Deep pink for cute factor
+  // Glowing cyberpunk eyes with animation
+  const eyeGlow = Math.sin(time * 0.005) * 0.3 + 0.7; // Pulsing effect
+  ctx.shadowColor = '#FF1493'; // Deep pink
+  ctx.shadowBlur = eyeGlow * 15;
+  ctx.fillStyle = '#FF1493';
+
+  ctx.globalAlpha = eyeGlow;
   ctx.beginPath();
   ctx.ellipse(-4, -bodyHeight/2 - 10, 2, 3, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
   ctx.ellipse(4, -bodyHeight/2 - 10, 2, 3, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
 
-  // Cute mouth (small smile)
-  ctx.strokeStyle = '#8B008B'; // Dark magenta
-  ctx.lineWidth = 1.5;
+  // Friendly smile (for elementary students)
+  ctx.strokeStyle = '#FF69B4'; // Hot pink
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#FF69B4';
+  ctx.shadowBlur = 5;
   ctx.beginPath();
-  ctx.arc(0, -bodyHeight/2 - 5, 3, 0, Math.PI);
+  ctx.arc(0, -bodyHeight/2 - 5, 4, 0.2, Math.PI - 0.2);
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  // Hair patches (messy but cute)
-  ctx.fillStyle = '#4B0082'; // Indigo
+  // Cyberpunk hair with neon highlights
+  ctx.fillStyle = colorScheme.dark;
   ctx.beginPath();
   ctx.ellipse(-6, -bodyHeight/2 - 15, 3, 4, 0.3, 0, Math.PI * 2);
   ctx.fill();
+
+  // Neon hair streak
+  ctx.fillStyle = '#00FFFF';
+  ctx.shadowColor = '#00FFFF';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.ellipse(-6, -bodyHeight/2 - 15, 1, 4, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // More hair on the other side
+  ctx.fillStyle = colorScheme.dark;
   ctx.beginPath();
   ctx.ellipse(4, -bodyHeight/2 - 16, 2, 3, -0.2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Small gore details (pink splashes for cuteness)
-  ctx.fillStyle = '#FF69B4'; // Hot pink
+  // Cute decorative spots (made kid-friendly with bright colors)
+  ctx.fillStyle = '#FFB6C1'; // Light pink
   ctx.beginPath();
   ctx.ellipse(-5, 8, 2, 3, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.fillStyle = '#98FB98'; // Pale green
   ctx.beginPath();
   ctx.ellipse(7, -3, 1.5, 2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.restore();
-}
-
-export function drawPlayerCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, facing: number, time: number, muzzleFlash: boolean) {
-  ctx.save();
-
-  const scale = 1;
-  const bodyHeight = 40;
-  const bodyWidth = 20;
-
-  // Ground shadow
-  ctx.fillStyle = 'rgba(138, 43, 226, 0.3)'; // Blue violet shadow
-  ctx.beginPath();
-  ctx.ellipse(x, y + bodyHeight/2 + 3, bodyWidth*0.7, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.translate(x, y);
-
-  // Breathing animation
-  const breathe = Math.sin(time * 0.003) * 0.5 + 1;
-  ctx.scale(1, breathe);
-
-  // Body (dark jacket with neon trim)
-  const bodyGradient = ctx.createLinearGradient(0, -bodyHeight/2, 0, bodyHeight/2);
-  bodyGradient.addColorStop(0, '#2E2E2E'); // Dark gray
-  bodyGradient.addColorStop(0.3, '#4169E1'); // Royal blue
-  bodyGradient.addColorStop(1, '#191970'); // Midnight blue
-
-  ctx.fillStyle = bodyGradient;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, bodyWidth, bodyHeight, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Neon trim on jacket
-  ctx.strokeStyle = '#00FFFF'; // Cyan
-  ctx.lineWidth = 2;
-  ctx.setLineDash([3, 2]);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, bodyWidth-2, bodyHeight-2, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Arms
-  ctx.fillStyle = '#4169E1';
-  ctx.beginPath();
-  ctx.ellipse(-bodyWidth/2 - 6, -5, 4, 15, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(bodyWidth/2 + 6, -5, 4, 15, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Legs
-  ctx.fillStyle = '#2F4F4F'; // Dark slate gray
-  ctx.beginPath();
-  ctx.ellipse(-6, bodyHeight/2 + 8, 5, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(6, bodyHeight/2 + 8, 5, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Head with helmet
-  const headGradient = ctx.createRadialGradient(0, -bodyHeight/2 - 10, 0, 0, -bodyHeight/2 - 10, 12);
-  headGradient.addColorStop(0, '#FDBCB4'); // Peach
-  headGradient.addColorStop(1, '#F4A460'); // Sandy brown
-
-  ctx.fillStyle = headGradient;
-  ctx.beginPath();
-  ctx.ellipse(0, -bodyHeight/2 - 10, 10, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Helmet
-  ctx.fillStyle = '#708090'; // Slate gray
-  ctx.beginPath();
-  ctx.ellipse(0, -bodyHeight/2 - 12, 12, 8, 0, 0, Math.PI);
-  ctx.fill();
-
-  // Helmet visor glow
-  ctx.fillStyle = '#00FFFF';
-  ctx.beginPath();
-  ctx.rect(-8, -bodyHeight/2 - 15, 16, 3);
-  ctx.fill();
-
-  // Gun based on facing direction
-  ctx.save();
-  ctx.rotate(facing);
-
-  // Gun barrel (metallic gradient)
-  const gunGradient = ctx.createLinearGradient(0, -2, 0, 2);
-  gunGradient.addColorStop(0, '#C0C0C0'); // Silver
-  gunGradient.addColorStop(0.5, '#A9A9A9'); // Dark gray
-  gunGradient.addColorStop(1, '#696969'); // Dim gray
-
-  ctx.fillStyle = gunGradient;
-  ctx.beginPath();
-  ctx.rect(bodyWidth/2, -2, 25, 4);
-  ctx.fill();
-
-  // Gun stock
-  ctx.fillStyle = '#8B4513'; // Saddle brown
-  ctx.beginPath();
-  ctx.rect(bodyWidth/2 - 8, -4, 12, 8);
-  ctx.fill();
-
-  // Gun grip
-  ctx.fillStyle = '#2F4F4F';
-  ctx.beginPath();
-  ctx.rect(bodyWidth/2 - 3, 2, 6, 10);
-  ctx.fill();
-
-  // Muzzle flash effect
-  if (muzzleFlash) {
-    const flashGradient = ctx.createRadialGradient(bodyWidth/2 + 25, 0, 0, bodyWidth/2 + 25, 0, 15);
-    flashGradient.addColorStop(0, '#FFFF00'); // Yellow
-    flashGradient.addColorStop(0.5, '#FFA500'); // Orange
-    flashGradient.addColorStop(1, 'rgba(255, 69, 0, 0)'); // Red orange to transparent
-
-    ctx.fillStyle = flashGradient;
-    ctx.beginPath();
-    ctx.ellipse(bodyWidth/2 + 30, 0, 15, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bright center flash
-    ctx.shadowColor = '#FFFF00';
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.ellipse(bodyWidth/2 + 25, 0, 5, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
-
-  ctx.restore(); // End gun rotation
-
-  ctx.restore();
-}
-
-export function drawMoonlight(ctx: CanvasRenderingContext2D, W: number, H: number, time: number) {
-  ctx.save();
-
-  // Dark sky gradient (cyberpunk night)
-  const skyGradient = ctx.createLinearGradient(0, 0, 0, H);
-  skyGradient.addColorStop(0, '#0B0B2F'); // Very dark blue
-  skyGradient.addColorStop(0.3, '#1A1A3A'); // Dark purple
-  skyGradient.addColorStop(0.7, '#2D1B69'); // Medium purple
-  skyGradient.addColorStop(1, '#4B0082'); // Indigo
-
-  ctx.fillStyle = skyGradient;
-  ctx.fillRect(0, 0, W, H);
-
-  // Stars (twinkling)
-  ctx.fillStyle = '#FFFFFF';
-  for (let i = 0; i < 100; i++) {
-    const starX = (i * 127 + 50) % W;
-    const starY = (i * 89 + 30) % (H * 0.6);
-    const twinkle = Math.sin(time * 0.002 + i) * 0.5 + 0.5;
-    const size = (0.5 + twinkle) * (1 + Math.sin(i) * 0.5);
-
-    ctx.globalAlpha = twinkle;
-    ctx.beginPath();
-    ctx.ellipse(starX, starY, size, size, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // Large detailed moon
-  const moonX = W * 0.8;
-  const moonY = H * 0.2;
-  const moonRadius = 40;
-
-  // Moon glow
-  const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, moonRadius * 3);
-  moonGlow.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-  moonGlow.addColorStop(0.5, 'rgba(173, 216, 230, 0.1)'); // Light blue
-  moonGlow.addColorStop(1, 'rgba(173, 216, 230, 0)');
-
-  ctx.fillStyle = moonGlow;
-  ctx.beginPath();
-  ctx.ellipse(moonX, moonY, moonRadius * 3, moonRadius * 3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Moon surface
-  const moonGradient = ctx.createRadialGradient(moonX - 10, moonY - 10, 0, moonX, moonY, moonRadius);
-  moonGradient.addColorStop(0, '#F5F5DC'); // Beige
-  moonGradient.addColorStop(0.7, '#E6E6FA'); // Lavender
-  moonGradient.addColorStop(1, '#D3D3D3'); // Light gray
-
-  ctx.fillStyle = moonGradient;
-  ctx.beginPath();
-  ctx.ellipse(moonX, moonY, moonRadius, moonRadius, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Moon craters (cute spots)
-  ctx.fillStyle = '#C0C0C0';
-  const craters = [[10, -5, 4], [-8, 8, 3], [5, 12, 5], [-15, -10, 2]];
-  craters.forEach(([cx, cy, r]) => {
-    ctx.beginPath();
-    ctx.ellipse(moonX + cx, moonY + cy, r, r, 0, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Drifting clouds (semi-transparent, moving)
-  const cloudOffset = (time * 0.0001) % 1;
-
-  for (let i = 0; i < 3; i++) {
-    const cloudX = ((i * 0.4 + cloudOffset) % 1.2 - 0.1) * W;
-    const cloudY = H * 0.4 + i * 40;
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-
-    // Cloud puffs
-    for (let j = 0; j < 5; j++) {
-      const puffX = cloudX + j * 15 - 30;
-      const puffY = cloudY + Math.sin(j) * 5;
-      const puffSize = 20 + Math.sin(j) * 8;
-
-      ctx.beginPath();
-      ctx.ellipse(puffX, puffY, puffSize, puffSize * 0.7, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // Eerie ambient light near horizon (cyberpunk glow)
-  const horizonGradient = ctx.createLinearGradient(0, H * 0.8, 0, H);
-  horizonGradient.addColorStop(0, 'rgba(0, 255, 127, 0.1)'); // Spring green
-  horizonGradient.addColorStop(0.5, 'rgba(138, 43, 226, 0.15)'); // Blue violet
-  horizonGradient.addColorStop(1, 'rgba(75, 0, 130, 0.2)'); // Indigo
-
-  ctx.fillStyle = horizonGradient;
-  ctx.fillRect(0, H * 0.8, W, H * 0.2);
-
-  // Fog/mist layer
-  const fogGradient = ctx.createLinearGradient(0, H * 0.9, 0, H);
-  fogGradient.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
-  fogGradient.addColorStop(1, 'rgba(255, 255, 255, 0.2)');
-
-  ctx.fillStyle = fogGradient;
-  ctx.fillRect(0, H * 0.9, W, H * 0.1);
-
-  ctx.restore();
-}
-
-export function drawCityscape(ctx: CanvasRenderingContext2D, W: number, H: number, groundY: number) {
-  ctx.save();
-
-  // Distant layer (smaller, more faded)
-  ctx.fillStyle = 'rgba(25, 25, 112, 0.6)'; // Midnight blue with transparency
-  const distantBuildings = [
-    [0.1, 0.3, 0.4], [0.15, 0.25, 0.35], [0.25, 0.4, 0.5], [0.35, 0.2, 0.3],
-    [0.45, 0.35, 0.45], [0.55, 0.3, 0.4], [0.7, 0.25, 0.35], [0.8, 0.4, 0.5]
-  ];
-
-  distantBuildings.forEach(([xRatio, heightRatio, widthRatio]) => {
-    const x = W * xRatio;
-    const width = W * widthRatio * 0.1;
-    const height = H * heightRatio;
-
-    ctx.fillRect(x, groundY - height, width, height);
-
-    // Small distant windows
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.3)'; // Dim yellow
-    for (let row = 0; row < Math.floor(height / 15); row++) {
-      for (let col = 0; col < Math.floor(width / 8); col++) {
-        if (Math.random() > 0.7) {
-          ctx.fillRect(x + col * 8 + 2, groundY - height + row * 15 + 3, 4, 8);
-        }
-      }
-    }
-    ctx.fillStyle = 'rgba(25, 25, 112, 0.6)';
-  });
-
-  // Near layer (bigger, darker)
-  ctx.fillStyle = '#1C1C1C'; // Very dark gray
-  const nearBuildings = [
-    [0.05, 0.6, 0.15, false], [0.25, 0.5, 0.12, true], [0.4, 0.7, 0.18, false],
-    [0.65, 0.45, 0.14, true], [0.85, 0.65, 0.16, false]
-  ];
-
-  nearBuildings.forEach(([xRatio, heightRatio, widthRatio, leaning]) => {
-    const x = W * xRatio;
-    const width = W * widthRatio;
-    const height = H * heightRatio;
-
-    ctx.save();
-    if (leaning) {
-      ctx.translate(x + width/2, groundY);
-      ctx.rotate(0.1); // Slight lean
-      ctx.translate(-width/2, -height);
-    }
-
-    // Main building
-    const buildingGradient = ctx.createLinearGradient(0, 0, width, 0);
-    buildingGradient.addColorStop(0, '#1C1C1C');
-    buildingGradient.addColorStop(0.5, '#2F2F2F');
-    buildingGradient.addColorStop(1, '#1C1C1C');
-
-    ctx.fillStyle = buildingGradient;
-    ctx.fillRect(leaning ? 0 : x, leaning ? 0 : groundY - height, width, height);
-
-    // Broken windows (bright neon spots)
-    const windowColors = ['#00FFFF', '#FF1493', '#7FFF00', '#FF6347']; // Cyberpunk colors
-
-    for (let row = 0; row < Math.floor(height / 20); row++) {
-      for (let col = 0; col < Math.floor(width / 15); col++) {
-        if (Math.random() > 0.6) {
-          const windowColor = windowColors[Math.floor(Math.random() * windowColors.length)];
-          ctx.fillStyle = windowColor;
-
-          const wx = (leaning ? 0 : x) + col * 15 + 3;
-          const wy = (leaning ? 0 : groundY - height) + row * 20 + 5;
-
-          ctx.fillRect(wx, wy, 8, 12);
-
-          // Window glow
-          ctx.shadowColor = windowColor;
-          ctx.shadowBlur = 5;
-          ctx.fillRect(wx, wy, 8, 12);
-          ctx.shadowBlur = 0;
-        }
-      }
-    }
-
-    // Building damage (missing chunks for low buildings)
-    if (heightRatio < 0.6) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-      ctx.clearRect(
-        (leaning ? 0 : x) + width * 0.7,
-        (leaning ? 0 : groundY - height) + height * 0.3,
-        width * 0.2,
-        height * 0.4
-      );
-    }
-
-    ctx.restore();
-  });
-
-  // Ground line with cyberpunk glow
-  ctx.strokeStyle = '#FF1493'; // Deep pink
-  ctx.lineWidth = 2;
-  ctx.shadowColor = '#FF1493';
-  ctx.shadowBlur = 10;
-  ctx.beginPath();
-  ctx.moveTo(0, groundY);
-  ctx.lineTo(W, groundY);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.restore();
-}
-
-export function drawSoldierEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, type: number, walkPhase: number, time: number) {
-  ctx.save();
-
-  const scale = 1;
-  const bodyHeight = 35;
-  const bodyWidth = 18;
-
-  // Walking animation
-  const legOffset = Math.sin(walkPhase) * 4;
-  const armSwing = Math.sin(walkPhase + Math.PI) * 0.2;
-
-  // Ground shadow (neon purple)
-  ctx.fillStyle = 'rgba(147, 112, 219, 0.4)'; // Medium slate blue
-  ctx.beginPath();
-  ctx.ellipse(x, y + bodyHeight/2 + 3, bodyWidth*0.6, 3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.translate(x, y);
-
-  // Type-specific colors and sizes
-  let armorColor, weaponColor, helmetStyle;
-  let sizeMultiplier = 1;
-
-  if (type === 0) { // Swordsman
-    armorColor = '#4169E1'; // Royal blue
-    weaponColor = '#C0C0C0'; // Silver
-    helmetStyle = 'basic';
-  } else if (type === 1) { // Spearman
-    armorColor = '#32CD32'; // Lime green
-    weaponColor = '#8B4513'; // Saddle brown
-    helmetStyle = 'pointed';
-  } else { // Knight (type === 2)
-    armorColor = '#FFD700'; // Gold
-    weaponColor = '#C0C0C0'; // Silver
-    helmetStyle = 'full';
-    sizeMultiplier = 1.3;
-  }
-
-  ctx.scale(sizeMultiplier, sizeMultiplier);
-
-  // Legs with walking animation
-  ctx.fillStyle = armorColor;
-
-  // Left leg
-  ctx.save();
-  ctx.translate(-6, bodyHeight/2 + 5);
-  ctx.rotate(Math.sin(walkPhase) * 0.3);
-  ctx.beginPath();
-  ctx.ellipse(0, 5, 4, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Right leg
-  ctx.save();
-  ctx.translate(6, bodyHeight/2 + 5);
-  ctx.rotate(-Math.sin(walkPhase) * 0.3);
-  ctx.beginPath();
-  ctx.ellipse(0, 5, 4, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Main body with gradient shading
-  const bodyGradient = ctx.createRadialGradient(-5, -5, 0, 0, 0, bodyWidth);
-  bodyGradient.addColorStop(0, armorColor);
-  bodyGradient.addColorStop(0.7, armorColor);
-  bodyGradient.addColorStop(1, '#2F4F4F'); // Dark slate gray
-
-  ctx.fillStyle = bodyGradient;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, bodyWidth, bodyHeight, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Armor details (neon trim)
-  ctx.strokeStyle = '#00FFFF'; // Cyan trim
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(0, -5, bodyWidth - 3, Math.PI, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, 5, bodyWidth - 3, 0, Math.PI);
-  ctx.stroke();
-
-  // Arms
-  ctx.fillStyle = armorColor;
-
-  // Left arm (swinging)
-  ctx.save();
-  ctx.translate(-bodyWidth/2 - 4, -3);
-  ctx.rotate(armSwing);
-  ctx.beginPath();
-  ctx.ellipse(0, 6, 3, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Right arm (holding weapon)
-  ctx.save();
-  ctx.translate(bodyWidth/2 + 4, -3);
-  ctx.rotate(-armSwing * 0.5);
-  ctx.beginPath();
-  ctx.ellipse(0, 6, 3, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Weapon based on type
-  ctx.save();
-  ctx.translate(bodyWidth/2 + 8, 2);
-  ctx.rotate(-armSwing * 0.5);
-
-  if (type === 0) { // Sword + Shield
-    // Sword
-    const swordGradient = ctx.createLinearGradient(0, -15, 0, -5);
-    swordGradient.addColorStop(0, '#E6E6FA'); // Lavender
-    swordGradient.addColorStop(1, weaponColor);
-
-    ctx.fillStyle = swordGradient;
-    ctx.beginPath();
-    ctx.rect(-1, -15, 2, 20);
-    ctx.fill();
-
-    // Sword hilt
-    ctx.fillStyle = '#8B4513'; // Saddle brown
-    ctx.beginPath();
-    ctx.rect(-3, 5, 6, 3);
-    ctx.fill();
-
-    // Small shield on other arm
-    ctx.save();
-    ctx.translate(-bodyWidth - 6, -2);
-    ctx.fillStyle = armorColor;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 6, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#FFD700'; // Gold trim
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
-
-  } else if (type === 1) { // Spear
-    // Long spear shaft
-    ctx.fillStyle = weaponColor;
-    ctx.beginPath();
-    ctx.rect(-1, -25, 2, 35);
-    ctx.fill();
-
-    // Spear tip
-    ctx.fillStyle = '#C0C0C0';
-    ctx.beginPath();
-    ctx.moveTo(0, -25);
-    ctx.lineTo(-2, -20);
-    ctx.lineTo(2, -20);
-    ctx.closePath();
-    ctx.fill();
-
-  } else { // Knight weapon (large sword)
-    // Large sword
-    const largeSwordGradient = ctx.createLinearGradient(0, -20, 0, -5);
-    largeSwordGradient.addColorStop(0, '#E6E6FA');
-    largeSwordGradient.addColorStop(1, weaponColor);
-
-    ctx.fillStyle = largeSwordGradient;
-    ctx.beginPath();
-    ctx.rect(-2, -20, 4, 25);
-    ctx.fill();
-
-    // Large hilt
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.rect(-4, 5, 8, 4);
-    ctx.fill();
-  }
-
-  ctx.restore(); // End weapon drawing
-
-  // Head based on helmet style
-  ctx.fillStyle = '#FDBCB4'; // Peach skin tone
-  ctx.beginPath();
-  ctx.ellipse(0, -bodyHeight/2 - 8, 8, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Helmet
-  if (helmetStyle === 'basic') {
-    ctx.fillStyle = '#696969'; // Dim gray
-    ctx.beginPath();
-    ctx.ellipse(0, -bodyHeight/2 - 10, 9, 6, 0, 0, Math.PI);
-    ctx.fill();
-  } else if (helmetStyle === 'pointed') {
-    ctx.fillStyle = '#556B2F'; // Dark olive green
-    ctx.beginPath();
-    ctx.ellipse(0, -bodyHeight/2 - 10, 9, 6, 0, 0, Math.PI);
-    ctx.fill();
-    // Point on top
-    ctx.beginPath();
-    ctx.moveTo(0, -bodyHeight/2 - 16);
-    ctx.lineTo(-3, -bodyHeight/2 - 12);
-    ctx.lineTo(3, -bodyHeight/2 - 12);
-    ctx.closePath();
-    ctx.fill();
-  } else { // Full helmet
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.ellipse(0, -bodyHeight/2 - 8, 10, 10, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Helmet visor
-    ctx.fillStyle = '#2F4F4F';
-    ctx.beginPath();
-    ctx.rect(-6, -bodyHeight/2 - 10, 12, 4);
-    ctx.fill();
-  }
-
-  // Eyes (if visible)
-  if (helmetStyle !== 'full') {
-    ctx.fillStyle = '#FF1493'; // Deep pink for cute factor
-    ctx.beginPath();
-    ctx.ellipse(-2, -bodyHeight/2 - 9, 1, 1.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(2, -bodyHeight/2 - 9, 1, 1.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
-
-export function drawCastleDetailed(ctx: CanvasRenderingContext2D, x: number, y: number, hp: number, maxHp: number, time: number) {
-  ctx.save();
-
-  const castleWidth = 120;
-  const castleHeight = 80;
-  const hpRatio = hp / maxHp;
-
-  // Ground shadow
-  ctx.fillStyle = 'rgba(75, 0, 130, 0.3)'; // Indigo shadow
-  ctx.beginPath();
-  ctx.ellipse(x, y + castleHeight/2 + 5, castleWidth*0.8, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.translate(x, y);
-
-  // Defensive wall (front)
-  const wallGradient = ctx.createLinearGradient(0, 0, 0, castleHeight/4);
-  wallGradient.addColorStop(0, '#708090'); // Slate gray
-  wallGradient.addColorStop(1, '#2F4F4F'); // Dark slate gray
-
-  ctx.fillStyle = wallGradient;
-  ctx.beginPath();
-  ctx.rect(-castleWidth/2 - 10, castleHeight/3, castleWidth + 20, castleHeight/4);
-  ctx.fill();
-
-  // Main castle body with stone brick texture
-  const mainGradient = ctx.createLinearGradient(-castleWidth/2, 0, castleWidth/2, 0);
-  mainGradient.addColorStop(0, '#A9A9A9'); // Dark gray
-  mainGradient.addColorStop(0.5, '#D3D3D3'); // Light gray
-  mainGradient.addColorStop(1, '#A9A9A9'); // Dark gray
-
-  ctx.fillStyle = mainGradient;
-  ctx.beginPath();
-  ctx.rect(-castleWidth/2, -castleHeight/2, castleWidth, castleHeight);
-  ctx.fill();
-
-  // Stone brick texture pattern
-  ctx.strokeStyle = 'rgba(105, 105, 105, 0.5)'; // Dim gray
-  ctx.lineWidth = 0.5;
-
-  // Horizontal lines
-  for (let i = 0; i < castleHeight; i += 10) {
-    ctx.beginPath();
-    ctx.moveTo(-castleWidth/2, -castleHeight/2 + i);
-    ctx.lineTo(castleWidth/2, -castleHeight/2 + i);
-    ctx.stroke();
-  }
-
-  // Vertical lines (staggered for brick pattern)
-  for (let i = 0; i < castleWidth; i += 15) {
-    for (let j = 0; j < castleHeight; j += 20) {
-      const offset = (Math.floor(j/10) % 2) * 7.5; // Stagger alternate rows
-      ctx.beginPath();
-      ctx.moveTo(-castleWidth/2 + i + offset, -castleHeight/2 + j);
-      ctx.lineTo(-castleWidth/2 + i + offset, -castleHeight/2 + j + 10);
-      ctx.stroke();
-    }
-  }
-
-  // Towers with conical roofs
-  const towerPositions = [-40, -10, 10, 40];
-  towerPositions.forEach((towerX, index) => {
-    const towerHeight = 30 + (index % 2) * 10;
-
-    // Tower body
-    const towerGradient = ctx.createRadialGradient(towerX - 5, -castleHeight/2 - towerHeight/2, 0, towerX, -castleHeight/2 - towerHeight/2, 10);
-    towerGradient.addColorStop(0, '#B0C4DE'); // Light steel blue
-    towerGradient.addColorStop(1, '#778899'); // Light slate gray
-
-    ctx.fillStyle = towerGradient;
-    ctx.beginPath();
-    ctx.rect(towerX - 8, -castleHeight/2 - towerHeight, 16, towerHeight);
-    ctx.fill();
-
-    // Conical roof
-    const roofGradient = ctx.createLinearGradient(towerX - 12, -castleHeight/2 - towerHeight - 15, towerX + 12, -castleHeight/2 - towerHeight - 15);
-    roofGradient.addColorStop(0, '#8B0000'); // Dark red
-    roofGradient.addColorStop(0.5, '#DC143C'); // Crimson
-    roofGradient.addColorStop(1, '#8B0000'); // Dark red
-
-    ctx.fillStyle = roofGradient;
-    ctx.beginPath();
-    ctx.moveTo(towerX, -castleHeight/2 - towerHeight - 20);
-    ctx.lineTo(towerX - 12, -castleHeight/2 - towerHeight);
-    ctx.lineTo(towerX + 12, -castleHeight/2 - towerHeight);
-    ctx.closePath();
-    ctx.fill();
-
-    // Tower torch (animated)
-    const flameFlicker = Math.sin(time * 0.01 + index) * 2 + 8;
-
-    // Torch base
-    ctx.fillStyle = '#8B4513'; // Saddle brown
-    ctx.beginPath();
-    ctx.rect(towerX + 6, -castleHeight/2 - towerHeight + 10, 2, 15);
-    ctx.fill();
-
-    // Flame
-    const flameGradient = ctx.createRadialGradient(towerX + 7, -castleHeight/2 - towerHeight + 10, 0, towerX + 7, -castleHeight/2 - towerHeight + 10, flameFlicker);
-    flameGradient.addColorStop(0, '#FFFF00'); // Yellow
-    flameGradient.addColorStop(0.5, '#FFA500'); // Orange
-    flameGradient.addColorStop(1, '#FF4500'); // Red orange
-
-    ctx.fillStyle = flameGradient;
-    ctx.beginPath();
-    ctx.ellipse(towerX + 7, -castleHeight/2 - towerHeight + 5, 3, flameFlicker, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Flame glow
-    ctx.shadowColor = '#FFA500';
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.ellipse(towerX + 7, -castleHeight/2 - towerHeight + 5, 2, flameFlicker * 0.7, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  });
-
-  // Beautiful stained glass windows (glowing)
-  const windowPositions = [[-25, -10], [0, -15], [25, -10]];
-  windowPositions.forEach(([wx, wy], index) => {
-    const colors = ['#FF1493', '#00FFFF', '#7FFF00']; // Deep pink, cyan, chartreuse
-    const windowColor = colors[index];
-
-    // Window glow
-    ctx.shadowColor = windowColor;
-    ctx.shadowBlur = 15;
-
-    // Window frame
-    ctx.fillStyle = '#2F4F4F'; // Dark slate gray
-    ctx.beginPath();
-    ctx.rect(wx - 6, wy - 8, 12, 16);
-    ctx.fill();
-
-    // Colored glass
-    ctx.fillStyle = windowColor;
-    ctx.globalAlpha = 0.8;
-    ctx.beginPath();
-    ctx.rect(wx - 4, wy - 6, 8, 12);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Glass cross pattern
-    ctx.strokeStyle = '#2F4F4F';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(wx, wy - 6);
-    ctx.lineTo(wx, wy + 6);
-    ctx.moveTo(wx - 4, wy);
-    ctx.lineTo(wx + 4, wy);
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-  });
-
-  // Waving flag with cloth physics
-  const flagPole = 35;
-  const flagX = flagPole;
-  const flagY = -castleHeight/2 - 35;
-
-  // Flag pole
-  ctx.fillStyle = '#8B4513'; // Saddle brown
-  ctx.beginPath();
-  ctx.rect(flagX, flagY, 2, 30);
-  ctx.fill();
-
-  // Flag cloth (multiple points for wave effect)
-  const flagPoints = [];
-  const flagWidth = 20;
-  const flagHeight = 12;
-
-  for (let i = 0; i <= 8; i++) {
-    const waveX = flagX + 2 + (i / 8) * flagWidth;
-    const waveY = flagY + Math.sin(time * 0.008 + i * 0.5) * 2;
-    flagPoints.push([waveX, waveY]);
-  }
-
-  // Flag fabric
-  ctx.fillStyle = '#FFD700'; // Gold
-  ctx.beginPath();
-  ctx.moveTo(flagX + 2, flagY);
-  flagPoints.forEach(([px, py]) => ctx.lineTo(px, py));
-  ctx.lineTo(flagX + 2 + flagWidth, flagY + flagHeight);
-  ctx.lineTo(flagX + 2, flagY + flagHeight);
-  ctx.closePath();
-  ctx.fill();
-
-  // Flag emblem
-  ctx.fillStyle = '#8B0000'; // Dark red
-  ctx.beginPath();
-  ctx.ellipse(flagX + 12, flagY + 6, 3, 3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Portcullis gate detail
-  ctx.fillStyle = '#2F4F4F'; // Dark slate gray
-  ctx.beginPath();
-  ctx.rect(-8, castleHeight/3, 16, castleHeight/4);
-  ctx.fill();
-
-  // Iron grid pattern
-  ctx.strokeStyle = '#696969'; // Dim gray
-  ctx.lineWidth = 2;
-
-  // Vertical bars
-  for (let i = -6; i <= 6; i += 3) {
-    ctx.beginPath();
-    ctx.moveTo(i, castleHeight/3 + 2);
-    ctx.lineTo(i, castleHeight/3 + castleHeight/4 - 2);
-    ctx.stroke();
-  }
-
-  // Horizontal bars
-  for (let i = 3; i < castleHeight/4 - 2; i += 4) {
-    ctx.beginPath();
-    ctx.moveTo(-6, castleHeight/3 + i);
-    ctx.lineTo(6, castleHeight/3 + i);
-    ctx.stroke();
-  }
-
-  // HP-based damage
-  if (hpRatio < 0.7) {
-    // Cracks on walls
-    ctx.strokeStyle = '#2F4F4F';
-    ctx.lineWidth = 2;
-
-    const cracks = [
-      [[-30, -20], [-25, -10], [-20, -5]],
-      [[15, -25], [20, -15], [25, -8]],
-      [[-10, 10], [-5, 20], [0, 25]]
-    ];
-
-    cracks.forEach(crack => {
-      ctx.beginPath();
-      crack.forEach(([cx, cy], index) => {
-        if (index === 0) ctx.moveTo(cx, cy);
-        else ctx.lineTo(cx, cy);
-      });
-      ctx.stroke();
-    });
-  }
-
-  if (hpRatio < 0.4) {
-    // Missing bricks (dark patches)
-    ctx.fillStyle = '#1C1C1C';
-    ctx.beginPath();
-    ctx.rect(-45, -10, 8, 12);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.rect(20, 5, 6, 8);
-    ctx.fill();
-  }
-
-  if (hpRatio < 0.2) {
-    // Smoke from damage
-    ctx.fillStyle = 'rgba(105, 105, 105, 0.6)'; // Dim gray smoke
-
+  // Optional: Add floating particles for extra effect
+  if (Math.random() > 0.8) {
+    ctx.fillStyle = colorScheme.mid;
+    ctx.globalAlpha = 0.6;
     for (let i = 0; i < 3; i++) {
-      const smokeX = -30 + i * 20;
-      const smokeY = -castleHeight/2 - 10 + Math.sin(time * 0.003 + i) * 5;
-      const smokeSize = 8 + Math.sin(time * 0.005 + i) * 3;
-
-      ctx.globalAlpha = 0.5;
+      const px = (Math.random() - 0.5) * bodyWidth * 2;
+      const py = (Math.random() - 0.5) * bodyHeight * 1.5;
       ctx.beginPath();
-      ctx.ellipse(smokeX, smokeY, smokeSize, smokeSize * 1.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py, 1, 1, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
