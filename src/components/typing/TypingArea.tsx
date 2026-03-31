@@ -9,6 +9,9 @@ import { ResultPanel } from './ResultPanel';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useTypingStore } from '@/stores/useTypingStore';
 import { useStatsStore } from '@/stores/useStatsStore';
+import { useProgressStore } from '@/stores/useProgressStore';
+import { useMascotStore } from '@/stores/useMascotStore';
+import { useCelebrationStore } from '../common/CelebrationOverlay';
 
 interface TypingAreaProps {
   text: string;
@@ -23,6 +26,10 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
   const settings = useSettingsStore((s) => s.settings);
   const addSession = useTypingStore((s) => s.addSession);
   const recordSession = useStatsStore((s) => s.recordSession);
+  const { addXP, addCoins } = useProgressStore();
+  const { setMood, showMessage } = useMascotStore();
+  const { trigger: celebrate } = useCelebrationStore();
+  const bestKpm = useStatsStore((s) => s.stats.bestKpm);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState('');
   const [result, setResult] = useState<TypingResult | null>(null);
@@ -46,6 +53,32 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
       // Record session for ranking & stats
       addSession({ mode: 'word', language: settings.language || 'ko', text, result: r, timestamp: Date.now() });
       recordSession(r);
+
+      // Mascot reaction
+      if (r.accuracy >= 98 && r.kpm >= 300) {
+        setMood('cheering');
+        showMessage('완벽해! 진짜 대단해! 🌟', 3000);
+      } else if (r.accuracy >= 95) {
+        setMood('excited');
+        showMessage('잘했어! 훌륭한 정확도! 👏', 3000);
+      } else if (r.accuracy >= 85) {
+        setMood('happy');
+        showMessage('좋아! 계속 이렇게! 💪', 3000);
+      } else {
+        setMood('thinking');
+        showMessage('조금 더 천천히 정확하게 해볼까? 🤔', 3000);
+      }
+
+      // Check personal best
+      if (r.kpm > bestKpm && bestKpm > 0) {
+        celebrate({
+          type: 'personal_best',
+          title: '새로운 최고 기록!',
+          subtitle: `${Math.round(r.kpm)} 타/분`,
+          icon: '🏆',
+        });
+      }
+
       onComplete?.(r);
     },
     soundEnabled: settings.keySound,

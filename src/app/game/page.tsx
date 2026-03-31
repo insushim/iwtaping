@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useStatsStore } from '@/stores/useStatsStore';
 
 const SpaceIcon = () => (
   <svg viewBox="0 0 64 64" width="48" height="48">
@@ -97,7 +98,13 @@ const PuzzleIcon = () => (
 
 export default function GamePage() {
   const { settings } = useSettingsStore();
+  const { stats, loadStats } = useStatsStore();
   const isKorean = settings.language === 'ko';
+
+  // Load stats on mount
+  if (typeof window !== 'undefined' && stats.totalSessions === 0) {
+    loadStats();
+  }
 
   const games = [
     { href: '/game/rain', icon: <RainIcon />, title: isKorean ? '산성비' : 'Acid Rain', desc: isKorean ? '떨어지는 단어를 입력해서 제거하세요' : 'Type falling words to clear them', difficulty: isKorean ? '쉬움~어려움' : 'Easy~Hard' },
@@ -108,9 +115,19 @@ export default function GamePage() {
     { href: '/game/puzzle', icon: <PuzzleIcon />, title: isKorean ? '끝말잇기' : 'Word Chain', desc: isKorean ? '마지막 글자로 시작하는 단어를 이어가세요' : 'Chain words by their last letter', difficulty: isKorean ? '쉬움~보통' : 'Easy~Medium' },
   ];
 
+  // Map game type to high score key
+  const gameScoreKeys: Record<string, string> = {
+    '/game/rain': 'rain',
+    '/game/space': 'space',
+    '/game/race': 'race',
+    '/game/defense': 'defense',
+    '/game/zombie': 'zombie',
+    '/game/puzzle': 'puzzle',
+  };
+
   return (
     <div className="max-w-[1000px] mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+      <h1 className="text-3xl font-bold mb-2 gradient-text" style={{ fontFamily: "'Outfit', sans-serif" }}>
         {isKorean ? '게임 모드' : 'Game Modes'}
       </h1>
       <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
@@ -118,18 +135,29 @@ export default function GamePage() {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {games.map((game) => (
-          <Link key={game.href} href={game.href} className="no-underline">
-            <Card hoverable className="p-6 h-full">
-              <div className="mb-3">{game.icon}</div>
-              <h2 className="text-lg font-bold mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{game.title}</h2>
-              <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>{game.desc}</p>
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.2)', color: 'var(--color-primary-light)' }}>
-                {game.difficulty}
-              </span>
-            </Card>
-          </Link>
-        ))}
+        {games.map((game, i) => {
+          const scoreKey = gameScoreKeys[game.href];
+          const highScore = scoreKey && stats.gameHighScores ? (stats.gameHighScores as Record<string, number>)[scoreKey] : undefined;
+          return (
+            <Link key={game.href} href={game.href} className="no-underline">
+              <Card hoverable className="p-6 h-full slide-up" style={{ animationDelay: `${i * 0.06}s`, opacity: 0 }}>
+                <div className="mb-3">{game.icon}</div>
+                <h2 className="text-lg font-bold mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{game.title}</h2>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>{game.desc}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.2)', color: 'var(--color-primary-light)' }}>
+                    {game.difficulty}
+                  </span>
+                  {highScore != null && highScore > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(254,202,87,0.2)', color: 'var(--color-accent-warm)' }}>
+                      🏆 {highScore}
+                    </span>
+                  )}
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
