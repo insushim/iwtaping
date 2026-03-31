@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
+import { GlobalOverlays } from "@/components/common/GlobalOverlays";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -46,9 +47,10 @@ export default function RootLayout({
       </head>
       <body className="antialiased" style={{ fontFamily: "'Noto Sans KR', 'Outfit', sans-serif" }}>
         <Header />
-        <main className="pt-[var(--header-height)]">
+        <main className="pt-[calc(var(--header-height)+4px)]">
           {children}
         </main>
+        <GlobalOverlays />
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
