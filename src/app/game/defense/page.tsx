@@ -9,7 +9,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
 import {
   ParticleSystem, ScreenShake,
-  drawCastle, drawWordBubble, drawShieldBar,
+  drawCastle, drawCastleDetailed, drawSoldierEnemy, drawWordBubble, drawShieldBar,
 } from '@/lib/game/renderer';
 
 interface Enemy {
@@ -20,7 +20,7 @@ interface Enemy {
   speed: number;
   hp: number;
   color: string;
-  type: number;
+  type: number; // 0=swordsman, 1=spearman, 2=knight
   spawnTime: number;
   dying?: boolean;
 }
@@ -138,57 +138,130 @@ export default function DefenseGamePage() {
       ctx.save();
       ctx.translate(shakeOffset.x, shakeOffset.y);
 
-      // Background - fantasy landscape
-      const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, '#0D0D2A');
-      grad.addColorStop(0.3, '#141430');
-      grad.addColorStop(0.7, '#1A1A3A');
-      grad.addColorStop(1, '#1E1E40');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
+      // Background - scenic sunset landscape
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+      skyGrad.addColorStop(0, '#FF6B35'); // Orange sunset
+      skyGrad.addColorStop(0.3, '#F7931E'); // Warm orange
+      skyGrad.addColorStop(0.6, '#FFB347'); // Peach
+      skyGrad.addColorStop(0.8, '#4A154B'); // Deep purple
+      skyGrad.addColorStop(1, '#0D1B2A'); // Dark blue-purple
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, W, H * 0.7);
 
-      // Stars
-      for (let i = 0; i < 40; i++) {
-        const sx = (i * 73) % W;
-        const sy = (i * 37) % (H * 0.4);
-        ctx.fillStyle = `rgba(220,220,255,${0.2 + Math.sin(time * 0.002 + i) * 0.15})`;
-        ctx.fillRect(sx, sy, 1, 1);
-      }
-
-      // Mountains background
-      ctx.fillStyle = '#12122A';
+      // Mountain silhouettes (3 layers with parallax)
+      // Distant mountains
+      ctx.fillStyle = 'rgba(26,26,62,0.8)';
       ctx.beginPath();
-      ctx.moveTo(0, H * 0.6);
-      for (let x = 0; x <= W; x += 40) {
-        ctx.lineTo(x, H * 0.5 + Math.sin(x * 0.01) * 30 + Math.sin(x * 0.025) * 15);
+      ctx.moveTo(0, H * 0.5);
+      for (let x = 0; x <= W; x += 60) {
+        ctx.lineTo(x, H * 0.35 + Math.sin(x * 0.005 + time * 0.0001) * 40 + Math.sin(x * 0.012) * 20);
       }
-      ctx.lineTo(W, H);
-      ctx.lineTo(0, H);
+      ctx.lineTo(W, H * 0.7);
+      ctx.lineTo(0, H * 0.7);
       ctx.fill();
 
-      // Ground
-      ctx.fillStyle = '#1A1A3E';
-      ctx.fillRect(0, H * 0.75, W, H * 0.25);
-      // Path/road
-      ctx.fillStyle = '#15152E';
-      ctx.fillRect(0, H * 0.75 - 5, W, 35);
+      // Middle mountains
+      ctx.fillStyle = 'rgba(36,36,72,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(0, H * 0.6);
+      for (let x = 0; x <= W; x += 45) {
+        ctx.lineTo(x, H * 0.45 + Math.sin(x * 0.008 + time * 0.0001) * 35 + Math.sin(x * 0.018) * 15);
+      }
+      ctx.lineTo(W, H * 0.7);
+      ctx.lineTo(0, H * 0.7);
+      ctx.fill();
 
-      // Castle
-      drawCastle(ctx, 55, H * 0.75 - 15, hpVal, 20, time);
+      // Near mountains
+      ctx.fillStyle = 'rgba(46,46,82,1)';
+      ctx.beginPath();
+      ctx.moveTo(0, H * 0.65);
+      for (let x = 0; x <= W; x += 30) {
+        ctx.lineTo(x, H * 0.55 + Math.sin(x * 0.015 + time * 0.0002) * 25 + Math.sin(x * 0.03) * 10);
+      }
+      ctx.lineTo(W, H * 0.7);
+      ctx.lineTo(0, H * 0.7);
+      ctx.fill();
+
+      // Grassy plain/field
+      const groundGrad = ctx.createLinearGradient(0, H * 0.7, 0, H);
+      groundGrad.addColorStop(0, '#2D5016'); // Dark green
+      groundGrad.addColorStop(0.5, '#355E1D'); // Medium green
+      groundGrad.addColorStop(1, '#1A3A0B'); // Very dark green
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, H * 0.7, W, H * 0.3);
+
+      // Animated grass (sin-wave green lines)
+      ctx.strokeStyle = 'rgba(52,154,32,0.6)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < W; i += 8) {
+        const grassHeight = 3 + Math.sin(time * 0.002 + i * 0.05) * 2;
+        ctx.beginPath();
+        ctx.moveTo(i, H * 0.75);
+        ctx.lineTo(i + Math.sin(time * 0.003 + i * 0.02) * 1, H * 0.75 - grassHeight);
+        ctx.stroke();
+      }
+
+      // Dirt road/path from left to castle
+      const pathGrad = ctx.createLinearGradient(0, H * 0.72, 0, H * 0.78);
+      pathGrad.addColorStop(0, '#8B7355');
+      pathGrad.addColorStop(0.5, '#A0865C');
+      pathGrad.addColorStop(1, '#6B5B47');
+      ctx.fillStyle = pathGrad;
+      ctx.fillRect(0, H * 0.74, W * 0.7, 25);
+
+      // Cobblestones near castle
+      ctx.fillStyle = '#707070';
+      for (let x = W * 0.6; x < W * 0.7; x += 12) {
+        for (let y = H * 0.74; y < H * 0.77; y += 8) {
+          ctx.fillRect(x + Math.sin(y) * 2, y, 8, 6);
+        }
+      }
+
+      // Footprints/tracks on the road
+      ctx.fillStyle = 'rgba(107,91,71,0.5)';
+      for (let x = 50; x < W * 0.6; x += 40) {
+        const trackY = H * 0.75;
+        // Left foot
+        ctx.beginPath();
+        ctx.ellipse(x, trackY, 3, 6, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        // Right foot
+        ctx.beginPath();
+        ctx.ellipse(x + 15, trackY + 5, 3, 6, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Castle (detailed version, positioned on the right)
+      drawCastleDetailed(ctx, W - 100, H * 0.75 - 20, hpVal, 20, time);
 
       // Spawn enemies
       if (time - lastSpawnRef.current > Math.max(2800 - currentWave * 100, 800) && enemiesRef.current.length < 3 + currentWave) {
         lastSpawnRef.current = time;
         const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '적군' : 'enemy');
+
+        // Enemy type distribution: 50% swordsman, 30% spearman, 20% knight (higher HP)
+        const typeRoll = Math.random();
+        let enemyType, enemyHp;
+        if (typeRoll < 0.5) {
+          enemyType = 0; // Swordsman
+          enemyHp = 1;
+        } else if (typeRoll < 0.8) {
+          enemyType = 1; // Spearman
+          enemyHp = 1;
+        } else {
+          enemyType = 2; // Knight (rare, high HP)
+          enemyHp = 2;
+        }
+
         enemiesRef.current.push({
           id: nextIdRef.current++,
           text: word,
           x: W + 20,
-          y: H * 0.75 - 15 + randomBetween(-30, 30),
+          y: H * 0.75 + randomBetween(-25, 15), // Keep on the path
           speed: 0.25 + currentWave * 0.04,
-          hp: 1,
+          hp: enemyHp,
           color: pickRandom(['#FF6B6B', '#FECA57', '#FD79A8', '#00D2D3']),
-          type: Math.floor(Math.random() * 4),
+          type: enemyType,
           spawnTime: time,
         });
       }
@@ -199,17 +272,17 @@ export default function DefenseGamePage() {
         if (!e.dying) {
           e.x -= e.speed;
 
-          // Hit castle
-          if (e.x < 90) {
+          // Hit castle (updated position)
+          if (e.x > W - 150) {
             castleHpRef.current--;
             setCastleHp(castleHpRef.current);
             shake.shake(5);
-            particles.emit(90, e.y, 8, {
+            particles.emit(W - 120, e.y, 8, {
               speed: 2, life: 20, size: 3,
               colors: ['#FF6B6B', '#FF9F43'],
             });
             if (castleHpRef.current <= 0) {
-              particles.explode(55, H * 0.75, 2);
+              particles.explode(W - 100, H * 0.75, 2);
               setStatus('gameover');
               cancelAnimationFrame(animRef.current);
               soundManager?.play('gameOver');
@@ -221,35 +294,14 @@ export default function DefenseGamePage() {
           }
         }
 
-        // Draw enemy soldier (dying enemies flash)
+        // Draw detailed enemy soldier
         ctx.save();
-        ctx.translate(e.x, e.y);
         if (e.dying) ctx.globalAlpha = 0.4 + Math.sin(time * 0.02) * 0.3;
 
-        // Body
-        ctx.fillStyle = e.color;
-        // Head
-        ctx.beginPath();
-        ctx.arc(0, -14, 6, 0, Math.PI * 2);
-        ctx.fill();
-        // Body
-        ctx.fillRect(-5, -8, 10, 14);
-        // Legs (walking animation)
-        const legPhase = Math.sin(time * 0.008 + e.id);
-        ctx.fillRect(-5, 6, 4, 8 + legPhase * 2);
-        ctx.fillRect(1, 6, 4, 8 - legPhase * 2);
-        // Weapon
-        ctx.strokeStyle = '#AAA';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(6, -4);
-        ctx.lineTo(14 + Math.sin(time * 0.005) * 2, -10);
-        ctx.stroke();
-        // Shield (some enemies)
-        if (e.type % 2 === 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.15)';
-          ctx.fillRect(-8, -6, 4, 12);
-        }
+        // Calculate walking animation phase based on movement
+        const walkPhase = time * 0.008 + e.id + e.x * 0.01;
+
+        drawSoldierEnemy(ctx, e.x, e.y, e.type, walkPhase, time);
 
         ctx.restore();
 
@@ -286,30 +338,58 @@ export default function DefenseGamePage() {
         ctx.save();
         ctx.translate(a.x, a.y);
         ctx.rotate(a.angle);
-        // Arrow shaft
-        ctx.strokeStyle = '#FECA57';
-        ctx.lineWidth = 2;
+
+        // Arrow flight trail (fading line behind)
+        ctx.strokeStyle = 'rgba(254,202,87,0.3)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-20, 0);
+        ctx.lineTo(-8, 0);
+        ctx.stroke();
+
+        // Arrow shaft with gradient (wood color)
+        const shaftGrad = ctx.createLinearGradient(-10, -1, 6, 1);
+        shaftGrad.addColorStop(0, '#8B4513');
+        shaftGrad.addColorStop(0.5, '#A0522D');
+        shaftGrad.addColorStop(1, '#CD853F');
+        ctx.strokeStyle = shaftGrad;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(-10, 0);
         ctx.lineTo(6, 0);
         ctx.stroke();
-        // Arrow head
-        ctx.fillStyle = '#FF6B6B';
+
+        // Arrow head (metallic triangle)
+        const headGrad = ctx.createLinearGradient(5, -3, 10, 3);
+        headGrad.addColorStop(0, '#E5E5E5');
+        headGrad.addColorStop(0.5, '#C0C0C0');
+        headGrad.addColorStop(1, '#A0A0A0');
+        ctx.fillStyle = headGrad;
         ctx.beginPath();
         ctx.moveTo(10, 0);
-        ctx.lineTo(5, -3);
-        ctx.lineTo(5, 3);
+        ctx.lineTo(5, -4);
+        ctx.lineTo(5, 4);
         ctx.closePath();
         ctx.fill();
-        // Fletching
-        ctx.fillStyle = '#A29BFE';
+
+        // Arrow head highlight
+        ctx.strokeStyle = '#F5F5F5';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(5, -2);
+        ctx.stroke();
+
+        // Fletching (feathers)
+        ctx.fillStyle = '#8B0000';
         ctx.beginPath();
         ctx.moveTo(-10, 0);
-        ctx.lineTo(-14, -3);
+        ctx.lineTo(-15, -4);
         ctx.lineTo(-12, 0);
-        ctx.lineTo(-14, 3);
+        ctx.lineTo(-15, 4);
         ctx.closePath();
         ctx.fill();
+
         ctx.restore();
 
         aliveArrows.push(a);
@@ -329,10 +409,48 @@ export default function DefenseGamePage() {
       ctx.fillStyle = 'rgba(232,232,255,0.4)';
       ctx.fillText('SCORE', 20, 12);
 
+      // Fancy wave banner
+      ctx.save();
+      ctx.translate(W / 2, 15);
+
+      // Banner background
+      const bannerGrad = ctx.createLinearGradient(-60, -8, 60, 8);
+      bannerGrad.addColorStop(0, 'rgba(162,155,254,0.8)');
+      bannerGrad.addColorStop(0.5, 'rgba(108,92,231,0.9)');
+      bannerGrad.addColorStop(1, 'rgba(162,155,254,0.8)');
+      ctx.fillStyle = bannerGrad;
+      ctx.beginPath();
+      ctx.moveTo(-60, -8);
+      ctx.lineTo(60, -8);
+      ctx.lineTo(70, 0);
+      ctx.lineTo(60, 8);
+      ctx.lineTo(-60, 8);
+      ctx.lineTo(-70, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Banner border
+      ctx.strokeStyle = '#8B7ED8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Wave text
       ctx.font = "bold 16px 'JetBrains Mono', monospace";
-      ctx.fillStyle = '#A29BFE';
+      ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
-      ctx.fillText(`WAVE ${waveRef.current}`, W / 2, 25);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`WAVE ${waveRef.current}`, 0, 0);
+
+      ctx.restore();
+
+      // Enemy count remaining
+      const aliveEnemies = enemiesRef.current.filter(e => !e.dying).length;
+      if (aliveEnemies > 0) {
+        ctx.font = "12px 'JetBrains Mono', monospace";
+        ctx.fillStyle = 'rgba(255,107,107,0.8)';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${aliveEnemies} enemies`, W / 2, 45);
+      }
 
       ctx.font = "13px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#FECA57';
@@ -359,9 +477,10 @@ export default function DefenseGamePage() {
       // Fire arrow toward enemy
       const canvas = canvasRef.current;
       if (canvas) {
+        const castleX = canvas.offsetWidth - 100;
         const castleTop = canvas.offsetHeight * 0.75 - 55;
-        const angle = Math.atan2(enemy.y - castleTop, enemy.x - 55);
-        arrowsRef.current.push({ x: 55, y: castleTop, targetId: enemy.id, speed: 12, angle });
+        const angle = Math.atan2(enemy.y - castleTop, enemy.x - castleX);
+        arrowsRef.current.push({ x: castleX - 30, y: castleTop, targetId: enemy.id, speed: 12, angle });
       }
       // Score updates immediately (player gets feedback)
       scoreRef.current += input.length * 10;
