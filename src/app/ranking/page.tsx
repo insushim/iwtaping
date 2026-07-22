@@ -5,6 +5,10 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { GameResult, GameType } from '@/types/game';
 import { PracticeSession } from '@/types/typing';
+import { LeagueCard } from '@/components/league/LeagueCard';
+import { fetchLeaderboard, LeaderboardEntry } from '@/lib/api/client';
+import { useProgressStore } from '@/stores/useProgressStore';
+import { useAccountStore } from '@/stores/useAccountStore';
 
 type RankMode = 'speed' | 'accuracy' | 'game';
 
@@ -41,13 +45,39 @@ function formatDate(ts: number): string {
 
 export default function RankingPage() {
   const [mode, setMode] = useState<RankMode>('speed');
+  const [scope, setScope] = useState<'me' | 'national'>('me');
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
+  const [national, setNational] = useState<LeaderboardEntry[] | null>(null);
+  const [nationalLoading, setNationalLoading] = useState(false);
+
+  const { progress, loadProgress } = useProgressStore();
+  const accountStatus = useAccountStore((s) => s.status);
 
   useEffect(() => {
+    loadProgress();
     setSessions(readJSON<PracticeSession>('typingverse-sessions').filter((s) => s?.result));
     setGameResults(readJSON<GameResult>('typingverse-game-results').filter((g) => g?.gameType));
-  }, []);
+  }, [loadProgress]);
+
+  // 전국 순위는 백엔드가 있을 때만 채워진다. 없으면 null → 안내 문구.
+  useEffect(() => {
+    if (scope !== 'national') return;
+    let cancelled = false;
+    setNationalLoading(true);
+    const serverMode = mode === 'game' ? 'game:rain' : mode;
+    fetchLeaderboard(serverMode, 'weekly').then((entries) => {
+      if (cancelled) return;
+      setNational(entries);
+      setNationalLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, mode]);
+
+  // 서버 리그 연동 전에는 레벨로 티어를 추정한다(레벨 10마다 한 단계).
+  const estimatedTier = Math.min(4, Math.floor((progress.level - 1) / 10));
 
   const rankings = useMemo<RankEntry[]>(() => {
     if (mode === 'game') {
@@ -96,12 +126,23 @@ export default function RankingPage() {
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
-        내 기록
+      <h1 className="text-3xl font-bold mb-2 gradient-text" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        리그 &amp; 랭킹
       </h1>
-      <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-        이 기기에 저장된 기록입니다. 전국 순위는 준비 중이에요.
+      <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+        매주 같은 리그의 {30}명과 겨룹니다. 마감 때 순위에 따라 승급하거나 강등돼요.
       </p>
+
+      <LeagueCard tierId={estimatedTier} xpThisWeek={progress.totalXpEarned} className="mb-6" />
+
+      <div className="flex gap-2 mb-4">
+        <Button variant={scope === 'me' ? 'primary' : 'secondary'} size="sm" onClick={() => setScope('me')}>
+          내 기록
+        </Button>
+        <Button variant={scope === 'national' ? 'primary' : 'secondary'} size="sm" onClick={() => setScope('national')}>
+          전국 순위
+        </Button>
+      </div>
 
       <div className="flex gap-2 mb-6">
         <Button variant={mode === 'speed' ? 'primary' : 'secondary'} size="sm" onClick={() => setMode('speed')}>
@@ -115,6 +156,49 @@ export default function RankingPage() {
         </Button>
       </div>
 
+      {scope === 'national' ? (
+        <Card className="overflow-hidden">
+          {nationalLoading ? (
+            <p className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
+              불러오는 중…
+            </p>
+          ) : national && national.length ? (
+            <ul className="divide-y divide-[var(--key-border)]">
+              {national.map((entry) => (
+                <li key={`${entry.rank}-${entry.nickname}`} className="flex items-center gap-3 px-4 py-3">
+                  <span
+                    className="w-8 text-sm font-bold"
+                    style={{
+                      color: entry.rank <= 3 ? 'var(--color-accent-warm)' : 'var(--text-secondary)',
+                      fontFamily: "'JetBrains Mono'",
+                    }}
+                  >
+                    {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
+                  </span>
+                  <span className="flex-1 font-medium truncate">{entry.nickname}</span>
+                  <span className="text-sm font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-primary)' }}>
+                    {entry.value.toLocaleString()}
+                  </span>
+                  <span className="text-xs w-14 text-right" style={{ color: 'var(--text-muted)' }}>
+                    {entry.accuracy}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-center py-12 px-6">
+              <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+                전국 순위를 불러올 수 없어요.
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {accountStatus === 'offline' || accountStatus === 'unregistered'
+                  ? '오프라인 상태예요. 연습 기록은 이 기기에 안전하게 저장됩니다.'
+                  : '아직 이번 주 기록이 없습니다.'}
+              </p>
+            </div>
+          )}
+        </Card>
+      ) : (
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -165,6 +249,7 @@ export default function RankingPage() {
           </table>
         </div>
       </Card>
+      )}
     </div>
   );
 }
