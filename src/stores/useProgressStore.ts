@@ -271,6 +271,13 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     ) {
       return;
     }
+
+    /*
+     * 응답이 역순으로 도착할 수 있다(두 세션을 연달아 제출하면 늦게 보낸
+     * 응답이 먼저 올 수 있음). 그때 옛 잔액을 그대로 쓰면 XP·레벨이 역행한다.
+     * 재화는 단조 증가하므로, 이전에 반영한 누적값보다 작은 응답은 버린다.
+     */
+    if (wallet.xp < prev.totalXpEarned) return;
     // 레벨업 연출은 서버 레벨이 더 높을 때만 띄운다
     const leveledUp = wallet.level > prev.level;
     const newProgress: ProgressState = {
