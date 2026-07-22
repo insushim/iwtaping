@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # 타입체크는 앱과 서버(functions/)를 각각 다른 lib 설정으로 검사한다
+      - name: Typecheck (app + functions)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx oxlint src functions
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # 정적 export 산출물에 API 응답이 섞여 나가지 않는지 확인
+      - name: Guard — SW must not cache /api/*
+        run: |
+          grep -q "pathname.startsWith('/api/')" public/sw.js \
+            || (echo "sw.js가 /api/* 를 캐시에서 제외하지 않습니다" && exit 1)
+
+      # 저작권 회귀 방지: 보호 기간이 남은 작가가 지문 데이터에 다시 들어오면 실패
+      # (JFK 취임연설 등 미국 정부 저작물은 퍼블릭 도메인이라 제외 대상이 아니다)
+      - name: Guard — no copyrighted authors in practice texts
+        run: |
+          BLOCKED="김수영|최현배|이희승|이해인|Ernest Hemingway|Harper Lee|J\.D\. Salinger|Carl Sagan|Martin Luther King Jr\.|George Orwell|Maya Angelou|Nelson Mandela|John Lennon|Dr\. Seuss|J\.R\.R\. Tolkien|Anne Frank|Audrey Hepburn|Oprah Winfrey|Mother Teresa|Dalai Lama|Joseph Campbell|Helen Keller|Eleanor Roosevelt|Margaret Mead|Franklin D\. Roosevelt|Walt Disney|Steve Jobs|Winston Churchill"
+          if grep -rEn "author: '($BLOCKED)'" src/data/; then
+            echo "저작권 보호 기간이 남은 작품이 포함되어 있습니다"
+            exit 1
+          fi
