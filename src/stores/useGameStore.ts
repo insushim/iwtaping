@@ -2,6 +2,10 @@
 import { create } from 'zustand';
 import { GameType, GameStatus, GameResult } from '@/types/game';
 import { useQuestStore } from './useQuestStore';
+import { useStatsStore } from './useStatsStore';
+import { evaluateAchievements } from '@/lib/progress/achievements';
+import { useProgressStore } from './useProgressStore';
+import { notifyAchievements } from './useAchievementToast';
 
 interface GameStore {
   gameType: GameType | null;
@@ -61,6 +65,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ results });
     // 일일 퀘스트 진행도 (게임 판수·최대 콤보)
     useQuestStore.getState().recordEvent({ kind: 'game', maxCombo: result.maxCombo });
+
+    // 게임 전용 도전과제 (퍼펙트게임·레벨 클리어·레이스 우승)
+    const stats = useStatsStore.getState().stats;
+    const unlocked = evaluateAchievements({
+      stats,
+      streakDays: useProgressStore.getState().progress.streakDays,
+      game: result,
+      maxCombo: result.maxCombo,
+    });
+    if (unlocked.length) {
+      for (const key of unlocked) useStatsStore.getState().unlockAchievement(key);
+      notifyAchievements(unlocked);
+    }
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(RESULTS_KEY, JSON.stringify(results.slice(-500)));

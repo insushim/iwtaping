@@ -5,6 +5,8 @@ import { FingerType, TypingResult } from '@/types/typing';
 import { getToday } from '@/lib/utils/helpers';
 import { useProgressStore } from './useProgressStore';
 import { useQuestStore } from './useQuestStore';
+import { evaluateAchievements } from '@/lib/progress/achievements';
+import { notifyAchievements } from './useAchievementToast';
 
 const defaultUserStats: UserStats = {
   totalSessions: 0,
@@ -28,7 +30,7 @@ const defaultUserStats: UserStats = {
 
 interface StatsStore {
   stats: UserStats;
-  recordSession: (result: TypingResult) => void;
+  recordSession: (result: TypingResult, meta?: { maxCombo?: number; language?: 'ko' | 'en' }) => void;
   unlockAchievement: (key: string) => void;
   loadStats: () => void;
   resetStats: () => void;
@@ -39,7 +41,7 @@ const STATS_KEY = 'typingverse-stats';
 export const useStatsStore = create<StatsStore>((set, get) => ({
   stats: defaultUserStats,
 
-  recordSession: (result) => {
+  recordSession: (result, meta) => {
     const prev = get().stats;
     const today = getToday();
 
@@ -128,10 +130,24 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
       lastPracticeDate: today,
     };
 
-    set({ stats: newStats });
+    // 도전과제 평가 — 갱신된 통계 기준으로 판정한다(직전 값으로 하면 한 박자 늦는다)
+    const newlyUnlocked = evaluateAchievements({
+      stats: newStats,
+      streakDays: streak,
+      result,
+      maxCombo: meta?.maxCombo,
+      language: meta?.language,
+    });
+
+    const finalStats: UserStats = newlyUnlocked.length
+      ? { ...newStats, achievements: [...newStats.achievements, ...newlyUnlocked] }
+      : newStats;
+
+    set({ stats: finalStats });
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STATS_KEY, JSON.stringify(newStats));
+      localStorage.setItem(STATS_KEY, JSON.stringify(finalStats));
     }
+    if (newlyUnlocked.length) notifyAchievements(newlyUnlocked);
   },
 
   unlockAchievement: (key) => {
