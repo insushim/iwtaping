@@ -39,13 +39,18 @@ export default function Home() {
   const { loadMascot } = useMascotStore();
 
   const challenge = getDailyChallenge();
-  const challengeStatus = typeof window !== 'undefined' ? getChallengeStatus() : { completed: false, stars: 0 };
+  // localStorage 접근은 마운트 이후로 미룬다 (정적 프리렌더와 값이 달라 hydration mismatch가 났음)
+  const [challengeStatus, setChallengeStatus] = useState<{ completed: boolean; stars: number }>({
+    completed: false,
+    stars: 0,
+  });
 
   useEffect(() => {
     loadProgress();
     loadStats();
     loadMascot();
     checkStreak();
+    setChallengeStatus(getChallengeStatus());
   }, [loadProgress, loadStats, loadMascot, checkStreak]);
 
   useEffect(() => {

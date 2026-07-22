@@ -37,8 +37,35 @@ export function shuffleArray<T>(arr: T[]): T[] {
   return result;
 }
 
+/**
+ * 로컬 타임존 기준 YYYY-MM-DD.
+ * toISOString()은 UTC라 KST 자정~09:00 활동이 "어제"로 기록되므로 사용 금지.
+ */
+export function toDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function getToday(): string {
-  return new Date().toISOString().split('T')[0];
+  return toDateKey(new Date());
+}
+
+export function getYesterday(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return toDateKey(d);
+}
+
+/** a에서 b까지의 일수 차이(로컬 기준). 같은 날이면 0. */
+export function daysBetween(fromKey: string, toKey: string): number {
+  const [fy, fm, fd] = fromKey.split('-').map(Number);
+  const [ty, tm, td] = toKey.split('-').map(Number);
+  if ([fy, fm, fd, ty, tm, td].some((n) => Number.isNaN(n))) return Number.NaN;
+  const from = Date.UTC(fy, fm - 1, fd);
+  const to = Date.UTC(ty, tm - 1, td);
+  return Math.round((to - from) / 86400000);
 }
 
 export function decomposeKorean(char: string): string[] {

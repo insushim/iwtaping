@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { TypingState, TypingResult, CharState } from '@/types/typing';
-import { calculateKPM, calculateWPM, calculateCPM, calculateAccuracy, calculateConsistency, calculateMovingAverage } from '@/lib/typing/wpm-calculator';
-import { isComposingMatch, getJamoSequence } from '@/lib/typing/korean-automata';
-import { getFingerForKey } from '@/lib/typing/finger-mapper';
-import { countKoreanStrokes } from '@/lib/utils/helpers';
+import { TypingResult, CharState } from '@/types/typing';
+import { calculateKPM, calculateWPM, calculateCPM, calculateAccuracy, calculateConsistency } from '@/lib/typing/wpm-calculator';
+import { isComposingMatch } from '@/lib/typing/korean-automata';
+import { getFingerForChar, getCodeForChar, getFingerForKey } from '@/lib/typing/finger-mapper';
+import { decomposeKorean } from '@/lib/utils/helpers';
+import { AccuracyTracker } from '@/lib/typing/accuracy-tracker';
 import { soundManager } from '@/lib/sound/sound-manager';
 
 interface UseTypingEngineOptions {
@@ -28,8 +29,13 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
   const startTimeRef = useRef<number | null>(null);
   const keystrokesRef = useRef<{ timestamp: number; isCorrect: boolean; key: string; code: string }[]>([]);
   const speedHistoryRef = useRef<number[]>([]);
+  /** 현재 화면상 맞은 글자 수(속도 계산용 — 정정하면 줄어들 수 있음) */
   const correctCountRef = useRef(0);
-  const totalCountRef = useRef(0);
+  /** 누적 입력 시도 수(정정·재입력도 각각 1회로 셈 — 정확도 분모) */
+  const attemptsRef = useRef(0);
+  /** 그중 맞은 시도 수(정확도 분자) */
+  const correctAttemptsRef = useRef(0);
+  const trackerRef = useRef<AccuracyTracker>(new AccuracyTracker());
   const inputRef = useRef('');
 
   const reset = useCallback(() => {
@@ -44,7 +50,9 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     keystrokesRef.current = [];
     speedHistoryRef.current = [];
     correctCountRef.current = 0;
-    totalCountRef.current = 0;
+    attemptsRef.current = 0;
+    correctAttemptsRef.current = 0;
+    trackerRef.current.reset();
     inputRef.current = '';
   }, [text]);
 
@@ -66,6 +74,53 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     }, 500);
     return () => clearInterval(interval);
   }, [status, text]);
+
+  /**
+   * 목표 글자 1개에 대한 시도를 손가락·키 통계에 기록한다.
+   * 한글 완성자는 자모로 분해해 자모마다 기록(두벌식 기준 실제 타건 수와 일치).
+   */
+  const recordCharStroke = useCallback((targetChar: string, isCorrect: boolean) => {
+    if (!targetChar) return;
+    const units = decomposeKorean(targetChar);
+    for (const unit of units) {
+      const finger = getFingerForChar(unit);
+      if (!finger) continue;
+      trackerRef.current.recordKeystroke({
+        key: unit,
+        code: getCodeForChar(unit) ?? '',
+        timestamp: Date.now(),
+        isCorrect,
+        finger,
+        responseTime: 0,
+      });
+    }
+  }, []);
+
+  const getResult = useCallback((): TypingResult => {
+    const now = Date.now();
+    const elapsed = startTimeRef.current ? (now - startTimeRef.current) / 1000 : 0;
+    const correct = correctCountRef.current;
+    const correctText = text.substring(0, correct);
+    const attempts = attemptsRef.current;
+    const correctAttempts = correctAttemptsRef.current;
+
+    return {
+      kpm: calculateKPM(correctText, elapsed),
+      wpm: calculateWPM(correct, elapsed),
+      cpm: calculateCPM(correct, elapsed),
+      accuracy: calculateAccuracy(correctAttempts, Math.max(attempts, 1)),
+      maxSpeed: speedHistoryRef.current.length > 0 ? Math.max(...speedHistoryRef.current) : 0,
+      consistency: calculateConsistency(speedHistoryRef.current),
+      totalKeystrokes: attempts,
+      correctKeystrokes: correctAttempts,
+      errorKeystrokes: attempts - correctAttempts,
+      elapsedTime: elapsed,
+      fingerAccuracy: trackerRef.current.getFingerAccuracy(),
+      keyAccuracy: trackerRef.current.getKeyAccuracy(),
+      speedHistory: [...speedHistoryRef.current],
+      problemKeys: trackerRef.current.getProblemKeys(),
+    };
+  }, [text]);
 
   const handleInput = useCallback((newInput: string, isComposing: boolean) => {
     if (status === 'finished') return;
@@ -118,9 +173,11 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     // Track newly finalized characters (for Korean IME combo/accuracy)
     for (let i = prevLength; i < newInput.length; i++) {
       if (i < text.length) {
-        // Ensure totalCount covers composed characters that handleKeyDown skipped
-        totalCountRef.current = Math.max(totalCountRef.current, i + 1);
         const charCorrect = newInput[i] === text[i];
+        // 시도 카운터는 단조 증가 — 지우고 다시 쳐도 새 시도로 셈(정확도 세탁 방지)
+        attemptsRef.current++;
+        if (charCorrect) correctAttemptsRef.current++;
+        recordCharStroke(text[i], charCorrect);
         if (charCorrect) {
           setCombo((prev) => {
             const next = prev + 1;
@@ -137,7 +194,7 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
         }
       }
     }
-    setLiveAccuracy(calculateAccuracy(correctCountRef.current, Math.max(totalCountRef.current, 1)));
+    setLiveAccuracy(calculateAccuracy(correctAttemptsRef.current, Math.max(attemptsRef.current, 1)));
 
     // Check completion
     if (newInput.length >= text.length) {
@@ -145,7 +202,7 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
       const result = getResult();
       onComplete?.(result);
     }
-  }, [status, text, onComplete, soundEnabled]);
+  }, [status, text, onComplete, soundEnabled, recordCharStroke, getResult]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (status === 'finished') return;
@@ -170,30 +227,6 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     });
   }, [status, currentIndex, text]);
 
-  const getResult = useCallback((): TypingResult => {
-    const now = Date.now();
-    const elapsed = startTimeRef.current ? (now - startTimeRef.current) / 1000 : 0;
-    const correct = correctCountRef.current;
-    const correctText = text.substring(0, correct);
-    const total = totalCountRef.current;
-
-    return {
-      kpm: calculateKPM(correctText, elapsed),
-      wpm: calculateWPM(correct, elapsed),
-      cpm: calculateCPM(correct, elapsed),
-      accuracy: calculateAccuracy(correct, Math.max(total, 1)),
-      maxSpeed: speedHistoryRef.current.length > 0 ? Math.max(...speedHistoryRef.current) : 0,
-      consistency: calculateConsistency(speedHistoryRef.current),
-      totalKeystrokes: total,
-      correctKeystrokes: correct,
-      errorKeystrokes: total - correct,
-      elapsedTime: elapsed,
-      fingerAccuracy: {} as TypingResult['fingerAccuracy'],
-      keyAccuracy: {},
-      speedHistory: [...speedHistoryRef.current],
-      problemKeys: [],
-    };
-  }, [text]);
 
   return {
     charStates,

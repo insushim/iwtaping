@@ -9,6 +9,8 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useTypingStore } from '@/stores/useTypingStore';
 import { useStatsStore } from '@/stores/useStatsStore';
 import { calculateKPM, calculateAccuracy } from '@/lib/typing/wpm-calculator';
+import { AccuracyTracker } from '@/lib/typing/accuracy-tracker';
+import { getFingerForChar, getCodeForChar } from '@/lib/typing/finger-mapper';
 import { soundManager } from '@/lib/sound/sound-manager';
 
 // 두벌식 physical key → jamo mapping (bypasses IME)
@@ -49,6 +51,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
   const correctCountRef = useRef(0);
   const totalCountRef = useRef(0);
   const speedHistoryRef = useRef<number[]>([]);
+  const trackerRef = useRef<AccuracyTracker>(new AccuracyTracker());
   const currentIndexRef = useRef(0);
   const statusRef = useRef<'ready' | 'typing' | 'finished'>('ready');
 
@@ -72,6 +75,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     correctCountRef.current = 0;
     totalCountRef.current = 0;
     speedHistoryRef.current = [];
+    trackerRef.current.reset();
     // Focus the hidden input
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [text]);
@@ -105,6 +109,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     correctCountRef.current = 0;
     totalCountRef.current = 0;
     speedHistoryRef.current = [];
+    trackerRef.current.reset();
     setTimeout(() => inputRef.current?.focus(), 100);
     onRestart?.();
   }, [text, onRestart]);
@@ -125,6 +130,19 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     const targetChar = text[idx];
     const isCorrect = jamo === targetChar;
     totalCountRef.current++;
+
+    // 손가락·키 통계 수집 (목표 자모 기준 — 취약 키 드릴의 데이터 원천)
+    const finger = getFingerForChar(targetChar);
+    if (finger) {
+      trackerRef.current.recordKeystroke({
+        key: targetChar,
+        code: getCodeForChar(targetChar) ?? '',
+        timestamp: Date.now(),
+        isCorrect,
+        finger,
+        responseTime: 0,
+      });
+    }
 
     if (isCorrect) {
       correctCountRef.current++;
@@ -174,10 +192,10 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
         correctKeystrokes: correctCountRef.current,
         errorKeystrokes: totalCountRef.current - correctCountRef.current,
         elapsedTime: elapsed,
-        fingerAccuracy: {} as TypingResult['fingerAccuracy'],
-        keyAccuracy: {},
+        fingerAccuracy: trackerRef.current.getFingerAccuracy(),
+        keyAccuracy: trackerRef.current.getKeyAccuracy(),
         speedHistory: [...speedHistoryRef.current],
-        problemKeys: [],
+        problemKeys: trackerRef.current.getProblemKeys(),
       };
       setResult(res);
       addSession({ mode: 'word', language: 'ko', text, result: res, timestamp: Date.now() });
