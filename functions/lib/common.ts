@@ -4,6 +4,31 @@ export interface Env {
   DB: D1Database;
   /** wrangler secret put AUTH_SECRET */
   AUTH_SECRET: string;
+  /**
+   * 주간 정산 잡 호출용 공유 비밀 (wrangler pages secret put CRON_SECRET).
+   * 미설정이면 정산 엔드포인트는 항상 거부한다 — 빈 값으로 열려 버리는 사고 방지.
+   */
+  CRON_SECRET?: string;
+}
+
+/**
+ * 상수 시간 문자열 비교. 비밀 비교에 `===`를 쓰면 앞자리부터 맞춰 가는
+ * 타이밍 공격 여지가 생긴다(엔드포인트가 공개돼 있으므로 실측 가능한 표면이다).
+ */
+export function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/** 정산 잡 인증 — Authorization: Bearer <CRON_SECRET> */
+export function isCronAuthorized(request: Request, env: Env): boolean {
+  const secret = env.CRON_SECRET ?? '';
+  if (secret.length < 16) return false;
+  const header = request.headers.get('authorization') ?? '';
+  if (!header.startsWith('Bearer ')) return false;
+  return safeEqual(header.slice(7), secret);
 }
 
 export function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {

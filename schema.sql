@@ -86,15 +86,45 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_wtx_idem ON wallet_transactions (user_id, 
 CREATE INDEX IF NOT EXISTS idx_wtx_user ON wallet_transactions (user_id, created_at DESC);
 
 -- 리그 (주간 30명 버킷)
+--
+-- final_rank/outcome은 주간 정산 잡이 채운다. outcome IS NULL = 아직 미정산이며,
+-- 정산은 이 조건으로만 갱신하므로 잡을 여러 번 돌려도 승강이 중복되지 않는다.
+-- (컬럼명이 rank가 아닌 이유: RANK는 SQLite 윈도우 함수 키워드라 인용부호가 필요해진다)
 CREATE TABLE IF NOT EXISTS league_members (
   week_key   TEXT NOT NULL,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   tier       INTEGER NOT NULL DEFAULT 0,    -- 0=브론즈 … 4=챌린저
   bucket     INTEGER NOT NULL,
   xp_earned  INTEGER NOT NULL DEFAULT 0,
+  final_rank INTEGER,                       -- 정산 후 버킷 내 순위(1부터)
+  outcome    TEXT,                          -- 'promoted' | 'demoted' | 'stayed' (NULL=미정산)
+  settled_at INTEGER,
   PRIMARY KEY (week_key, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_league_bucket ON league_members (week_key, tier, bucket, xp_earned DESC);
+-- 정산 잡이 "아직 안 끝난 버킷"만 골라내는 경로
+CREATE INDEX IF NOT EXISTS idx_league_unsettled ON league_members (week_key, outcome, tier, bucket);
+
+-- 사용자별 현재 티어(주 경계를 넘어 이어진다).
+-- updated_week가 단조 증가 조건이라, 같은 주 정산이 재실행돼도 티어가 두 번 오르지 않는다.
+CREATE TABLE IF NOT EXISTS league_standings (
+  user_id      TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  tier         INTEGER NOT NULL DEFAULT 0,
+  updated_week TEXT NOT NULL,               -- 이 티어를 확정한 주 (YYYY-Www)
+  last_rank    INTEGER,
+  last_outcome TEXT
+);
+
+-- 주간 정산 실행 원장 (중복 실행 방지 + 운영 가시성)
+CREATE TABLE IF NOT EXISTS league_settlements (
+  week_key   TEXT PRIMARY KEY,
+  status     TEXT NOT NULL,                 -- 'running' | 'done'
+  started_at INTEGER NOT NULL,
+  settled_at INTEGER,
+  members    INTEGER NOT NULL DEFAULT 0,
+  promoted   INTEGER NOT NULL DEFAULT 0,
+  demoted    INTEGER NOT NULL DEFAULT 0
+);
 
 -- 학급
 CREATE TABLE IF NOT EXISTS classes (

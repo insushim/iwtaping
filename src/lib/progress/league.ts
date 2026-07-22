@@ -29,29 +29,91 @@ export const LEAGUE_TIERS: LeagueTier[] = [
 export const MAX_TIER = LEAGUE_TIERS.length - 1;
 
 export function getTier(tierId: number): LeagueTier {
-  return LEAGUE_TIERS[Math.max(0, Math.min(MAX_TIER, tierId))];
+  return LEAGUE_TIERS[Math.max(0, Math.min(MAX_TIER, Math.trunc(tierId) || 0))];
 }
 
 export type LeagueOutcome = 'promoted' | 'demoted' | 'stayed';
+
+/** 강등을 적용하기 위한 최소 버킷 인원 */
+export const MIN_BUCKET_FOR_DEMOTION = 10;
+
+export interface BucketQuota {
+  promote: number;
+  demote: number;
+}
+
+/**
+ * 실제 버킷 인원에 맞춘 승급/강등 정원.
+ *
+ * 정원(30명) 기준 숫자를 덜 찬 버킷에 그대로 쓰면 6명 버킷에서 1등 빼고 전원
+ * 강등되는 참사가 난다. 인원 비율만큼 줄이고, 10명 미만이면 강등을 적용하지 않으며,
+ * 승급선과 강등선이 겹치면 강등을 포기한다.
+ *
+ * ⚠️ 서버(functions/lib/league.ts)에 같은 구현이 있다. 한쪽을 고치면 반드시
+ *    다른 쪽도 고칠 것 — 화면의 승급선과 실제 정산이 갈라지면 사기로 읽힌다.
+ *    테스트가 두 구현의 일치를 강제한다.
+ */
+export function bucketQuota(tierId: number, bucketSize: number): BucketQuota {
+  const tier = getTier(tierId);
+  const size = Math.max(0, Math.trunc(bucketSize) || 0);
+  if (size <= 1) return { promote: 0, demote: 0 };
+
+  let promote = 0;
+  if (tier.promote > 0 && tierId < MAX_TIER) {
+    promote = Math.min(tier.promote, Math.floor((size * tier.promote) / BUCKET_SIZE));
+    if (promote < 1 && size >= 3) promote = 1;
+  }
+
+  let demote = 0;
+  if (tier.demote > 0 && tierId > 0 && size >= MIN_BUCKET_FOR_DEMOTION) {
+    demote = Math.min(tier.demote, Math.floor((size * tier.demote) / BUCKET_SIZE));
+  }
+
+  if (promote + demote >= size) demote = Math.max(0, size - promote - 1);
+
+  return { promote, demote };
+}
 
 /**
  * 주간 정산 결과. rank는 1부터 시작하며 버킷 내 순위다.
  * XP가 0이면 승급 대상이라도 승급시키지 않는다(빈 계정 승급 방지).
  */
 export function settleRank(tierId: number, rank: number, xpEarned: number, bucketSize: number): LeagueOutcome {
-  const tier = getTier(tierId);
+  const quota = bucketQuota(tierId, bucketSize);
+  const inDemoteZone = quota.demote > 0 && rank > bucketSize - quota.demote;
   if (xpEarned <= 0) {
-    return tier.demote > 0 ? 'demoted' : 'stayed';
+    // 승급만 막고 강등은 정원을 따른다 — 다 같이 쉬어 간 주에 대량 강등이 나지 않게.
+    return inDemoteZone ? 'demoted' : 'stayed';
   }
-  if (tier.promote > 0 && rank <= tier.promote && tierId < MAX_TIER) return 'promoted';
-  if (tier.demote > 0 && rank > bucketSize - tier.demote) return 'demoted';
+  if (quota.promote > 0 && rank <= quota.promote) return 'promoted';
+  if (inDemoteZone) return 'demoted';
   return 'stayed';
 }
 
 export function nextTier(tierId: number, outcome: LeagueOutcome): number {
-  if (outcome === 'promoted') return Math.min(MAX_TIER, tierId + 1);
-  if (outcome === 'demoted') return Math.max(0, tierId - 1);
-  return tierId;
+  const base = Math.max(0, Math.min(MAX_TIER, Math.trunc(tierId) || 0));
+  if (outcome === 'promoted') return Math.min(MAX_TIER, base + 1);
+  if (outcome === 'demoted') return Math.max(0, base - 1);
+  return base;
+}
+
+/**
+ * 정산 보상 코인 — 서버가 실제 지급하는 값과 같아야 한다(화면 예고 = 실지급).
+ * ⚠️ functions/lib/league.ts와 동기화 대상.
+ */
+export function settlementCoins(
+  tierId: number,
+  rank: number,
+  outcome: LeagueOutcome,
+  xpEarned: number
+): number {
+  if (xpEarned <= 0) return 0;
+  let coins = 0;
+  if (rank === 1) coins += 100;
+  else if (rank === 2) coins += 60;
+  else if (rank === 3) coins += 40;
+  if (outcome === 'promoted') coins += 50 * (Math.max(0, Math.min(MAX_TIER, tierId)) + 1);
+  return coins;
 }
 
 /** KST 기준 이번 주 마감(일요일 24:00 KST)까지 남은 밀리초 */

@@ -99,7 +99,14 @@ describe('리그 승강제', () => {
 
   it('XP를 하나도 못 벌면 승급하지 않는다 (빈 계정 승급 방지)', () => {
     expect(settleRank(0, 1, 0, BUCKET_SIZE)).toBe('stayed');
-    expect(settleRank(2, 1, 0, BUCKET_SIZE)).toBe('demoted');
+    expect(settleRank(2, 1, 0, BUCKET_SIZE)).toBe('stayed');
+  });
+
+  it('XP 0이어도 강등은 정원 안에서만 일어난다 (대량 강등 방지)', () => {
+    // 골드는 하위 5명(26~30위) 강등 — 25위는 안전, 26위부터 강등.
+    expect(settleRank(2, 25, 0, BUCKET_SIZE)).toBe('stayed');
+    expect(settleRank(2, 26, 0, BUCKET_SIZE)).toBe('demoted');
+    expect(settleRank(2, BUCKET_SIZE, 0, BUCKET_SIZE)).toBe('demoted');
   });
 
   it('티어 이동은 경계를 벗어나지 않는다', () => {
