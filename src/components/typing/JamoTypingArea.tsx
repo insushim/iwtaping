@@ -199,7 +199,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
       };
       setResult(res);
       addSession({ mode: 'word', language: 'ko', text, result: res, timestamp: Date.now() });
-      recordSession(res);
+      recordSession(res, { maxCombo });
       onComplete?.(res);
     }
   }, [text, settings.keySound, onComplete, addSession, recordSession]);

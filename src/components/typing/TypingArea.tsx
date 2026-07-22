@@ -52,7 +52,7 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
       setResult(r);
       // Record session for ranking & stats
       addSession({ mode: 'word', language: settings.language || 'ko', text, result: r, timestamp: Date.now() });
-      recordSession(r);
+      recordSession(r, { maxCombo, language: settings.language === 'en' ? 'en' : 'ko' });
 
       // Mascot reaction
       if (r.accuracy >= 98 && r.kpm >= 300) {

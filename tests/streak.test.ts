@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { advanceStreak, expireStreakIfLapsed, streakMultiplier } from '@/lib/progress/streak';
+import { advanceStreak, expireStreakIfLapsed, streakMultiplier, FREEZE_COST, MAX_FREEZES } from '@/lib/progress/streak';
 import { toDateKey, daysBetween, getToday } from '@/lib/utils/helpers';
 
 describe('날짜 유틸 (로컬 기준)', () => {
@@ -58,6 +58,39 @@ describe('스트릭 단일 원장', () => {
 
   it('이틀 이상 비면 만료 시 0이 된다', () => {
     expect(expireStreakIfLapsed({ streakDays: 3, lastPracticeDate: '2026-07-19' }, '2026-07-22').streakDays).toBe(0);
+  });
+
+  it('프리즈가 있으면 하루 공백을 메운다', () => {
+    const next = expireStreakIfLapsed(
+      { streakDays: 12, lastPracticeDate: '2026-07-20', freezes: 1 },
+      '2026-07-22'
+    );
+    expect(next.streakDays).toBe(12);
+    expect(next.freezes).toBe(0);
+    // 다음 연습이 이어지도록 마지막 활동일이 어제로 당겨진다
+    expect(advanceStreak(next, '2026-07-22').streakDays).toBe(13);
+  });
+
+  it('프리즈가 모자라면 스트릭이 끊긴다', () => {
+    const next = expireStreakIfLapsed(
+      { streakDays: 12, lastPracticeDate: '2026-07-18', freezes: 1 },
+      '2026-07-22'
+    );
+    expect(next.streakDays).toBe(0);
+  });
+
+  it('프리즈가 있어도 스트릭이 0이면 살릴 게 없다', () => {
+    const next = expireStreakIfLapsed(
+      { streakDays: 0, lastPracticeDate: '2026-07-20', freezes: 3 },
+      '2026-07-22'
+    );
+    expect(next.streakDays).toBe(0);
+  });
+
+  it('프리즈 상수는 합리적 범위다', () => {
+    expect(FREEZE_COST).toBeGreaterThan(0);
+    expect(MAX_FREEZES).toBeGreaterThan(0);
+    expect(MAX_FREEZES).toBeLessThanOrEqual(5);
   });
 
   it('XP 배수는 구간별로 적용된다', () => {

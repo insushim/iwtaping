@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { LevelUpOverlay } from './LevelUpOverlay';
 import { CelebrationOverlay } from './CelebrationOverlay';
+import { AchievementToast } from './AchievementToast';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useMascotStore } from '@/stores/useMascotStore';
 import { useAccountStore } from '@/stores/useAccountStore';
@@ -25,6 +26,7 @@ export function GlobalOverlays() {
     <>
       <LevelUpOverlay />
       <CelebrationOverlay />
+      <AchievementToast />
     </>
   );
 }

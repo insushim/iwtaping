@@ -1,7 +1,7 @@
 'use client';
 import { create } from 'zustand';
 import { getToday, daysBetween } from '@/lib/utils/helpers';
-import { advanceStreak, expireStreakIfLapsed, streakMultiplier } from '@/lib/progress/streak';
+import { advanceStreak, expireStreakIfLapsed, streakMultiplier, FREEZE_COST, MAX_FREEZES } from '@/lib/progress/streak';
 
 export interface ProgressState {
   xp: number;
@@ -13,6 +13,8 @@ export interface ProgressState {
   // Level-up tracking
   pendingLevelUp: number | null; // new level to celebrate
   pendingRewards: Reward[];
+  /** 보유 스트릭 프리즈 */
+  freezes: number;
   /** 저장 스키마 버전. 구버전 값 보정에 쓴다. */
   schemaVersion?: number;
 }
@@ -80,6 +82,8 @@ interface ProgressStore {
   resetProgress: () => void;
   /** 서버 지갑을 진실원으로 채택한다(검증 통과분 반영). */
   syncFromServer: (wallet: { coins: number; xp: number; level: number }) => void;
+  /** 스트릭 프리즈 구매 — 코인이 모자라면 false */
+  buyFreeze: () => boolean;
 }
 
 const defaultProgress: ProgressState = {
@@ -91,6 +95,7 @@ const defaultProgress: ProgressState = {
   totalXpEarned: 0,
   pendingLevelUp: null,
   pendingRewards: [],
+  freezes: 0,
   schemaVersion: PROGRESS_SCHEMA_VERSION,
 };
 
@@ -186,12 +191,23 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     const prev = get().progress;
     const today = getToday();
     const next = expireStreakIfLapsed(
-      { streakDays: prev.streakDays, lastPracticeDate: prev.lastActiveDate },
+      { streakDays: prev.streakDays, lastPracticeDate: prev.lastActiveDate, freezes: prev.freezes },
       today
     );
-    if (next.streakDays === prev.streakDays && next.lastPracticeDate === prev.lastActiveDate) return;
+    if (
+      next.streakDays === prev.streakDays &&
+      next.lastPracticeDate === prev.lastActiveDate &&
+      (next.freezes ?? 0) === prev.freezes
+    ) {
+      return;
+    }
 
-    const newProgress = { ...prev, streakDays: next.streakDays, lastActiveDate: next.lastPracticeDate };
+    const newProgress = {
+      ...prev,
+      streakDays: next.streakDays,
+      lastActiveDate: next.lastPracticeDate,
+      freezes: next.freezes ?? prev.freezes,
+    };
     set({ progress: newProgress });
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
@@ -270,6 +286,23 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
     }
+  },
+
+  buyFreeze: () => {
+    const prev = get().progress;
+    if (prev.freezes >= MAX_FREEZES) return false;
+    if (prev.coins < FREEZE_COST) return false;
+
+    const newProgress = {
+      ...prev,
+      coins: prev.coins - FREEZE_COST,
+      freezes: prev.freezes + 1,
+    };
+    set({ progress: newProgress });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
+    }
+    return true;
   },
 
   resetProgress: () => {

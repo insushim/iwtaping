@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Mascot } from '@/components/mascot/Mascot';
 import { DailyQuests } from '@/components/quests/DailyQuests';
+import { StreakCard } from '@/components/progress/StreakCard';
 import { XPBarDetailed } from '@/components/common/XPBar';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useStatsStore } from '@/stores/useStatsStore';
@@ -108,9 +109,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Daily quests — 매일 돌아올 이유 */}
-      <section className="mb-6">
-        <DailyQuests />
+      {/* Daily quests + streak — 매일 돌아올 이유 */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <DailyQuests className="md:col-span-2" />
+        <StreakCard />
       </section>
 
       {/* Dashboard Row */}
