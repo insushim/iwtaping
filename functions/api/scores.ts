@@ -5,7 +5,6 @@ import { earnedXpFor, earnedCoinsFor } from '../lib/rewards';
 
 interface Body extends ScoreSubmission {
   nonce?: string;
-  maxCombo?: number;
 }
 
 /** 제출 빈도 상한: 10분에 30회 */

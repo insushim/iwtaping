@@ -15,6 +15,8 @@ export interface ScoreSubmission {
   elapsedMs: number;
   totalKeystrokes: number;
   correctKeystrokes: number;
+  /** 이번 세션 최대 콤보. XP 공식에 들어가므로 반드시 검증 대상이다. */
+  maxCombo?: number;
   textHash?: string;
   textVersion?: string;
   /** 연속 키 입력 간격(ms) 배열. 최대 2000개까지만 전송. */
@@ -78,6 +80,16 @@ export function verifySubmission(sub: ScoreSubmission): VerifyResult {
   if (score > MAX_SCORE) return { status: 'rejected', reason: 'score_above_limit' };
   if (score > (sub.elapsedMs / 1000) * MAX_SCORE_PER_SECOND) {
     return { status: 'rejected', reason: 'score_rate_impossible' };
+  }
+
+  // --- 콤보: 타수를 넘을 수 없다 ---
+  // (XP 공식에 maxCombo가 들어가므로 검증에서 빠지면 임의 XP 발행이 가능해진다)
+  const maxCombo = sub.maxCombo ?? 0;
+  if (!Number.isFinite(maxCombo) || maxCombo < 0) {
+    return { status: 'rejected', reason: 'malformed_combo' };
+  }
+  if (maxCombo > sub.correctKeystrokes) {
+    return { status: 'rejected', reason: 'combo_exceeds_keystrokes' };
   }
 
   // --- 자기모순: 신고한 정확도가 신고한 타수와 맞는지 ---

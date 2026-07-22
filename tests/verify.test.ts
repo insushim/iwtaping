@@ -117,6 +117,25 @@ describe('점수 검증 — 교차검증에서 발견된 공격 경로', () => {
     expect(r.reason).toBe('accuracy_inconsistent_with_keystrokes');
   });
 
+  it('검증되지 않은 maxCombo로 임의 XP를 발행할 수 없다', () => {
+    // maxCombo는 XP 공식(maxCombo * 0.2)에 직접 들어가므로 반드시 검증돼야 한다
+    const r = verifySubmission(baseSubmission({ maxCombo: 999_999_999 }));
+    expect(r.status).toBe('rejected');
+    expect(r.reason).toBe('combo_exceeds_keystrokes');
+  });
+
+  it('콤보는 맞은 타수를 넘을 수 없다', () => {
+    expect(
+      verifySubmission(baseSubmission({ maxCombo: 311, correctKeystrokes: 310 })).status
+    ).toBe('rejected');
+    expect(verifySubmission(baseSubmission({ maxCombo: 310 })).status).toBe('ok');
+  });
+
+  it('음수·NaN 콤보는 거부된다', () => {
+    expect(verifySubmission(baseSubmission({ maxCombo: -1 })).reason).toBe('malformed_combo');
+    expect(verifySubmission(baseSubmission({ maxCombo: Number.NaN })).reason).toBe('malformed_combo');
+  });
+
   it('타건 로그 총합이 세션 길이를 넘으면 거부된다 (다른 세션 로그 붙여넣기)', () => {
     const r = verifySubmission(
       baseSubmission({ elapsedMs: 10_000, intervals: humanIntervals(300, 900) })

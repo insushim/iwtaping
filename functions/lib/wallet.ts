@@ -59,7 +59,22 @@ export async function creditWallet(env: Env, input: CreditInput): Promise<Wallet
    */
   const column = input.currency === 'coins' ? 'coins' : 'xp';
 
-  const [inserted] = await env.DB.batch([
+  /*
+   * 두 문장 모두 "같은 idempotency_key의 거래가 아직 없다"는 동일 조건에
+   * 걸어 둔다. 잔액 갱신을 먼저 하고 원장을 나중에 남기므로,
+   * 중복 요청이면 UPDATE는 조건에서 걸리고 INSERT는 유니크 인덱스로 무시된다.
+   * (changes()에 의존하지 않는 형태 — 실사용 경로라 가정을 최소화한다)
+   */
+  const [updated] = await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE wallets
+          SET ${column} = ${column} + ?2
+        WHERE user_id = ?1
+          AND NOT EXISTS (
+            SELECT 1 FROM wallet_transactions
+             WHERE user_id = ?1 AND idempotency_key = ?3
+          )`
+    ).bind(input.userId, amount, input.idempotencyKey),
     env.DB.prepare(
       `INSERT OR IGNORE INTO wallet_transactions
          (id, user_id, kind, currency, amount, description, idempotency_key, created_at)
@@ -73,16 +88,10 @@ export async function creditWallet(env: Env, input: CreditInput): Promise<Wallet
       input.idempotencyKey,
       Date.now()
     ),
-    // 위 INSERT가 중복이라 무시됐다면(changes() = 0) 잔액도 건드리지 않는다.
-    // changes()는 "직전 문장이 바꾼 행 수"라 같은 트랜잭션 안에서만 유효하다.
-    env.DB.prepare(
-      `UPDATE wallets
-          SET ${column} = ${column} + ?2
-        WHERE user_id = ?1 AND changes() = 1`
-    ).bind(input.userId, amount),
   ]);
 
-  if (!inserted.meta.changes) return readWallet(env, input.userId);
+  // 이미 처리된 요청이면 잔액이 변하지 않았다 — 현재 잔액만 돌려준다.
+  if (!updated.meta.changes) return readWallet(env, input.userId);
 
   if (input.currency === 'xp') {
     const w = await readWallet(env, input.userId);
@@ -120,10 +129,17 @@ export async function spendCoins(env: Env, input: SpendInput): Promise<SpendResu
    * 순서가 반대면(원장 먼저) 잔액 부족 시 보상 삭제가 필요해지고,
    * 그 사이에 다른 요청이 끼어들면 원장과 잔액이 어긋난다.
    *
-   * 조건 세 가지가 한 문장 안에서 동시에 성립해야 차감된다:
+   * 조건 두 가지가 한 문장 안에서 동시에 성립해야 차감된다:
    *   1) 잔액이 충분하다            → 음수 잔액 방지
    *   2) 같은 키의 거래가 아직 없다  → 중복 차감 방지(동시 요청 포함)
-   * 두 문장은 batch로 한 트랜잭션에서 실행된다.
+   *
+   * 원장 INSERT는 `changes() = 1`로 "방금 차감이 실제로 일어났을 때"만 실행한다.
+   * 잔액 부족으로 차감이 안 됐는데 원장만 남으면 정합이 깨지기 때문이다.
+   * 근거: D1의 batch()는 문장들을 단일 트랜잭션에서 순차·비동시 실행하므로
+   * changes()가 직전 문장의 결과를 가리킨다(Cloudflare D1 문서 확인).
+   *
+   * ⚠️ 아직 이 함수를 호출하는 API가 없다(상점 구현 시 추가 예정).
+   *    호출부를 만들 때 동시 요청 테스트로 위 가정을 실제로 확인할 것.
    */
   const [deducted] = await env.DB.batch([
     env.DB.prepare(
