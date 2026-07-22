@@ -45,9 +45,10 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="antialiased" style={{ fontFamily: "'Noto Sans KR', 'Outfit', sans-serif" }}>
+      <body className="antialiased font-body">
+        <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
         <Header />
-        <main className="pt-[calc(var(--header-height)+4px)]">
+        <main id="main-content" className="pt-[calc(var(--header-height)+4px)]">
           {children}
         </main>
         <GlobalOverlays />

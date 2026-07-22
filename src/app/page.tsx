@@ -17,6 +17,7 @@ const SLOGAN = '손끝으로 여는 무한한 세계';
 
 const practiceCards = [
   { href: '/practice/position', icon: <PracticeIcon type="position" />, title: '자리 연습', desc: '홈키부터 전체 키보드까지', tag: '기초' },
+  { href: '/practice/adaptive', icon: <PracticeIcon type="speed" />, title: '맞춤 드릴', desc: '자주 틀리는 키 집중 교정', tag: '추천' },
   { href: '/practice/word', icon: <PracticeIcon type="word" />, title: '낱말 연습', desc: '초급/중급/고급 낱말', tag: '필수' },
   { href: '/practice/short', icon: <PracticeIcon type="short" />, title: '짧은 글', desc: '속담, 명언, 일상 문장', tag: '인기' },
   { href: '/practice/long', icon: <PracticeIcon type="long" />, title: '긴 글', desc: '문학, 에세이 필사', tag: null },

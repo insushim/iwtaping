@@ -79,6 +79,36 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
       seconds: result.elapsedTime,
     });
 
+    // 키·손가락 정확도 누적 (취약 키 드릴의 데이터 원천)
+    const keyStats = { ...prev.keyStats };
+    for (const [key, accuracy] of Object.entries(result.keyAccuracy ?? {})) {
+      const entry = keyStats[key] ?? { key, totalAttempts: 0, correctAttempts: 0, accuracy: 100, avgResponseTime: 0 };
+      // 세션 정확도를 1회 표본으로 누적한다(세션당 1건이라 표본이 천천히 쌓임)
+      const totalAttempts = entry.totalAttempts + 1;
+      const correctAttempts = entry.correctAttempts + accuracy / 100;
+      keyStats[key] = {
+        key,
+        totalAttempts,
+        correctAttempts,
+        accuracy: (correctAttempts / totalAttempts) * 100,
+        avgResponseTime: entry.avgResponseTime,
+      };
+    }
+
+    const fingerStats = { ...prev.fingerStats };
+    for (const [finger, accuracy] of Object.entries(result.fingerAccuracy ?? {}) as [FingerType, number][]) {
+      const entry = fingerStats[finger] ?? { finger, totalAttempts: 0, correctAttempts: 0, accuracy: 100, avgSpeed: 0 };
+      const totalAttempts = entry.totalAttempts + 1;
+      const correctAttempts = entry.correctAttempts + accuracy / 100;
+      fingerStats[finger] = {
+        finger,
+        totalAttempts,
+        correctAttempts,
+        accuracy: (correctAttempts / totalAttempts) * 100,
+        avgSpeed: entry.avgSpeed,
+      };
+    }
+
     const totalSessions = prev.totalSessions + 1;
     const newStats: UserStats = {
       ...prev,
@@ -92,6 +122,8 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
       avgWpm: (prev.avgWpm * prev.totalSessions + result.wpm) / totalSessions,
       avgAccuracy: (prev.avgAccuracy * prev.totalSessions + result.accuracy) / totalSessions,
       dailyStats,
+      keyStats,
+      fingerStats,
       streakDays: streak,
       lastPracticeDate: today,
     };

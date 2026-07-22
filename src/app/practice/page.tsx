@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Mascot } from '@/components/mascot/Mascot';
 
 const modes = [
+  { href: '/practice/adaptive', icon: '🧭', title: '맞춤 드릴', desc: '내가 자주 틀리는 키만 골라 집중 교정', badge: 'AI 추천', color: '#FECA57' },
   { href: '/practice/position', icon: '🎯', title: '자리 연습', desc: '홈키부터 전체 키보드까지 30단계 체계적 연습', badge: '30단계', color: '#6C5CE7' },
   { href: '/practice/word', icon: '📝', title: '낱말 연습', desc: '초급/중급/고급 한글 및 영문 낱말 타이핑', badge: '1500+ 단어', color: '#00D2D3' },
   { href: '/practice/short', icon: '💬', title: '짧은 글 연습', desc: '속담, 명언, 뉴스, 일상회화 단문 연습', badge: '200+ 문장', color: '#FD79A8' },
