@@ -1,0 +1,21 @@
+# gitleaks 설정
+#
+# 운영 시크릿은 저장소에 들어오지 않는다 — AUTH_SECRET은 `wrangler pages secret put`으로만 주입한다.
+# 아래 예외는 테스트 픽스처(서명 검증용 더미 키)에만 적용된다.
+# 예외를 넓히지 말 것: 경로를 특정하고, 값의 형태까지 함께 제한한다.
+
+title = "TypingVerse gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(?:key|api|token|secret|client|passwd|password|auth|access)(?:[0-9a-z\-_\t .]{0,20})(?:[\s|']|[\s|"]){0,3}(?:=|>|:{1,3}=|\|\|:|<=|=>|:|\?=)(?:'|\"|\s|=|\x60){0,5}([0-9a-z\-_.=]{10,150})(?:['|\"|\n|\r|\s|\x60|;]|$)'''
+keywords = ["key", "api", "token", "secret", "client", "passwd", "password", "auth", "access"]
+
+  [rules.allowlist]
+  description = "테스트 전용 더미 서명 키 (functions/lib/auth.ts 검증용)"
+  paths = ['''^tests/.*\.test\.ts$''']
+  regexes = ['''test-secret-at-least-16-chars-long''', '''another-secret-16-chars-min''']
