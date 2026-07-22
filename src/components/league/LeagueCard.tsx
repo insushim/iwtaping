@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/Card';
-import { LEAGUE_TIERS, getTier, BUCKET_SIZE, msUntilWeeklyReset, formatCountdown } from '@/lib/progress/league';
+import {
+  LEAGUE_TIERS,
+  getTier,
+  BUCKET_SIZE,
+  bucketQuota,
+  msUntilWeeklyReset,
+  formatCountdown,
+} from '@/lib/progress/league';
 
 interface LeagueCardProps {
   /** 현재 티어(0=브론즈). 서버 연동 전에는 레벨에서 추정한다. */
@@ -10,12 +17,23 @@ interface LeagueCardProps {
   /** 버킷 내 내 순위(1부터). 미확정이면 null */
   rank?: number | null;
   xpThisWeek?: number;
+  /** 실제 버킷 인원. 서버 연동 전이거나 0명이면 정원(30)을 기준으로 그린다. */
+  bucketSize?: number;
   className?: string;
 }
 
-export function LeagueCard({ tierId, rank = null, xpThisWeek = 0, className = '' }: LeagueCardProps) {
+export function LeagueCard({
+  tierId,
+  rank = null,
+  xpThisWeek = 0,
+  bucketSize = 0,
+  className = '',
+}: LeagueCardProps) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const tier = getTier(tierId);
+  // 덜 찬 버킷은 승급/강등 정원이 줄어든다 — 화면의 선과 실제 정산이 같아야 한다.
+  const size = bucketSize > 0 ? bucketSize : BUCKET_SIZE;
+  const quota = bucketQuota(tierId, size);
 
   useEffect(() => {
     setRemaining(msUntilWeeklyReset());
@@ -23,15 +41,15 @@ export function LeagueCard({ tierId, rank = null, xpThisWeek = 0, className = ''
     return () => clearInterval(timer);
   }, []);
 
-  const promoteLine = tier.promote;
-  const demoteLine = BUCKET_SIZE - tier.demote;
+  const promoteLine = quota.promote;
+  const demoteLine = size - quota.demote;
 
   const zone =
     rank == null
       ? null
       : promoteLine > 0 && rank <= promoteLine
         ? 'promote'
-        : tier.demote > 0 && rank > demoteLine
+        : quota.demote > 0 && rank > demoteLine
           ? 'demote'
           : 'safe';
 
@@ -49,7 +67,7 @@ export function LeagueCard({ tierId, rank = null, xpThisWeek = 0, className = ''
           <div>
             <div className="text-sm font-bold">{tier.name} 리그</div>
             <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              {BUCKET_SIZE}명 중 경쟁
+              {size}명 중 경쟁
             </div>
           </div>
         </div>
@@ -82,17 +100,18 @@ export function LeagueCard({ tierId, rank = null, xpThisWeek = 0, className = ''
       {/* 승급/강등 구간을 눈에 보이게 — "조금만 더 하면 올라간다"가 동기가 된다 */}
       <div className="flex h-2 rounded-full overflow-hidden mb-2" role="presentation">
         {promoteLine > 0 && (
-          <div style={{ width: `${(promoteLine / BUCKET_SIZE) * 100}%`, background: 'var(--color-success)' }} />
+          <div style={{ width: `${(promoteLine / size) * 100}%`, background: 'var(--color-success)' }} />
         )}
         <div style={{ flex: 1, background: 'var(--bg-tertiary)' }} />
-        {tier.demote > 0 && (
-          <div style={{ width: `${(tier.demote / BUCKET_SIZE) * 100}%`, background: 'var(--color-error)' }} />
+        {quota.demote > 0 && (
+          <div style={{ width: `${(quota.demote / size) * 100}%`, background: 'var(--color-error)' }} />
         )}
       </div>
 
       <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
         {zone === 'promote' && '승급권이에요! 마감까지 유지하세요.'}
         {zone === 'safe' && promoteLine > 0 && `${promoteLine}위 안에 들면 승급해요.`}
+        {zone === 'safe' && promoteLine === 0 && '이번 주 참가자가 아직 적어요. 마감까지 인원이 차면 승급 자리가 열립니다.'}
         {zone === 'demote' && '강등권이에요. 조금만 더 연습해볼까요?'}
         {zone == null &&
           (promoteLine > 0

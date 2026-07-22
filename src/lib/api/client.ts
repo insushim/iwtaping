@@ -174,6 +174,40 @@ export async function fetchLeaderboard(
   return res?.ok ? res.entries : null;
 }
 
+export interface LeagueMemberEntry {
+  rank: number;
+  nickname: string;
+  avatar: string;
+  xp: number;
+  isMe: boolean;
+}
+
+export interface LeagueState {
+  weekKey: string;
+  tier: number;
+  bucket: number | null;
+  bucketSize: number;
+  rank: number | null;
+  xpEarned: number;
+  promoteLine: number;
+  demoteLine: number | null;
+  members: LeagueMemberEntry[];
+  lastWeek: {
+    weekKey: string;
+    tier: number;
+    rank: number | null;
+    outcome: 'promoted' | 'demoted' | 'stayed' | null;
+    coins: number;
+  } | null;
+}
+
+/** 서버 리그 현황. 백엔드 미배포·미등록이면 null(로컬 추정으로 대체). */
+export async function fetchLeague(): Promise<LeagueState | null> {
+  if (!getToken()) return null;
+  const res = await request<{ ok: boolean } & LeagueState>('/api/league');
+  return res?.ok ? res : null;
+}
+
 /** 지문 변조 탐지를 위한 해시(서버가 대조) */
 export async function hashText(text: string): Promise<string> {
   const data = new TextEncoder().encode(text);

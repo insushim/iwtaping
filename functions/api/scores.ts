@@ -2,6 +2,7 @@ import { Env, json, badRequest, requireUser, readJson, isRateLimited } from '../
 import { ScoreSubmission, verifySubmission, kstDayKey, kstWeekKey } from '../lib/verify';
 import { creditWallet } from '../lib/wallet';
 import { earnedXpFor, earnedCoinsFor } from '../lib/rewards';
+import { enrollWeeklyXp } from '../lib/league';
 
 interface Body extends ScoreSubmission {
   nonce?: string;
@@ -94,6 +95,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         description: `session:${body.mode}`,
         idempotencyKey: `score-coins:${scoreId}`,
       });
+    }
+
+    /*
+     * 리그 주간 XP 적립. 지갑과 달리 "이번 주에 번 XP"만 따로 센다
+     * (지갑 XP는 누적이라 주간 경쟁 지표로 쓸 수 없다).
+     * 실패해도 점수 제출 자체는 성공으로 처리한다 — 리그는 부가 기능이고,
+     * 여기서 던지면 이미 지급된 지갑 거래가 응답 없이 묻힌다.
+     */
+    try {
+      await enrollWeeklyXp(env, user.uid, kstWeekKey(now), earnedXp);
+    } catch {
+      // 재시도는 없다 — 이번 세션의 주간 XP는 유실되고, 다음 세션분부터 정상 적립된다.
+      // (리그는 부가 기능이라 점수 제출·지갑 지급까지 막지 않는 쪽을 택했다)
     }
 
     await env.DB.prepare(

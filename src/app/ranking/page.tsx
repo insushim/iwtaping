@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { GameResult, GameType } from '@/types/game';
 import { PracticeSession } from '@/types/typing';
 import { LeagueCard } from '@/components/league/LeagueCard';
-import { fetchLeaderboard, LeaderboardEntry } from '@/lib/api/client';
+import { fetchLeaderboard, fetchLeague, LeaderboardEntry, LeagueState } from '@/lib/api/client';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useAccountStore } from '@/stores/useAccountStore';
 
@@ -49,6 +49,7 @@ export default function RankingPage() {
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [national, setNational] = useState<LeaderboardEntry[] | null>(null);
+  const [league, setLeague] = useState<LeagueState | null>(null);
   const [nationalLoading, setNationalLoading] = useState(false);
 
   const { progress, loadProgress } = useProgressStore();
@@ -76,8 +77,18 @@ export default function RankingPage() {
     };
   }, [scope, mode]);
 
-  // 서버 리그 연동 전에는 레벨로 티어를 추정한다(레벨 10마다 한 단계).
-  const estimatedTier = Math.min(4, Math.floor((progress.level - 1) / 10));
+  // 서버가 진실원이다. 미배포·미등록이면 레벨로 티어를 추정한다(레벨 10마다 한 단계).
+  useEffect(() => {
+    let alive = true;
+    fetchLeague().then((state) => {
+      if (alive) setLeague(state);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [accountStatus]);
+
+  const estimatedTier = league?.tier ?? Math.min(4, Math.floor((progress.level - 1) / 10));
 
   const rankings = useMemo<RankEntry[]>(() => {
     if (mode === 'game') {
@@ -130,10 +141,29 @@ export default function RankingPage() {
         리그 &amp; 랭킹
       </h1>
       <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
-        매주 같은 리그의 {30}명과 겨룹니다. 마감 때 순위에 따라 승급하거나 강등돼요.
+        매주 같은 리그의 {league?.bucketSize || 30}명과 겨룹니다. 마감 때 순위에 따라 승급하거나 강등돼요.
       </p>
 
-      <LeagueCard tierId={estimatedTier} xpThisWeek={progress.totalXpEarned} className="mb-6" />
+      <LeagueCard
+        tierId={estimatedTier}
+        rank={league?.rank ?? null}
+        xpThisWeek={league?.xpEarned ?? progress.totalXpEarned}
+        bucketSize={league?.bucketSize ?? 0}
+        className="mb-6"
+      />
+
+      {league?.lastWeek?.outcome && (
+        <Card className="p-3 mb-6 text-sm">
+          <span className="font-bold">지난주 결과</span>{' '}
+          {league.lastWeek.rank != null && `${league.lastWeek.rank}위 · `}
+          {league.lastWeek.outcome === 'promoted'
+            ? '승급했어요! 🎉'
+            : league.lastWeek.outcome === 'demoted'
+              ? '강등됐어요. 이번 주에 되찾아봐요.'
+              : '자리를 지켰어요.'}
+          {league.lastWeek.coins > 0 && ` (+${league.lastWeek.coins} 코인)`}
+        </Card>
+      )}
 
       <div className="flex gap-2 mb-4">
         <Button variant={scope === 'me' ? 'primary' : 'secondary'} size="sm" onClick={() => setScope('me')}>
