@@ -3,7 +3,8 @@ import { verifySubmission, kstDayKey, kstWeekKey, MAX_KPM } from '../functions/l
 import { signToken, verifyToken, hashDevice } from '../functions/lib/auth';
 import { xpForLevel, levelForTotalXp } from '../functions/lib/wallet';
 
-const SECRET = 'test-secret-at-least-16-chars-long';
+// 테스트 전용 더미 키 — 실제 시크릿이 아니다(운영 키는 wrangler secret으로만 주입)
+const SECRET = 'test-secret-at-least-16-chars-long'; // gitleaks:allow
 
 /** 사람처럼 흔들리는 타건 간격 */
 function humanIntervals(n: number, base = 180): number[] {
