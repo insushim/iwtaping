@@ -1,0 +1,173 @@
+'use client';
+
+/**
+ * 서버 API 클라이언트.
+ *
+ * 백엔드(Cloudflare Pages Functions)가 배포되지 않은 환경에서도 앱은 그대로 동작해야 한다.
+ * 따라서 모든 호출은 실패를 정상 흐름으로 처리하고(오프라인 우선), 실패 시 null을 돌려준다.
+ */
+
+const TOKEN_KEY = 'typingverse-token';
+const DEVICE_KEY = 'typingverse-device';
+const USER_KEY = 'typingverse-user';
+
+export interface ApiUser {
+  id: string;
+  nickname: string;
+  avatar: string;
+  provisional: boolean;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  nickname: string;
+  avatar: string;
+  value: number;
+  accuracy: number;
+  at: number;
+}
+
+function ls(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function getDeviceId(): string {
+  const store = ls();
+  if (!store) return '';
+  let id = store.getItem(DEVICE_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    store.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+export function getToken(): string | null {
+  return ls()?.getItem(TOKEN_KEY) ?? null;
+}
+
+export function getCachedUser(): ApiUser | null {
+  const raw = ls()?.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as ApiUser;
+  } catch {
+    return null;
+  }
+}
+
+function persistAuth(token: string, user: ApiUser): void {
+  const store = ls();
+  if (!store) return;
+  store.setItem(TOKEN_KEY, token);
+  store.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearAuth(): void {
+  const store = ls();
+  if (!store) return;
+  store.removeItem(TOKEN_KEY);
+  store.removeItem(USER_KEY);
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T | null> {
+  try {
+    const token = getToken();
+    const res = await fetch(path, {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    // 백엔드 미배포·오프라인 — 로컬 전용 모드로 계속 동작한다
+    return null;
+  }
+}
+
+export async function register(
+  nickname: string,
+  avatar = 'cat',
+  gradeBand?: string
+): Promise<ApiUser | null> {
+  const res = await request<{ ok: boolean; token: string; user: ApiUser }>('/api/register', {
+    method: 'POST',
+    body: JSON.stringify({ deviceId: getDeviceId(), nickname, avatar, gradeBand }),
+  });
+  if (!res?.ok) return null;
+  persistAuth(res.token, res.user);
+  return res.user;
+}
+
+/** 이미 등록된 기기라면 조용히 세션을 복구한다. */
+export async function restoreSession(): Promise<ApiUser | null> {
+  const res = await request<{ ok: boolean; token: string; user: ApiUser }>('/api/register', {
+    method: 'POST',
+    body: JSON.stringify({ deviceId: getDeviceId() }),
+  });
+  if (!res?.ok) return null;
+  persistAuth(res.token, res.user);
+  return res.user;
+}
+
+export interface SubmitInput {
+  mode: string;
+  language?: string;
+  kpm: number;
+  accuracy: number;
+  score?: number;
+  elapsedMs: number;
+  totalKeystrokes: number;
+  correctKeystrokes: number;
+  textHash?: string;
+  intervals?: number[];
+}
+
+export async function submitScore(input: SubmitInput): Promise<{ status: string } | null> {
+  if (!getToken()) return null;
+
+  const challenge = await request<{ ok: boolean; nonce: string }>('/api/challenge', {
+    method: 'POST',
+    body: JSON.stringify({ mode: input.mode }),
+  });
+  if (!challenge?.ok) return null;
+
+  return request<{ ok: boolean; status: string }>('/api/scores', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...input,
+      // 서버가 통계 분석에 쓰는 구간만 전송 (상한 2000)
+      intervals: input.intervals?.slice(0, 2000),
+      nonce: challenge.nonce,
+    }),
+  });
+}
+
+export async function fetchLeaderboard(
+  mode = 'speed',
+  period: 'daily' | 'weekly' | 'all' = 'weekly',
+  grade?: string
+): Promise<LeaderboardEntry[] | null> {
+  const params = new URLSearchParams({ mode, period });
+  if (grade) params.set('grade', grade);
+  const res = await request<{ ok: boolean; entries: LeaderboardEntry[] }>(
+    `/api/leaderboard?${params.toString()}`
+  );
+  return res?.ok ? res.entries : null;
+}
+
+/** 지문 변조 탐지를 위한 해시(서버가 대조) */
+export async function hashText(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+  return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}

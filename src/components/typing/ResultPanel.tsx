@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { TypingResult } from '@/types/typing';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { submitScore } from '@/lib/api/client';
 import { Mascot } from '../mascot/Mascot';
 import { MascotMood } from '@/stores/useMascotStore';
 import { useProgressStore } from '@/stores/useProgressStore';
@@ -88,8 +89,17 @@ export function ResultPanel({ result, maxCombo, onRestart }: ResultPanelProps) {
       setXpAwarded(true);
       addXP(earnedXP);
       addCoins(earnedCoins);
+      // 서버 순위 제출 — 백엔드가 없으면 조용히 무시된다(오프라인 우선)
+      void submitScore({
+        mode: 'speed',
+        kpm: result.kpm,
+        accuracy: result.accuracy,
+        elapsedMs: Math.round(result.elapsedTime * 1000),
+        totalKeystrokes: result.totalKeystrokes,
+        correctKeystrokes: result.correctKeystrokes,
+      });
     }
-  }, [phase, xpAwarded, addXP, addCoins, earnedXP, earnedCoins]);
+  }, [phase, xpAwarded, addXP, addCoins, earnedXP, earnedCoins, result]);
 
   const stats = [
     { label: '타/분', value: Math.round(result.kpm), color: 'var(--color-primary)', delay: 200 },
