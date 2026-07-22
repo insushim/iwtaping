@@ -1,6 +1,6 @@
 'use client';
 import { create } from 'zustand';
-import { getToday } from '@/lib/utils/helpers';
+import { getToday, daysBetween } from '@/lib/utils/helpers';
 import { advanceStreak, expireStreakIfLapsed, streakMultiplier } from '@/lib/progress/streak';
 
 export interface ProgressState {
@@ -13,7 +13,15 @@ export interface ProgressState {
   // Level-up tracking
   pendingLevelUp: number | null; // new level to celebrate
   pendingRewards: Reward[];
+  /** 저장 스키마 버전. 구버전 값 보정에 쓴다. */
+  schemaVersion?: number;
 }
+
+/**
+ * 2: 스트릭이 "방문 기준"에서 "연습 세션 기준"으로 바뀜.
+ *    구버전은 페이지를 열기만 해도 스트릭이 올랐으므로 값이 부풀려져 있다.
+ */
+export const PROGRESS_SCHEMA_VERSION = 2;
 
 export interface Reward {
   type: 'theme' | 'accessory' | 'title' | 'coins';
@@ -25,6 +33,15 @@ export interface Reward {
 // XP needed for each level: level^1.5 * 100
 export function xpForLevel(level: number): number {
   return Math.floor(Math.pow(level, 1.5) * 100);
+}
+
+/** 누적 XP에서 현재 레벨 진행분만 뽑아낸다(서버는 누적, 클라이언트는 레벨 내 잔여를 쓴다). */
+export function xpWithinLevel(totalXp: number, level: number): number {
+  let remaining = totalXp;
+  for (let l = 1; l < level; l++) {
+    remaining -= xpForLevel(l);
+  }
+  return Math.max(0, remaining);
 }
 
 export function xpToNextLevel(level: number, currentXp: number): { needed: number; progress: number } {
@@ -61,6 +78,8 @@ interface ProgressStore {
   clearRewards: () => void;
   loadProgress: () => void;
   resetProgress: () => void;
+  /** 서버 지갑을 진실원으로 채택한다(검증 통과분 반영). */
+  syncFromServer: (wallet: { coins: number; xp: number; level: number }) => void;
 }
 
 const defaultProgress: ProgressState = {
@@ -72,7 +91,27 @@ const defaultProgress: ProgressState = {
   totalXpEarned: 0,
   pendingLevelUp: null,
   pendingRewards: [],
+  schemaVersion: PROGRESS_SCHEMA_VERSION,
 };
+
+/**
+ * 구버전 저장값 보정.
+ * 방문만으로 쌓인 스트릭은 근거가 없으므로, 마지막 활동일을 기준으로
+ * "오늘/어제면 1일, 그 밖이면 0일"로 되돌린다(과대계상 승계 방지).
+ */
+export function migrateProgress(saved: Partial<ProgressState>): ProgressState {
+  // 버전은 반드시 "저장된 값"에서 읽어야 한다.
+  // 병합 후에 읽으면 기본값의 최신 버전이 섞여 들어와 마이그레이션이 건너뛰어진다.
+  const savedVersion = saved.schemaVersion ?? 1;
+  const merged = { ...defaultProgress, ...saved };
+  if (savedVersion >= PROGRESS_SCHEMA_VERSION) return merged;
+
+  const today = getToday();
+  const gap = merged.lastActiveDate ? daysBetween(merged.lastActiveDate, today) : Number.NaN;
+  const streakDays = Number.isNaN(gap) ? 0 : gap <= 1 ? Math.min(merged.streakDays, 1) : 0;
+
+  return { ...merged, streakDays, schemaVersion: PROGRESS_SCHEMA_VERSION };
+}
 
 export const useProgressStore = create<ProgressStore>((set, get) => ({
   progress: defaultProgress,
@@ -199,9 +238,37 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-          set({ progress: { ...defaultProgress, ...JSON.parse(saved) } });
+          const migrated = migrateProgress(JSON.parse(saved));
+          set({ progress: migrated });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
         }
       } catch { /* ignore */ }
+    }
+  },
+
+  syncFromServer: (wallet) => {
+    const prev = get().progress;
+    if (
+      !Number.isFinite(wallet.coins) ||
+      !Number.isFinite(wallet.xp) ||
+      !Number.isFinite(wallet.level)
+    ) {
+      return;
+    }
+    // 레벨업 연출은 서버 레벨이 더 높을 때만 띄운다
+    const leveledUp = wallet.level > prev.level;
+    const newProgress: ProgressState = {
+      ...prev,
+      coins: wallet.coins,
+      level: wallet.level,
+      // 서버는 누적 XP를 들고 있고 클라이언트는 현재 레벨의 잔여 XP를 쓴다
+      xp: xpWithinLevel(wallet.xp, wallet.level),
+      totalXpEarned: Math.max(prev.totalXpEarned, wallet.xp),
+      pendingLevelUp: leveledUp ? wallet.level : prev.pendingLevelUp,
+    };
+    set({ progress: newProgress });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
     }
   },
 

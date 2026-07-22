@@ -1,9 +1,11 @@
 import { Env, json, badRequest, requireUser, readJson, isRateLimited } from '../lib/common';
 import { ScoreSubmission, verifySubmission, kstDayKey, kstWeekKey } from '../lib/verify';
 import { creditWallet } from '../lib/wallet';
+import { earnedXpFor, earnedCoinsFor } from '../lib/rewards';
 
 interface Body extends ScoreSubmission {
   nonce?: string;
+  maxCombo?: number;
 }
 
 /** 제출 빈도 상한: 10분에 30회 */
@@ -72,7 +74,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // 검증 통과분만 재화를 지급한다 (서버 원장 + audit log)
   let wallet = null;
   if (verdict.status === 'ok') {
-    const earnedXp = Math.max(1, Math.round(body.kpm / 10 + body.accuracy / 10));
+    // 클라이언트(ResultPanel)와 같은 공식을 쓴다 — 두 값이 다르면
+    // 화면에 보이는 XP와 서버 잔액이 갈라진다.
+    const earnedXp = earnedXpFor(body.kpm, body.accuracy, body.maxCombo ?? 0);
+    const earnedCoins = earnedCoinsFor(earnedXp);
+
     wallet = await creditWallet(env, {
       userId: user.uid,
       currency: 'xp',
@@ -80,6 +86,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       description: `session:${body.mode}`,
       idempotencyKey: `score:${scoreId}`,
     });
+
+    if (earnedCoins > 0) {
+      wallet = await creditWallet(env, {
+        userId: user.uid,
+        currency: 'coins',
+        amount: earnedCoins,
+        description: `session:${body.mode}`,
+        idempotencyKey: `score-coins:${scoreId}`,
+      });
+    }
 
     await env.DB.prepare(
       `UPDATE users SET provisional = 0, last_seen_at = ?2

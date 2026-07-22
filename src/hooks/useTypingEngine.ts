@@ -15,6 +15,16 @@ interface UseTypingEngineOptions {
   soundEnabled?: boolean;
 }
 
+/** 타건 타임스탬프 → 연속 간격(ms). 서버가 자동 입력을 판별하는 입력값이다. */
+function intervalsFromKeystrokes(keystrokes: { timestamp: number }[]): number[] {
+  const intervals: number[] = [];
+  for (let i = 1; i < keystrokes.length; i++) {
+    const delta = keystrokes[i].timestamp - keystrokes[i - 1].timestamp;
+    if (delta >= 0 && delta < 10000) intervals.push(delta);
+  }
+  return intervals;
+}
+
 export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTypingEngineOptions) {
   const [charStates, setCharStates] = useState<CharState[]>(() =>
     text.split('').map((char, i) => ({ char, status: i === 0 ? 'current' : 'pending' }))
@@ -119,6 +129,7 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
       keyAccuracy: trackerRef.current.getKeyAccuracy(),
       speedHistory: [...speedHistoryRef.current],
       problemKeys: trackerRef.current.getProblemKeys(),
+      keyIntervals: intervalsFromKeystrokes(keystrokesRef.current),
     };
   }, [text]);
 

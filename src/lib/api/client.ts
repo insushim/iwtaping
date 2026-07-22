@@ -125,6 +125,7 @@ export interface SubmitInput {
   kpm: number;
   accuracy: number;
   score?: number;
+  maxCombo?: number;
   elapsedMs: number;
   totalKeystrokes: number;
   correctKeystrokes: number;
@@ -132,7 +133,15 @@ export interface SubmitInput {
   intervals?: number[];
 }
 
-export async function submitScore(input: SubmitInput): Promise<{ status: string } | null> {
+export interface WalletState {
+  coins: number;
+  xp: number;
+  level: number;
+}
+
+export async function submitScore(
+  input: SubmitInput
+): Promise<{ status: string; wallet: WalletState | null } | null> {
   if (!getToken()) return null;
 
   const challenge = await request<{ ok: boolean; nonce: string }>('/api/challenge', {
@@ -141,7 +150,7 @@ export async function submitScore(input: SubmitInput): Promise<{ status: string 
   });
   if (!challenge?.ok) return null;
 
-  return request<{ ok: boolean; status: string }>('/api/scores', {
+  return request<{ ok: boolean; status: string; wallet: WalletState | null }>('/api/scores', {
     method: 'POST',
     body: JSON.stringify({
       ...input,

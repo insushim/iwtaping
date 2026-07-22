@@ -67,6 +67,8 @@ export interface TypingResult {
   keyAccuracy: Record<string, number>;
   speedHistory: number[];
   problemKeys: string[];
+  /** 연속 타건 간격(ms). 서버 부정행위 검증 입력 — 없으면 빈 배열. */
+  keyIntervals?: number[];
 }
 
 export interface PracticeSession {

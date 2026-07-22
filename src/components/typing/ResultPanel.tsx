@@ -5,6 +5,7 @@ import { TypingResult } from '@/types/typing';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { submitScore } from '@/lib/api/client';
+import { earnedXpFor, earnedCoinsFor } from '@/lib/progress/rewards';
 import { Mascot } from '../mascot/Mascot';
 import { MascotMood } from '@/stores/useMascotStore';
 import { useProgressStore } from '@/stores/useProgressStore';
@@ -64,7 +65,7 @@ function AnimatedNumber({ value, duration = 1000, delay = 0 }: { value: number; 
 }
 
 export function ResultPanel({ result, maxCombo, onRestart }: ResultPanelProps) {
-  const { addXP, addCoins } = useProgressStore();
+  const { addXP, addCoins, syncFromServer } = useProgressStore();
   const { trigger } = useCelebrationStore();
   const [phase, setPhase] = useState(0); // 0=grade, 1=stats, 2=rewards
   const [xpAwarded, setXpAwarded] = useState(false);
@@ -74,8 +75,8 @@ export function ResultPanel({ result, maxCombo, onRestart }: ResultPanelProps) {
   const mascotMsg = getMascotMessage(grade.grade);
 
   // Calculate XP & coins
-  const earnedXP = Math.floor(result.kpm * 0.3 + result.accuracy * 0.5 + maxCombo * 0.2);
-  const earnedCoins = Math.floor(earnedXP * 0.15);
+  const earnedXP = earnedXpFor(result.kpm, result.accuracy, maxCombo);
+  const earnedCoins = earnedCoinsFor(earnedXP);
 
   useEffect(() => {
     // Phase transitions
@@ -94,12 +95,19 @@ export function ResultPanel({ result, maxCombo, onRestart }: ResultPanelProps) {
         mode: 'speed',
         kpm: result.kpm,
         accuracy: result.accuracy,
+        maxCombo,
         elapsedMs: Math.round(result.elapsedTime * 1000),
         totalKeystrokes: result.totalKeystrokes,
         correctKeystrokes: result.correctKeystrokes,
+        // 서버 부정행위 검증의 입력 — 이게 없으면 간격 분석이 아예 동작하지 않는다
+        intervals: result.keyIntervals,
+      }).then((res) => {
+        // 서버가 진실원 — 검증 통과분의 잔액을 화면에 반영한다.
+        // (반영하지 않으면 클라이언트 낙관 적립과 서버 잔액이 갈라진다)
+        if (res?.wallet) syncFromServer(res.wallet);
       });
     }
-  }, [phase, xpAwarded, addXP, addCoins, earnedXP, earnedCoins, result]);
+  }, [phase, xpAwarded, addXP, addCoins, syncFromServer, earnedXP, earnedCoins, maxCombo, result]);
 
   const stats = [
     { label: '타/분', value: Math.round(result.kpm), color: 'var(--color-primary)', delay: 200 },

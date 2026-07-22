@@ -30,12 +30,26 @@ export function getSecret(env: Env): string {
   return secret;
 }
 
+/**
+ * 인증된 사용자를 돌려준다.
+ *
+ * 서명 검증만으로는 부족하다 — 계정이 삭제됐거나 밴된 뒤에도 기존 토큰이
+ * 만료 전까지 계속 통과하기 때문이다. 매 요청마다 계정 상태를 확인한다.
+ */
 export async function requireUser(request: Request, env: Env): Promise<{ uid: string } | null> {
   const header = request.headers.get('authorization') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return null;
+
   const payload = await verifyToken(getSecret(env), token);
-  return payload ? { uid: payload.uid } : null;
+  if (!payload) return null;
+
+  const row = await env.DB.prepare(`SELECT banned FROM users WHERE id = ?1`)
+    .bind(payload.uid)
+    .first<{ banned: number }>();
+
+  if (!row || row.banned) return null;
+  return { uid: payload.uid };
 }
 
 export async function readJson<T>(request: Request): Promise<T | null> {

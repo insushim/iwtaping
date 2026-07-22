@@ -20,7 +20,7 @@ function baseSubmission(over: Partial<Parameters<typeof verifySubmission>[0]> = 
   return {
     mode: 'speed',
     kpm: 320,
-    accuracy: 96,
+    accuracy: (310 / 320) * 100,
     elapsedMs: 60000,
     totalKeystrokes: 320,
     correctKeystrokes: 310,
@@ -55,7 +55,13 @@ describe('점수 검증 — 거부', () => {
   it('신고 속도와 타수·시간이 모순되면 거부', () => {
     // 60초에 10타인데 900타/분을 주장
     const r = verifySubmission(
-      baseSubmission({ kpm: 900, totalKeystrokes: 10, correctKeystrokes: 10, intervals: humanIntervals(30) })
+      baseSubmission({
+        kpm: 900,
+        accuracy: 100,
+        totalKeystrokes: 10,
+        correctKeystrokes: 10,
+        intervals: humanIntervals(30),
+      })
     );
     expect(r.status).toBe('rejected');
     expect(r.reason).toBe('kpm_inconsistent_with_keystrokes');
@@ -83,10 +89,60 @@ describe('점수 검증 — 거부', () => {
   });
 });
 
+describe('점수 검증 — 교차검증에서 발견된 공격 경로', () => {
+  it('임의의 거대 게임 점수는 거부된다 (리더보드 1위 조작)', () => {
+    const r = verifySubmission(
+      baseSubmission({ mode: 'game:rain', score: Number.MAX_SAFE_INTEGER })
+    );
+    expect(r.status).toBe('rejected');
+    expect(['score_above_limit', 'malformed_score']).toContain(r.reason);
+  });
+
+  it('시간 대비 불가능한 점수 획득률은 거부된다', () => {
+    // 60초 세션에 초당 500점 상한 → 3만점 초과는 불가능
+    const r = verifySubmission(baseSubmission({ mode: 'game:rain', score: 50_000 }));
+    expect(r.status).toBe('rejected');
+    expect(r.reason).toBe('score_rate_impossible');
+  });
+
+  it('정상 범위의 게임 점수는 통과한다', () => {
+    expect(verifySubmission(baseSubmission({ mode: 'game:rain', score: 8_000 })).status).toBe('ok');
+  });
+
+  it('정확도만 100으로 올린 조작은 거부된다 (XP·순위 부풀리기)', () => {
+    const r = verifySubmission(
+      baseSubmission({ accuracy: 100, totalKeystrokes: 320, correctKeystrokes: 200 })
+    );
+    expect(r.status).toBe('rejected');
+    expect(r.reason).toBe('accuracy_inconsistent_with_keystrokes');
+  });
+
+  it('타건 로그 총합이 세션 길이를 넘으면 거부된다 (다른 세션 로그 붙여넣기)', () => {
+    const r = verifySubmission(
+      baseSubmission({ elapsedMs: 10_000, intervals: humanIntervals(300, 900) })
+    );
+    expect(r.status).toBe('rejected');
+    expect(r.reason).toBe('intervals_exceed_session');
+  });
+
+  it('로그가 세션의 극히 일부만 덮으면 보류된다', () => {
+    // 60초 세션인데 로그는 약 1.4초어치
+    const r = verifySubmission(baseSubmission({ intervals: new Array(40).fill(0).map((_, i) => 30 + (i % 7) * 9) }));
+    expect(r.status).toBe('pending');
+    expect(r.reason).toBe('intervals_do_not_cover_session');
+  });
+});
+
 describe('점수 검증 — 보류', () => {
   it('타건 로그 없는 고득점은 자동 승인하지 않는다', () => {
     const r = verifySubmission(
-      baseSubmission({ kpm: 900, totalKeystrokes: 900, correctKeystrokes: 890, intervals: [] })
+      baseSubmission({
+        kpm: 900,
+        accuracy: (890 / 900) * 100,
+        totalKeystrokes: 900,
+        correctKeystrokes: 890,
+        intervals: [],
+      })
     );
     expect(r.status).toBe('pending');
     expect(r.reason).toBe('high_score_without_keylog');
