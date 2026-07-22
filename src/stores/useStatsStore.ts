@@ -4,6 +4,7 @@ import { UserStats, DailyStats } from '@/types/stats';
 import { FingerType, TypingResult } from '@/types/typing';
 import { getToday } from '@/lib/utils/helpers';
 import { useProgressStore } from './useProgressStore';
+import { useQuestStore } from './useQuestStore';
 
 const defaultUserStats: UserStats = {
   totalSessions: 0,
@@ -69,6 +70,14 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
     // 스트릭은 useProgressStore가 단일 원장 — 여기선 갱신을 위임하고 값을 미러링만 한다.
     useProgressStore.getState().recordPracticeDay();
     const streak = useProgressStore.getState().progress.streakDays;
+
+    // 일일 퀘스트 진행도 반영 (연습 세션 기준)
+    useQuestStore.getState().recordEvent({
+      kind: 'practice',
+      keystrokes: result.totalKeystrokes,
+      accuracy: result.accuracy,
+      seconds: result.elapsedTime,
+    });
 
     const totalSessions = prev.totalSessions + 1;
     const newStats: UserStats = {

@@ -5,12 +5,13 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Mascot } from '@/components/mascot/Mascot';
+import { DailyQuests } from '@/components/quests/DailyQuests';
 import { XPBarDetailed } from '@/components/common/XPBar';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useStatsStore } from '@/stores/useStatsStore';
 import { useMascotStore } from '@/stores/useMascotStore';
 import { getDailyChallenge, getChallengeStatus } from '@/lib/challenge/daily-challenge';
-import { formatTime } from '@/lib/utils/helpers';
+import { formatTime, getToday } from '@/lib/utils/helpers';
 
 const SLOGAN = '손끝으로 여는 무한한 세계';
 
@@ -66,7 +67,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  const todayStats = stats.dailyStats.find(d => d.date === new Date().toISOString().split('T')[0]);
+  const todayStats = stats.dailyStats.find(d => d.date === getToday());
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 py-6">
@@ -104,6 +105,11 @@ export default function Home() {
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* Daily quests — 매일 돌아올 이유 */}
+      <section className="mb-6">
+        <DailyQuests />
       </section>
 
       {/* Dashboard Row */}
