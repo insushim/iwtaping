@@ -1,6 +1,7 @@
 'use client';
 import { create } from 'zustand';
 import { GameType, GameStatus, GameResult } from '@/types/game';
+import { useQuestStore } from './useQuestStore';
 
 interface GameStore {
   gameType: GameType | null;
@@ -58,6 +59,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   addResult: (result) => {
     const results = [...get().results, result];
     set({ results });
+    // 일일 퀘스트 진행도 (게임 판수·최대 콤보)
+    useQuestStore.getState().recordEvent({ kind: 'game', maxCombo: result.maxCombo });
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(RESULTS_KEY, JSON.stringify(results.slice(-500)));

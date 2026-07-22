@@ -7,7 +7,7 @@ import { useProgressStore, xpToNextLevel } from '@/stores/useProgressStore';
 import { XPBarDetailed } from '@/components/common/XPBar';
 import { ContributionCalendar } from '@/components/stats/ContributionCalendar';
 import { Mascot } from '@/components/mascot/Mascot';
-import { formatTime } from '@/lib/utils/helpers';
+import { formatTime, getToday } from '@/lib/utils/helpers';
 import { ACHIEVEMENTS_LIST } from '@/lib/utils/constants';
 
 export default function StatsPage() {
@@ -19,7 +19,7 @@ export default function StatsPage() {
     loadProgress();
   }, [loadStats, loadProgress]);
 
-  const todayStats = stats.dailyStats.find(d => d.date === new Date().toISOString().split('T')[0]);
+  const todayStats = stats.dailyStats.find(d => d.date === getToday());
 
   return (
     <div className="max-w-[1000px] mx-auto px-4 py-8">

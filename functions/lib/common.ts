@@ -53,17 +53,17 @@ export async function readJson<T>(request: Request): Promise<T | null> {
 export async function isRateLimited(
   env: Env,
   userId: string,
-  action: string,
+  action: 'score',
   maxPerWindow: number,
   windowMs: number
 ): Promise<boolean> {
+  if (action !== 'score') return false;
   const since = Date.now() - windowMs;
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM scores WHERE user_id = ?1 AND created_at > ?2`
   )
     .bind(userId, since)
     .first<{ n: number }>();
-  if (action !== 'score') return false;
   return (row?.n ?? 0) >= maxPerWindow;
 }
 

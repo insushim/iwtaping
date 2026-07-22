@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { DailyStats } from '@/types/stats';
+import { toDateKey } from '@/lib/utils/helpers';
 
 interface ContributionCalendarProps {
   dailyStats: DailyStats[];
@@ -32,7 +33,7 @@ export function ContributionCalendar({ dailyStats, className = '' }: Contributio
     const d = new Date(startDate);
     let col = 0;
     while (d <= today) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toDateKey(d);
       const stat = statsMap.get(dateStr);
       const value = stat ? stat.sessionsCount : 0;
       if (value > maxVal) maxVal = value;

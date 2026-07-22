@@ -13,13 +13,34 @@ const CACHE_SECONDS = 60;
 const PERIODS = new Set(['daily', 'weekly', 'all']);
 const LIMIT = 50;
 
+/**
+ * 순위 대상 모드 화이트리스트.
+ * SQL 문자열에 들어가는 값은 절대 사용자 입력에서 오지 않게 한다
+ * (컬럼명·ORDER BY는 바인딩 파라미터로 넘길 수 없어 보간이 불가피하므로).
+ */
+const MODES: Record<string, { column: 'kpm' | 'score' }> = {
+  speed: { column: 'kpm' },
+  accuracy: { column: 'kpm' },
+  'game:rain': { column: 'score' },
+  'game:space': { column: 'score' },
+  'game:race': { column: 'score' },
+  'game:defense': { column: 'score' },
+  'game:zombie': { column: 'score' },
+  'game:puzzle': { column: 'score' },
+};
+
+const GRADE_BANDS = new Set(['elem', 'middle', 'high', 'adult']);
+
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url);
   const mode = (url.searchParams.get('mode') ?? 'speed').slice(0, 32);
   const period = url.searchParams.get('period') ?? 'weekly';
-  const gradeBand = url.searchParams.get('grade');
+  const gradeParam = url.searchParams.get('grade');
 
   if (!PERIODS.has(period)) return badRequest('invalid_period');
+  const modeSpec = MODES[mode];
+  if (!modeSpec) return badRequest('invalid_mode');
+  const gradeBand = gradeParam && GRADE_BANDS.has(gradeParam) ? gradeParam : null;
 
   const cache = (caches as unknown as { default: Cache }).default;
   const cacheKey = new Request(
@@ -48,22 +69,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   if (gradeBand) {
-    binds.push(gradeBand.slice(0, 8));
+    binds.push(gradeBand);
     filters.push(`u.grade_band = ?${binds.length}`);
   }
 
-  const orderBy = mode.startsWith('game:') ? 's.score DESC' : 's.kpm DESC';
+  // 화이트리스트에서 온 값만 보간된다 (사용자 입력 아님)
+  const rankColumn = modeSpec.column === 'score' ? 's.score' : 's.kpm';
 
   // 사용자별 최고 기록 1건씩만 순위에 올린다.
   const sql = `
     SELECT u.nickname AS nickname, u.avatar AS avatar,
-           MAX(${mode.startsWith('game:') ? 's.score' : 's.kpm'}) AS best,
+           MAX(${rankColumn}) AS best,
            s.accuracy AS accuracy, s.created_at AS created_at
       FROM scores s
       JOIN users u ON u.id = s.user_id
      WHERE ${filters.join(' AND ')}
      GROUP BY s.user_id
-     ORDER BY best DESC, ${orderBy}
+     ORDER BY best DESC, s.created_at ASC
      LIMIT ${LIMIT}`;
 
   const { results } = await env.DB.prepare(sql)

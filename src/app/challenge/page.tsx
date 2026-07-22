@@ -1,5 +1,7 @@
 'use client';
 
+import { toDateKey } from '@/lib/utils/helpers';
+
 import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -195,7 +197,7 @@ export default function ChallengePage() {
             const diff = i - currentDay;
             const date = new Date(d);
             date.setDate(date.getDate() + diff);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toDateKey(date);
             const dayStatus = getChallengeStatus(dateStr);
             const isToday = diff === 0;
 

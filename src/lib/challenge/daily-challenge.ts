@@ -1,3 +1,5 @@
+import { getToday, toDateKey } from '@/lib/utils/helpers';
+
 // Daily challenge system - generates unique challenge per day using date-based seed
 
 export type ChallengeType = 'speed' | 'accuracy' | 'combo' | 'endurance';
@@ -50,7 +52,7 @@ const DIFFICULTY_BY_DAY: Record<number, 1 | 2 | 3> = {
 };
 
 export function getDailyChallenge(dateStr?: string): DailyChallenge {
-  const date = dateStr || new Date().toISOString().split('T')[0];
+  const date = dateStr || getToday();
   const hash = dateHash(date);
   const dayOfWeek = new Date(date).getDay();
   const difficulty = DIFFICULTY_BY_DAY[dayOfWeek] || 2;
@@ -137,7 +139,7 @@ const CHALLENGE_STORAGE_KEY = 'typingverse-challenge';
 
 export function getChallengeStatus(dateStr?: string): { completed: boolean; stars: number } {
   if (typeof window === 'undefined') return { completed: false, stars: 0 };
-  const date = dateStr || new Date().toISOString().split('T')[0];
+  const date = dateStr || getToday();
   try {
     const saved = localStorage.getItem(CHALLENGE_STORAGE_KEY);
     if (saved) {
