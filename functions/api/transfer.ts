@@ -63,16 +63,32 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .first<{ user_id: string; expires_at: number; attempts: number; used_at: number | null }>();
 
     if (!row) return badRequest('invalid_code', 404);
-    if (row.used_at) return badRequest('code_already_used', 409);
-    if (row.expires_at < now) return badRequest('code_expired', 410);
+
+    // 실패도 시도로 센다 — 여기서 세지 않으면 MAX_ATTEMPTS가 무의미해진다.
+    const bumpAttempts = () =>
+      env.DB.prepare(`UPDATE transfer_codes SET attempts = attempts + 1 WHERE code_hash = ?1`)
+        .bind(codeHash)
+        .run();
+
     if (row.attempts >= MAX_ATTEMPTS) return badRequest('too_many_attempts', 429);
+    if (row.used_at) {
+      await bumpAttempts();
+      return badRequest('code_already_used', 409);
+    }
+    if (row.expires_at < now) {
+      await bumpAttempts();
+      return badRequest('code_expired', 410);
+    }
 
     const consumed = await env.DB.prepare(
       `UPDATE transfer_codes SET used_at = ?2 WHERE code_hash = ?1 AND used_at IS NULL`
     )
       .bind(codeHash, now)
       .run();
-    if (!consumed.meta.changes) return badRequest('code_already_used', 409);
+    if (!consumed.meta.changes) {
+      await bumpAttempts();
+      return badRequest('code_already_used', 409);
+    }
 
     const deviceHash = await hashDevice(secret, body.deviceId);
     await env.DB.prepare(
@@ -97,15 +113,4 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   return badRequest('invalid_action');
-};
-
-/** 실패한 시도도 카운트하려면 별도 호출이 필요하지만, 시도 증가는 redeem 실패 경로에서 처리한다. */
-export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
-  const body = await readJson<{ code?: string }>(request);
-  if (typeof body?.code !== 'string') return badRequest('code_required');
-  const codeHash = await hashTransferCode(getSecret(env), body.code.trim());
-  await env.DB.prepare(`UPDATE transfer_codes SET attempts = attempts + 1 WHERE code_hash = ?1`)
-    .bind(codeHash)
-    .run();
-  return json({ ok: true });
 };

@@ -33,6 +33,11 @@ export const MAX_KPM = 1300;
 /** 최소 인정 세션 길이 */
 export const MIN_ELAPSED_MS = 3000;
 export const MAX_ELAPSED_MS = 1000 * 60 * 60; // 1시간
+/** 게임 점수 상한 — 초당 획득 가능한 점수에 여유를 둔 값 */
+export const MAX_SCORE_PER_SECOND = 500;
+export const MAX_SCORE = 1_000_000;
+/** 신고 정확도와 타수에서 계산한 정확도의 허용 오차(%p) */
+export const ACCURACY_TOLERANCE = 2;
 
 function stdev(xs: number[]): number {
   if (xs.length < 2) return 0;
@@ -64,6 +69,28 @@ export function verifySubmission(sub: ScoreSubmission): VerifyResult {
   if (sub.elapsedMs < MIN_ELAPSED_MS) return { status: 'rejected', reason: 'session_too_short' };
   if (sub.elapsedMs > MAX_ELAPSED_MS) return { status: 'rejected', reason: 'session_too_long' };
 
+  // --- 게임 점수: 범위 + 시간당 획득률 상한 ---
+  // (숫자 범위만 보면 Number.MAX_SAFE_INTEGER를 그대로 리더보드 1위로 올릴 수 있다)
+  const score = sub.score ?? 0;
+  if (!Number.isFinite(score) || score < 0 || !Number.isSafeInteger(Math.round(score))) {
+    return { status: 'rejected', reason: 'malformed_score' };
+  }
+  if (score > MAX_SCORE) return { status: 'rejected', reason: 'score_above_limit' };
+  if (score > (sub.elapsedMs / 1000) * MAX_SCORE_PER_SECOND) {
+    return { status: 'rejected', reason: 'score_rate_impossible' };
+  }
+
+  // --- 자기모순: 신고한 정확도가 신고한 타수와 맞는지 ---
+  // (accuracy만 100에 가깝게 조작해 XP·순위를 부풀리는 경로를 막는다)
+  if (sub.totalKeystrokes > 0) {
+    const impliedAccuracy = (sub.correctKeystrokes / sub.totalKeystrokes) * 100;
+    if (Math.abs(sub.accuracy - impliedAccuracy) > ACCURACY_TOLERANCE) {
+      return { status: 'rejected', reason: 'accuracy_inconsistent_with_keystrokes' };
+    }
+  } else if (sub.accuracy > 0) {
+    return { status: 'rejected', reason: 'accuracy_without_keystrokes' };
+  }
+
   // --- 자기모순: 신고한 타수와 경과시간이 신고한 속도와 맞는지 ---
   const minutes = sub.elapsedMs / 60000;
   if (minutes > 0) {
@@ -76,6 +103,19 @@ export function verifySubmission(sub: ScoreSubmission): VerifyResult {
 
   // --- 타건 간격 분석 (있을 때만) ---
   const intervals = (sub.intervals ?? []).filter((n) => Number.isFinite(n) && n >= 0);
+
+  if (intervals.length) {
+    // 간격의 총합은 세션 길이를 넘을 수 없다. 넘으면 로그가 조작됐거나
+    // 다른 세션의 로그를 붙여넣은 것이다.
+    const sum = intervals.reduce((a, b) => a + b, 0);
+    if (sum > sub.elapsedMs * 1.1 + 1000) {
+      return { status: 'rejected', reason: 'intervals_exceed_session' };
+    }
+    // 타건 수가 신고 타수보다 많을 수는 없다(자모 분해 감안해 3배까지 허용)
+    if (intervals.length > sub.totalKeystrokes * 3 + 10) {
+      return { status: 'rejected', reason: 'intervals_exceed_keystrokes' };
+    }
+  }
   if (intervals.length >= 20) {
     const sd = stdev(intervals);
     const med = median(intervals);
@@ -88,8 +128,16 @@ export function verifySubmission(sub: ScoreSubmission): VerifyResult {
     const impossible = intervals.filter((i) => i < 10).length / intervals.length;
     if (impossible > 0.2) return { status: 'rejected', reason: 'impossible_burst' };
 
+    // --- 여기부터는 "거부"가 아니라 보류 신호 (확실한 조작 판정 뒤에 온다) ---
+
     // 애매한 구간은 보류시켜 사람이 확인
     if (cv < 0.12) return { status: 'pending', reason: 'suspicious_regularity' };
+
+    // 로그가 세션을 거의 대변하지 못하면(예: 60초 세션에 1.4초어치 로그) 보류
+    const sum = intervals.reduce((a, b) => a + b, 0);
+    if (sum < sub.elapsedMs * 0.3) {
+      return { status: 'pending', reason: 'intervals_do_not_cover_session' };
+    }
   } else if (sub.kpm > 700) {
     // 고득점인데 타건 로그가 없으면 자동 승인하지 않는다
     return { status: 'pending', reason: 'high_score_without_keylog' };
