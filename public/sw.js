@@ -1,4 +1,4 @@
-const CACHE_NAME = 'typingverse-v2';
+const CACHE_NAME = 'typingverse-v3';
 const STATIC_ASSETS = [
   '/',
   '/practice/',
@@ -33,6 +33,13 @@ self.addEventListener('fetch', (event) => {
   // Don't cache _next/static chunks - they change every build
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/_next/static/chunks/')) {
+    return;
+  }
+
+  // API responses must never be served from the SW cache:
+  // they are per-user and time-sensitive (rankings, leagues, wallet).
+  // Without this, a cache-first fetch handler would pin them forever.
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 

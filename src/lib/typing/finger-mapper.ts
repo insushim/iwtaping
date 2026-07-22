@@ -38,6 +38,44 @@ export function getFingerForKey(code: string): FingerType {
   return FINGER_MAP[code] || 'right-index';
 }
 
+// 두벌식 자모 → 물리 키코드 (역매핑). 손가락 통계 수집용.
+const JAMO_TO_CODE: Record<string, string> = {
+  ㅂ: 'KeyQ', ㅈ: 'KeyW', ㄷ: 'KeyE', ㄱ: 'KeyR', ㅅ: 'KeyT',
+  ㅛ: 'KeyY', ㅕ: 'KeyU', ㅑ: 'KeyI', ㅐ: 'KeyO', ㅔ: 'KeyP',
+  ㅁ: 'KeyA', ㄴ: 'KeyS', ㅇ: 'KeyD', ㄹ: 'KeyF', ㅎ: 'KeyG',
+  ㅗ: 'KeyH', ㅓ: 'KeyJ', ㅏ: 'KeyK', ㅣ: 'KeyL',
+  ㅋ: 'KeyZ', ㅌ: 'KeyX', ㅊ: 'KeyC', ㅍ: 'KeyV',
+  ㅠ: 'KeyB', ㅜ: 'KeyN', ㅡ: 'KeyM',
+  // 겹자음/겹모음은 기본 자모 키 기준으로 귀속
+  ㅃ: 'KeyQ', ㅉ: 'KeyW', ㄸ: 'KeyE', ㄲ: 'KeyR', ㅆ: 'KeyT',
+  ㅒ: 'KeyO', ㅖ: 'KeyP',
+};
+
+const PUNCT_TO_CODE: Record<string, string> = {
+  ' ': 'Space', ',': 'Comma', '.': 'Period', '/': 'Slash', ';': 'Semicolon',
+  "'": 'Quote', '[': 'BracketLeft', ']': 'BracketRight', '\\': 'Backslash',
+  '-': 'Minus', '=': 'Equal', '`': 'Backquote', '\n': 'Enter',
+};
+
+/**
+ * 실제로 눌렀을 물리 키코드를 문자로부터 추정한다.
+ * 한글 완성자는 자모 분해가 선행되어야 하므로 자모 단위로 호출할 것.
+ */
+export function getCodeForChar(char: string): string | null {
+  if (!char) return null;
+  if (PUNCT_TO_CODE[char]) return PUNCT_TO_CODE[char];
+  if (JAMO_TO_CODE[char]) return JAMO_TO_CODE[char];
+  if (/^[a-zA-Z]$/.test(char)) return `Key${char.toUpperCase()}`;
+  if (/^[0-9]$/.test(char)) return `Digit${char}`;
+  return null;
+}
+
+/** 문자(자모 또는 영문/숫자)에 대응하는 손가락. 매핑 불가 시 null. */
+export function getFingerForChar(char: string): FingerType | null {
+  const code = getCodeForChar(char);
+  return code ? getFingerForKey(code) : null;
+}
+
 export function getFingerColor(finger: FingerType): string {
   const colors: Record<FingerType, string> = {
     'left-pinky': 'var(--key-finger-left-pinky)',

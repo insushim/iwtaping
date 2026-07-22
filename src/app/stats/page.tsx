@@ -92,7 +92,7 @@ export default function StatsPage() {
           { label: '최고 정확도', value: `${stats.bestAccuracy.toFixed(1)}%`, icon: '🎯' },
           { label: '평균 타수', value: `${Math.round(stats.avgKpm)} 타/분`, icon: '📈' },
           { label: '평균 정확도', value: `${stats.avgAccuracy.toFixed(1)}%`, icon: '✅' },
-          { label: '연속 출석', value: `${stats.streakDays}일`, icon: '🔥' },
+          { label: '연속 연습', value: `${progress.streakDays}일`, icon: '🔥' },
           { label: '총 키 입력', value: stats.totalKeystrokes.toLocaleString(), icon: '⌨️' },
         ].map((item, i) => (
           <Card key={item.label} className="p-3 slide-up" style={{ animationDelay: `${i * 0.04}s`, opacity: 0 }}>

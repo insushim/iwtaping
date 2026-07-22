@@ -1,5 +1,7 @@
 'use client';
 import { create } from 'zustand';
+import { getToday } from '@/lib/utils/helpers';
+import { advanceStreak, expireStreakIfLapsed, streakMultiplier } from '@/lib/progress/streak';
 
 export interface ProgressState {
   xp: number;
@@ -47,13 +49,11 @@ const LEVEL_REWARDS: Record<number, Reward[]> = {
 
 const STORAGE_KEY = 'typingverse-progress';
 
-function getToday(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
 interface ProgressStore {
   progress: ProgressState;
   addXP: (amount: number, source?: string) => void;
+  /** 연습 세션 완료 시 호출 — 스트릭의 유일한 증가 지점 */
+  recordPracticeDay: () => void;
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
   checkStreak: () => void;
@@ -80,14 +80,8 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   addXP: (amount: number) => {
     const prev = get().progress;
     let { xp, level, coins } = prev;
-    const today = getToday();
 
-    // Streak bonus
-    let streakMultiplier = 1;
-    if (prev.streakDays >= 7) streakMultiplier = 1.5;
-    else if (prev.streakDays >= 3) streakMultiplier = 1.2;
-
-    const actualXP = Math.floor(amount * streakMultiplier);
+    const actualXP = Math.floor(amount * streakMultiplier(prev.streakDays));
     xp += actualXP;
 
     // Check level up
@@ -118,7 +112,6 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       level: newLevel,
       coins,
       totalXpEarned: prev.totalXpEarned + actualXP,
-      lastActiveDate: today,
       pendingLevelUp: newLevel > level ? newLevel : prev.pendingLevelUp,
       pendingRewards: rewards.length > 0 ? [...prev.pendingRewards, ...rewards] : prev.pendingRewards,
     };
@@ -149,17 +142,34 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     return true;
   },
 
+  // 진입 시 만료 확인 전용 — 방문만으로는 스트릭이 오르지 않는다.
   checkStreak: () => {
     const prev = get().progress;
     const today = getToday();
-    if (prev.lastActiveDate === today) return;
+    const next = expireStreakIfLapsed(
+      { streakDays: prev.streakDays, lastPracticeDate: prev.lastActiveDate },
+      today
+    );
+    if (next.streakDays === prev.streakDays && next.lastPracticeDate === prev.lastActiveDate) return;
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const newProgress = { ...prev, streakDays: next.streakDays, lastActiveDate: next.lastPracticeDate };
+    set({ progress: newProgress });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
+    }
+  },
 
-    const streak = prev.lastActiveDate === yesterdayStr ? prev.streakDays + 1 : 1;
-    const newProgress = { ...prev, streakDays: streak, lastActiveDate: today };
+  // 연습 세션 완료 시에만 스트릭 증가 (단일 원장)
+  recordPracticeDay: () => {
+    const prev = get().progress;
+    const today = getToday();
+    const next = advanceStreak(
+      { streakDays: prev.streakDays, lastPracticeDate: prev.lastActiveDate },
+      today
+    );
+    if (next.streakDays === prev.streakDays && next.lastPracticeDate === prev.lastActiveDate) return;
+
+    const newProgress = { ...prev, streakDays: next.streakDays, lastActiveDate: next.lastPracticeDate };
     set({ progress: newProgress });
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { UserStats, DailyStats } from '@/types/stats';
 import { FingerType, TypingResult } from '@/types/typing';
 import { getToday } from '@/lib/utils/helpers';
+import { useProgressStore } from './useProgressStore';
 
 const defaultUserStats: UserStats = {
   totalSessions: 0,
@@ -65,14 +66,9 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
     }
     if (dailyStats.length > 365) dailyStats = dailyStats.slice(-365);
 
-    // Streak calculation
-    let streak = prev.streakDays;
-    if (prev.lastPracticeDate !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      streak = prev.lastPracticeDate === yesterdayStr ? streak + 1 : 1;
-    }
+    // 스트릭은 useProgressStore가 단일 원장 — 여기선 갱신을 위임하고 값을 미러링만 한다.
+    useProgressStore.getState().recordPracticeDay();
+    const streak = useProgressStore.getState().progress.streakDays;
 
     const totalSessions = prev.totalSessions + 1;
     const newStats: UserStats = {
