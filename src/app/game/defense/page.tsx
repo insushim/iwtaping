@@ -13,6 +13,7 @@ import {
   drawCastle, drawCastleDetailed, drawSoldierEnemy, drawWordBubble, drawShieldBar,
   preloadSprites, drawSprite, drawBackgroundImage,
 } from '@/lib/game/renderer';
+import { Ability, ABILITY_META, FREEZE_MS, rollSpecial, pickAbility, drawSpecialMarker } from '@/lib/game/special-words';
 
 const DEFENSE_SPRITES = {
   'defense-bg': '/game/defense/bg.webp',
@@ -31,6 +32,8 @@ interface Enemy {
   type: number; // 0=swordsman, 1=spearman, 2=knight
   spawnTime: number;
   dying?: boolean;
+  special?: boolean;
+  ability?: Ability;
 }
 
 interface Arrow {
@@ -54,6 +57,8 @@ export default function DefenseGamePage() {
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
   const [killCount, setKillCount] = useState(0);
+  const [effectMsg, setEffectMsg] = useState('');
+  const freezeUntilRef = useRef(0);
 
   const enemiesRef = useRef<Enemy[]>([]);
   const arrowsRef = useRef<Arrow[]>([]);
@@ -120,6 +125,7 @@ export default function DefenseGamePage() {
     nextIdRef.current = 0; lastSpawnRef.current = 0;
     scoreRef.current = 0; waveRef.current = 1; goldRef.current = 0;
     castleHpRef.current = 20; killCountRef.current = 0;
+    freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
     setCountdown(3);
@@ -281,7 +287,11 @@ export default function DefenseGamePage() {
       const dMax = Math.min(5 + currentWave, 13);
       if (time - lastSpawnRef.current > dSpawnInterval && enemiesRef.current.length < dMax) {
         lastSpawnRef.current = time;
-        const wordFloor = isKorean ? Math.min(2 + Math.floor(currentWave / 3), 5) : Math.min(3 + Math.floor(currentWave / 2), 9);
+        const isSpecial = rollSpecial(currentWave, enemiesRef.current.some(e => e.special));
+        const ability = isSpecial ? pickAbility() : undefined;
+        const wordFloor = isSpecial
+          ? (isKorean ? 4 : 7)
+          : (isKorean ? Math.min(2 + Math.floor(currentWave / 3), 5) : Math.min(3 + Math.floor(currentWave / 2), 9));
         const word = wordGenerator.getUniqueWord(wordPool, wordFloor) || (isKorean ? '적군' : 'enemy');
 
         // Enemy type distribution: 50% swordsman, 30% spearman, 20% knight (higher HP)
@@ -303,18 +313,22 @@ export default function DefenseGamePage() {
           text: word,
           x: W + 20,
           y: H * 0.75 + randomBetween(-25, 15), // Keep on the path
-          speed: 0.25 + currentWave * 0.04,
+          // 특수 병사는 느리게 행군해 긴 단어를 입력할 시간을 준다
+          speed: (0.25 + currentWave * 0.04) * (isSpecial ? 0.55 : 1),
           hp: enemyHp,
-          color: pickRandom(['#FF6B6B', '#FECA57', '#FD79A8', '#00D2D3']),
+          color: isSpecial ? '#FECA57' : pickRandom(['#FF6B6B', '#FECA57', '#FD79A8', '#00D2D3']),
           type: enemyType,
           spawnTime: time,
+          special: isSpecial,
+          ability,
         });
       }
 
       // Update & draw enemies
+      const frozen = time < freezeUntilRef.current;
       const alive: Enemy[] = [];
       for (const e of enemiesRef.current) {
-        if (!e.dying) {
+        if (!e.dying && !frozen) {
           e.x -= e.speed;
 
           // Hit castle (updated position)
@@ -356,7 +370,11 @@ export default function DefenseGamePage() {
 
         // Word bubble (hide for dying enemies)
         if (!e.dying) {
-          drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: 13 });
+          // 특수 병사: 금빛 후광 링 + 능력 라벨
+          if (e.special && e.ability) {
+            drawSpecialMarker(ctx, e.x, e.y - 8, e.ability, time, e.id);
+          }
+          drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: e.special ? 15 : 13 });
         }
         alive.push(e);
       }
@@ -449,6 +467,18 @@ export default function DefenseGamePage() {
       particles.update();
       particles.draw(ctx);
 
+      // 일시정지(freeze) 발동 중 얼음 오버레이
+      if (frozen) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(72,219,251,0.10)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = "bold 13px 'Noto Sans KR', sans-serif";
+        ctx.fillStyle = 'rgba(180,240,255,0.9)';
+        ctx.textAlign = 'center';
+        ctx.fillText('❄️ 일시정지', W / 2, 62);
+        ctx.restore();
+      }
+
       // HUD
       ctx.font = "bold 18px 'JetBrains Mono', monospace";
       ctx.fillStyle = '#E8E8FF';
@@ -514,6 +544,38 @@ export default function DefenseGamePage() {
     return () => cancelAnimationFrame(animRef.current);
   }, [status, wordPool, isKorean]);
 
+  const flashEffect = (msg: string) => {
+    setEffectMsg(msg);
+    setTimeout(() => setEffectMsg(''), 2200);
+  };
+
+  /** 특수 병사를 맞혔을 때 능력 발동. */
+  const triggerAbility = (ability: Ability) => {
+    const meta = ABILITY_META[ability];
+    if (ability === 'freeze') {
+      freezeUntilRef.current = performance.now() + FREEZE_MS;
+      soundManager?.play('achievement');
+    } else if (ability === 'clear') {
+      // 화면의 모든 적군 격퇴 — 폭발 + 골드 보너스
+      for (const e of enemiesRef.current) {
+        if (e.dying) continue;
+        particlesRef.current.explode(e.x, e.y, 0.6);
+        scoreRef.current += 20;
+        goldRef.current += 3;
+      }
+      enemiesRef.current = enemiesRef.current.filter(e => e.dying);
+      setScore(scoreRef.current);
+      setGold(goldRef.current);
+      shakeRef.current.shake(8);
+      soundManager?.play('explosion');
+    } else if (ability === 'heal') {
+      castleHpRef.current = Math.min(20, castleHpRef.current + 4);
+      setCastleHp(castleHpRef.current);
+      soundManager?.play('levelUp');
+    }
+    flashEffect(`${meta.icon} ${ability === 'heal' ? '성 수리' : meta.label} 발동!`);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -532,7 +594,8 @@ export default function DefenseGamePage() {
         arrowsRef.current.push({ x: castleX - 30, y: castleTop, targetId: enemy.id, speed: 12, angle });
       }
       // Score updates immediately (player gets feedback)
-      scoreRef.current += input.length * 10;
+      scoreRef.current += input.length * 10 * (enemy.special ? 2 : 1); // 특수 병사는 2배
+      if (enemy.special && enemy.ability) triggerAbility(enemy.ability);
       setScore(scoreRef.current);
       goldRef.current += 5 + Math.floor(input.length / 2);
       setGold(goldRef.current);
@@ -576,9 +639,15 @@ export default function DefenseGamePage() {
         <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit'" }}>
           {isKorean ? '킹덤 디펜스' : 'Kingdom Defense'}
         </h1>
-        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mb-3" style={{ color: 'var(--text-secondary)' }}>
           {isKorean ? '성을 지키며 타이핑하세요!' : 'Defend your castle by typing!'}
         </p>
+        {isKorean && (
+          <p className="mb-6 text-sm max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
+            ✨ 금빛으로 빛나는 <b style={{ color: '#FECA57' }}>특수 병사</b>를 격퇴하면 능력 발동 —
+            ❄️ 일시정지 · 💥 전체 격퇴 · 💚 성 수리 (점수 2배!)
+          </p>
+        )}
         <Button size="lg" onClick={startGame}>{isKorean ? '게임 시작' : 'Start Game'}</Button>
       </div>
     );
@@ -613,6 +682,12 @@ export default function DefenseGamePage() {
     <div className="max-w-[900px] mx-auto px-4 py-4">
       <div className="relative rounded-xl overflow-hidden border border-[var(--key-border)]" style={{ height: '450px' }}>
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
+        {effectMsg && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-sm font-bold pointer-events-none"
+            style={{ background: 'rgba(254,202,87,0.92)', color: '#3A2A00', boxShadow: '0 4px 16px rgba(254,202,87,0.4)' }}>
+            {effectMsg}
+          </div>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
         <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
