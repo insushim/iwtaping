@@ -311,7 +311,7 @@ export default function DefenseGamePage() {
         enemiesRef.current.push({
           id: nextIdRef.current++,
           text: word,
-          x: W + 20,
+          x: -20, // 왼쪽 화면 밖에서 스폰 → 성(오른쪽)을 향해 행군
           y: H * 0.75 + randomBetween(-25, 15), // Keep on the path
           // 특수 병사는 느리게 행군해 긴 단어를 입력할 시간을 준다
           speed: (0.25 + currentWave * 0.04) * (isSpecial ? 0.55 : 1),
@@ -329,7 +329,7 @@ export default function DefenseGamePage() {
       const alive: Enemy[] = [];
       for (const e of enemiesRef.current) {
         if (!e.dying && !frozen) {
-          e.x -= e.speed;
+          e.x += e.speed; // 오른쪽(성)으로 행군
 
           // Hit castle (updated position)
           if (e.x > W - 150) {
