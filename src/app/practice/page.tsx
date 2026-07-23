@@ -10,6 +10,7 @@ const modes = [
   { href: '/practice/word', icon: '📝', title: '낱말 연습', desc: '초급/중급/고급 한글 및 영문 낱말 타이핑', badge: '1500+ 단어', color: '#00D2D3' },
   { href: '/practice/short', icon: '💬', title: '짧은 글 연습', desc: '속담, 명언, 뉴스, 일상회화 단문 연습', badge: '200+ 문장', color: '#FD79A8' },
   { href: '/practice/long', icon: '📖', title: '긴 글 연습', desc: '문학 작품, 에세이, 실용문 필사 연습', badge: '50+ 텍스트', color: '#00B894' },
+  { href: '/practice/transcribe', icon: '✍️', title: '필사책', desc: '저작권 없는 좋은 글을 한 글자씩 옮겨 적고 나만의 필사책에 기록', badge: '로컬 기록', color: '#FFB86C' },
   { href: '/practice/code', icon: '💻', title: '코드 타이핑', desc: 'Python, JavaScript, HTML, CSS 코드 스니펫 연습', badge: '100+ 스니펫', color: '#48DBFB' },
 ];
 
