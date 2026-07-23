@@ -1,4 +1,4 @@
-const CACHE_NAME = 'typingverse-v5';
+const CACHE_NAME = 'typingverse-v6';
 const STATIC_ASSETS = [
   '/',
   '/practice/',
