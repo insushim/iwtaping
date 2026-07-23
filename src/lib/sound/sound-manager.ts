@@ -2,6 +2,33 @@
 
 type SoundType = 'keyClick' | 'keyError' | 'keySpace' | 'keyEnter' | 'explosion' | 'levelUp' | 'combo' | 'achievement' | 'gameOver' | 'countdown';
 
+/** 상점에서 구매·장착하는 타이핑 음 팩. 기본(default)은 무료. */
+export type KeyTheme = 'default' | 'mechanical' | 'typewriter' | 'soft' | 'retro';
+
+interface KeyThemeParams {
+  wave: OscillatorType;
+  baseFreq: number;
+  gain: number;
+  noise: number; // 0~1, 클릭 노이즈 세기
+}
+
+const KEY_THEME_PARAMS: Record<KeyTheme, KeyThemeParams> = {
+  default: { wave: 'sine', baseFreq: 800, gain: 0.15, noise: 0.05 },
+  mechanical: { wave: 'square', baseFreq: 1150, gain: 0.12, noise: 0.12 },
+  typewriter: { wave: 'triangle', baseFreq: 520, gain: 0.18, noise: 0.18 },
+  soft: { wave: 'sine', baseFreq: 420, gain: 0.10, noise: 0.0 },
+  retro: { wave: 'square', baseFreq: 660, gain: 0.13, noise: 0.02 },
+};
+
+/** 상점 UI용 메타데이터(가격은 shop-catalog에서 관리). */
+export const KEY_THEMES: { id: KeyTheme; label: string; desc: string }[] = [
+  { id: 'default', label: '기본', desc: '깔끔한 기본 타건음' },
+  { id: 'mechanical', label: '기계식', desc: '청축 느낌의 또각또각' },
+  { id: 'typewriter', label: '타자기', desc: '옛날 타자기 감성' },
+  { id: 'soft', label: '소프트', desc: '조용하고 부드러운 소리' },
+  { id: 'retro', label: '레트로', desc: '8비트 게임 블립' },
+];
+
 class SoundManager {
   private audioContext: AudioContext | null = null;
   private enabled = true;
@@ -10,6 +37,11 @@ class SoundManager {
   private bgmVolume = 0.3;
   private sfxEnabled = true;
   private sfxVolume = 0.5;
+  private keyTheme: KeyTheme = 'default';
+
+  setKeyTheme(theme: KeyTheme): void {
+    if (KEY_THEME_PARAMS[theme]) this.keyTheme = theme;
+  }
 
   private getContext(): AudioContext {
     if (!this.audioContext) {
@@ -74,10 +106,11 @@ class SoundManager {
   }
 
   private playKeyClick(ctx: AudioContext, variation: number): void {
+    const t = KEY_THEME_PARAMS[this.keyTheme] ?? KEY_THEME_PARAMS.default;
     const osc = ctx.createOscillator();
-    const gain = this.createGain(ctx, 0.15);
-    const freq = 800 + variation * 50 + Math.random() * 100;
-    osc.type = 'sine';
+    const gain = this.createGain(ctx, t.gain);
+    const freq = t.baseFreq + variation * 50 + Math.random() * 100;
+    osc.type = t.wave;
     osc.frequency.setValueAtTime(freq, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.015);
@@ -85,18 +118,20 @@ class SoundManager {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.02);
 
-    // Add noise burst
-    const bufferSize = ctx.sampleRate * 0.005;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    // Add noise burst (테마별 세기)
+    if (t.noise > 0) {
+      const bufferSize = ctx.sampleRate * 0.005;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = this.createGain(ctx, t.noise);
+      noise.connect(noiseGain);
+      noise.start(ctx.currentTime);
     }
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    const noiseGain = this.createGain(ctx, 0.05);
-    noise.connect(noiseGain);
-    noise.start(ctx.currentTime);
   }
 
   private playKeyError(ctx: AudioContext): void {
