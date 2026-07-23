@@ -36,6 +36,7 @@ const RULES: Record<string, Rule> = {
   lightning: ({ stats }) => stats.bestKpm >= 300,
   speed_400: ({ stats }) => stats.bestKpm >= 400,
   master: ({ stats }) => stats.bestKpm >= 500,
+  speed_600: ({ stats }) => stats.bestKpm >= 600,
 
   accuracy_95: ({ stats }) => stats.bestAccuracy >= 95,
   sharpshooter: ({ stats }) => stats.bestAccuracy >= 99,
@@ -55,7 +56,11 @@ const RULES: Record<string, Rule> = {
   fire_practice: ({ streakDays }) => streakDays >= 7,
   streak_30: ({ streakDays }) => streakDays >= 30,
 
+  veteran: ({ stats }) => stats.totalSessions >= 100,
+  marathon: ({ stats }) => stats.totalPracticeTime >= HOUR_MS * 50,
+
   perfect_game: ({ game }) => !!game && game.accuracy >= 100,
+  game_master: ({ game }) => !!game && game.score >= 1000,
   rain_clear: ({ game }) => !!game && game.gameType === 'rain' && game.level >= 10,
   space_clear: ({ game }) => !!game && game.gameType === 'space' && game.level >= 10,
   race_win: ({ game }) => !!game && game.gameType === 'race' && game.score > 0 && game.level >= 1,
