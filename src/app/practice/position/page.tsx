@@ -11,6 +11,8 @@ import { Card } from '@/components/ui/Card';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { KeyboardLayoutData } from '@/types/keyboard';
 import { TypingResult } from '@/types/typing';
+import { getCodeForChar } from '@/lib/typing/finger-mapper';
+import { decomposeKorean } from '@/lib/utils/helpers';
 
 // Check if text contains only individual jamo (not composed syllables)
 function isJamoOnly(text: string): boolean {
@@ -66,6 +68,14 @@ export default function PositionPracticePage() {
     if (drill) setText(drill.drillText.join(' '));
   };
 
+  // 다음에 칠 문자 → 물리 키코드 → 가상 키보드 타겟 하이라이트
+  const handleCurrentChar = useCallback((ch: string) => {
+    if (!ch || ch === ' ') { setTargetKey(ch === ' ' ? 'Space' : undefined); return; }
+    // 완성형 한글 음절이면 첫 자모의 키를 가리킨다(자모 드릴은 그대로).
+    const first = decomposeKorean(ch)[0] ?? ch;
+    setTargetKey(getCodeForChar(first) ?? undefined);
+  }, [setTargetKey]);
+
   // Determine if current text needs jamo mode (Korean jamo-only levels)
   const useJamoMode = lang === 'ko' && text.length > 0 && isJamoOnly(text);
 
@@ -113,9 +123,9 @@ export default function PositionPracticePage() {
 
       {text && (
         useJamoMode ? (
-          <JamoTypingArea text={text} onRestart={handleRestart} />
+          <JamoTypingArea text={text} onRestart={handleRestart} onCurrentChar={handleCurrentChar} />
         ) : (
-          <TypingArea text={text} onRestart={handleRestart} />
+          <TypingArea text={text} onRestart={handleRestart} onCurrentChar={handleCurrentChar} />
         )
       )}
 

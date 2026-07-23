@@ -20,6 +20,10 @@ interface TypingAreaProps {
   onProgress?: (progress: number) => void;
   /** 첫 타건으로 타이핑이 실제 시작될 때 1회 호출(시간제한 테스트 타이머 시작용). */
   onStart?: () => void;
+  /** 커서가 이동할 때마다 다음에 칠 목표 문자를 통지(가상 키보드 타겟 하이라이트용). */
+  onCurrentChar?: (char: string) => void;
+  /** false면 완료 시 결과 패널을 표시하지 않는다(다문장 러너가 직접 진행 제어). 기본 true. */
+  showResult?: boolean;
   showKeyboard?: boolean;
   className?: string;
 }
@@ -30,7 +34,7 @@ export interface TypingAreaHandle {
 }
 
 export const TypingArea = forwardRef<TypingAreaHandle, TypingAreaProps>(function TypingArea(
-  { text, onComplete, onRestart, onProgress, onStart, className = '' },
+  { text, onComplete, onRestart, onProgress, onStart, onCurrentChar, showResult = true, className = '' },
   ref,
 ) {
   const settings = useSettingsStore((s) => s.settings);
@@ -115,6 +119,11 @@ export const TypingArea = forwardRef<TypingAreaHandle, TypingAreaProps>(function
     }
   }, [currentIndex, text.length, onProgress]);
 
+  // 다음에 칠 목표 문자 통지(가상 키보드 하이라이트)
+  useEffect(() => {
+    onCurrentChar?.(status === 'finished' ? '' : (text[currentIndex] ?? ''));
+  }, [currentIndex, text, status, onCurrentChar]);
+
   // Focus input on mount and click
   useEffect(() => {
     inputRef.current?.focus();
@@ -170,7 +179,7 @@ export const TypingArea = forwardRef<TypingAreaHandle, TypingAreaProps>(function
     }
   };
 
-  if (result && status === 'finished') {
+  if (showResult && result && status === 'finished') {
     return (
       <ResultPanel
         result={result}

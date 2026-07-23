@@ -31,10 +31,12 @@ interface JamoTypingAreaProps {
   text: string;
   onComplete?: (result: TypingResult) => void;
   onRestart?: () => void;
+  /** 커서가 이동할 때마다 다음에 칠 목표 자모를 통지(가상 키보드 타겟 하이라이트용). */
+  onCurrentChar?: (char: string) => void;
   className?: string;
 }
 
-export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: JamoTypingAreaProps) {
+export function JamoTypingArea({ text, onComplete, onRestart, onCurrentChar, className = '' }: JamoTypingAreaProps) {
   const settings = useSettingsStore((s) => s.settings);
   const addSession = useTypingStore((s) => s.addSession);
   const recordSession = useStatsStore((s) => s.recordSession);
@@ -81,6 +83,11 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     // Focus the hidden input
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [text]);
+
+  // 다음에 칠 목표 자모 통지(가상 키보드 하이라이트)
+  useEffect(() => {
+    onCurrentChar?.(status === 'finished' ? '' : (text[currentIndex] ?? ''));
+  }, [currentIndex, text, status, onCurrentChar]);
 
   // Speed interval
   useEffect(() => {
