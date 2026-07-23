@@ -15,6 +15,17 @@ import {
   type Star,
 } from '@/lib/game/renderer';
 
+/** 특수단어(어려운 단어)를 맞히면 발동하는 능력. */
+type Ability = 'freeze' | 'clear' | 'heal';
+
+const ABILITY_META: Record<Ability, { icon: string; label: string; color: string }> = {
+  freeze: { icon: '❄️', label: '일시정지', color: '#48DBFB' },
+  clear: { icon: '💥', label: '전체 정화', color: '#FD79A8' },
+  heal: { icon: '💧', label: 'pH 회복', color: '#00E5A0' },
+};
+const ABILITIES: Ability[] = ['freeze', 'clear', 'heal'];
+const FREEZE_MS = 4000;
+
 interface FallingWord {
   id: number;
   text: string;
@@ -24,6 +35,8 @@ interface FallingWord {
   color: string;
   rotation: number;
   glowPhase: number;
+  special?: boolean;
+  ability?: Ability;
 }
 
 const COLORS = ['#6C5CE7', '#00D2D3', '#FF6B6B', '#FECA57', '#00B894', '#FD79A8', '#48DBFB', '#A29BFE'];
@@ -42,6 +55,8 @@ export default function RainGamePage() {
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
   const [destroyCount, setDestroyCount] = useState(0);
+  const [effectMsg, setEffectMsg] = useState('');
+  const freezeUntilRef = useRef(0);
 
   const wordsRef = useRef<FallingWord[]>([]);
   const animFrameRef = useRef<number>(0);
@@ -118,6 +133,7 @@ export default function RainGamePage() {
     wordsRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;
     scoreRef.current = 0; levelRef.current = 1; comboRef.current = 0; phRef.current = 10.0;
     killRef.current = 0;
+    freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
     setCountdown(3);
@@ -257,24 +273,33 @@ export default function RainGamePage() {
       const rSpawnInterval = wordsRef.current.length < 1 ? 500 : Math.max(1000 - currentLevel * 50, 400);
       if (time - lastSpawnRef.current > rSpawnInterval && wordsRef.current.length < Math.min(3 + currentLevel, 10)) {
         lastSpawnRef.current = time;
-        const wordFloor = isKorean ? Math.min(2 + Math.floor(currentLevel / 4), 4) : Math.min(3 + Math.floor(currentLevel / 3), 8);
+        // 특수단어: 레벨 2+부터 화면당 1개, 더 긴(어려운) 단어를 골라 능력을 부여한다.
+        const makeSpecial = currentLevel >= 2 && !wordsRef.current.some(w => w.special) && Math.random() < 0.14;
+        const wordFloor = makeSpecial
+          ? (isKorean ? 4 : 7)
+          : (isKorean ? Math.min(2 + Math.floor(currentLevel / 4), 4) : Math.min(3 + Math.floor(currentLevel / 3), 8));
         const text = wordGenerator.getUniqueWord(wordPool, wordFloor) || (isKorean ? '단어' : 'word');
+        const ability = makeSpecial ? ABILITIES[Math.floor(Math.random() * ABILITIES.length)] : undefined;
         wordsRef.current.push({
           id: nextIdRef.current++,
           text,
           x: randomBetween(60, W - 60),
           y: -30,
-          speed: 0.25 + currentLevel * 0.06 + Math.random() * 0.15,
-          color: pickRandom(COLORS),
+          // 특수단어는 조금 느리게 떨어져 입력할 시간을 준다.
+          speed: (makeSpecial ? 0.18 : 0.25) + currentLevel * (makeSpecial ? 0.03 : 0.06) + Math.random() * 0.15,
+          color: makeSpecial ? '#FECA57' : pickRandom(COLORS),
           rotation: (Math.random() - 0.5) * 0.02,
           glowPhase: Math.random() * Math.PI * 2,
+          special: makeSpecial,
+          ability,
         });
       }
 
       // Update & draw words
+      const frozen = time < freezeUntilRef.current;
       const alive: FallingWord[] = [];
       for (const word of wordsRef.current) {
-        word.y += word.speed;
+        if (!frozen) word.y += word.speed;
 
         // Ground hit
         if (word.y > H - 50) {
@@ -328,10 +353,42 @@ export default function RainGamePage() {
 
         ctx.restore();
 
-        drawWordBubble(ctx, word.x, word.y, word.text, word.color, { fontSize: 15 });
+        // 특수단어: 금빛 후광 링 + 능력 아이콘/라벨을 단어 위에 표시
+        if (word.special && word.ability) {
+          const meta = ABILITY_META[word.ability];
+          ctx.save();
+          const pulse = 0.6 + Math.sin(time * 0.006 + word.id) * 0.4;
+          ctx.strokeStyle = `rgba(254,202,87,${0.35 + pulse * 0.4})`;
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#FECA57';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.ellipse(word.x, word.y, 44, 20, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          ctx.font = "bold 10px 'Noto Sans KR', sans-serif";
+          ctx.fillStyle = meta.color;
+          ctx.textAlign = 'center';
+          ctx.fillText(`${meta.icon} ${meta.label}`, word.x, word.y - 26);
+          ctx.restore();
+        }
+
+        drawWordBubble(ctx, word.x, word.y, word.text, word.color, { fontSize: word.special ? 17 : 15 });
         alive.push(word);
       }
       wordsRef.current = alive;
+
+      // 일시정지(freeze) 발동 중 화면 얼음 오버레이
+      if (frozen) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(72,219,251,0.10)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = "bold 13px 'Noto Sans KR', sans-serif";
+        ctx.fillStyle = 'rgba(180,240,255,0.9)';
+        ctx.textAlign = 'center';
+        ctx.fillText('❄️ 일시정지', W / 2, 52);
+        ctx.restore();
+      }
 
       // Particles
       particles.update();
@@ -426,16 +483,46 @@ export default function RainGamePage() {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [status, wordPool, isKorean]);
 
+  const flashEffect = (msg: string) => {
+    setEffectMsg(msg);
+    setTimeout(() => setEffectMsg(''), 2200);
+  };
+
+  /** 특수단어를 맞혔을 때 능력 발동. */
+  const triggerAbility = (ability: Ability) => {
+    const meta = ABILITY_META[ability];
+    if (ability === 'freeze') {
+      freezeUntilRef.current = performance.now() + FREEZE_MS;
+      soundManager?.play('achievement');
+    } else if (ability === 'clear') {
+      // 화면의 모든 단어를 정화 — 각 단어 폭발 + 보너스 점수
+      for (const w of wordsRef.current) {
+        particlesRef.current.explode(w.x, w.y, 0.5);
+        scoreRef.current += 20;
+      }
+      wordsRef.current = [];
+      setScore(scoreRef.current);
+      soundManager?.play('explosion');
+    } else if (ability === 'heal') {
+      phRef.current = Math.min(10, phRef.current + 2);
+      setPh(phRef.current);
+      soundManager?.play('levelUp');
+    }
+    flashEffect(`${meta.icon} ${meta.label} 발동!`);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     const idx = wordsRef.current.findIndex(w => w.text === input.trim());
     if (idx >= 0) {
       const word = wordsRef.current[idx];
-      particlesRef.current.explode(word.x, word.y, 0.6);
+      particlesRef.current.explode(word.x, word.y, word.special ? 1.0 : 0.6);
       wordsRef.current.splice(idx, 1);
-      const points = input.length * 10;
+      // 특수단어는 2배 점수 + 능력 발동
+      const points = input.length * 10 * (word.special ? 2 : 1);
       scoreRef.current += points;
+      if (word.special && word.ability) triggerAbility(word.ability);
       setScore(scoreRef.current);
       comboRef.current += 1;
       setCombo(comboRef.current);
@@ -475,9 +562,15 @@ export default function RainGamePage() {
         <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
           {isKorean ? '산성비' : 'Acid Rain'}
         </h1>
-        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mb-3" style={{ color: 'var(--text-secondary)' }}>
           {isKorean ? '떨어지는 단어를 입력해서 제거하세요!' : 'Type falling words before they hit the ground!'}
         </p>
+        {isKorean && (
+          <p className="mb-6 text-sm max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
+            ✨ 금빛으로 빛나는 <b style={{ color: '#FECA57' }}>특수단어</b>를 맞히면 특수 능력이 발동돼요 —
+            ❄️ 일시정지 · 💥 전체 정화 · 💧 pH 회복 (점수도 2배!)
+          </p>
+        )}
         <Button size="lg" onClick={startGame}>{isKorean ? '게임 시작' : 'Start Game'}</Button>
       </div>
     );
@@ -524,6 +617,12 @@ export default function RainGamePage() {
     <div className="max-w-[900px] mx-auto px-4 py-4">
       <div className="relative rounded-xl overflow-hidden border border-[var(--key-border)]" style={{ background: 'var(--bg-card)', height: '500px' }}>
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
+        {effectMsg && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-sm font-bold pointer-events-none"
+            style={{ background: 'rgba(254,202,87,0.92)', color: '#3A2A00', boxShadow: '0 4px 16px rgba(254,202,87,0.4)' }}>
+            {effectMsg}
+          </div>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
         <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
