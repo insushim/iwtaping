@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { TypingArea } from '@/components/typing/TypingArea';
+import { MultiSentenceRunner } from '@/components/typing/MultiSentenceRunner';
 import { Button } from '@/components/ui/Button';
-import { useStatsStore } from '@/stores/useStatsStore';
-import { TypingResult } from '@/types/typing';
-import { pickRandom } from '@/lib/utils/helpers';
+import { shuffleArray } from '@/lib/utils/helpers';
+
+const SENTENCES_PER_SET = 10;
 
 type Category = 'all' | 'proverb' | 'quote' | 'news' | 'daily';
 type Lang = 'ko' | 'en';
@@ -13,9 +13,14 @@ type Lang = 'ko' | 'en';
 export default function ShortPracticePage() {
   const [category, setCategory] = useState<Category>('all');
   const [lang, setLang] = useState<Lang>('ko');
-  const [sentences, setSentences] = useState<{ text: string; category: string }[]>([]);
-  const [text, setText] = useState('');
-  const recordSession = useStatsStore((s) => s.recordSession);
+  const [allSentences, setAllSentences] = useState<{ text: string; category: string }[]>([]);
+  const [sentenceSet, setSentenceSet] = useState<string[]>([]);
+
+  const buildSet = useCallback((data: { text: string; category: string }[], cat: Category) => {
+    const filtered = cat === 'all' ? data : data.filter((s) => s.category === cat);
+    const pool = filtered.length ? filtered : data;
+    return shuffleArray(pool).slice(0, SENTENCES_PER_SET).map((s) => s.text);
+  }, []);
 
   const loadSentences = useCallback(async () => {
     let data: { text: string; category: string }[] = [];
@@ -28,22 +33,16 @@ export default function ShortPracticePage() {
     } catch {
       data = [{ text: '문장 로딩에 실패했습니다.', category: 'error' }];
     }
-    setSentences(data);
-    const filtered = category === 'all' ? data : data.filter((s) => s.category === category);
-    setText(pickRandom(filtered)?.text || data[0]?.text || '');
-  }, [category, lang]);
+    setAllSentences(data);
+    setSentenceSet(buildSet(data, category));
+  }, [category, lang, buildSet]);
 
   useEffect(() => {
     loadSentences();
   }, [loadSentences]);
 
-  const handleComplete = (result: TypingResult) => {
-    recordSession(result);
-  };
-
-  const handleRestart = () => {
-    const filtered = category === 'all' ? sentences : sentences.filter((s) => s.category === category);
-    setText(pickRandom(filtered)?.text || '');
+  const handleRetry = () => {
+    setSentenceSet(buildSet(allSentences, category));
   };
 
   const categories: [Category, string][] = [
@@ -71,11 +70,11 @@ export default function ShortPracticePage() {
         </div>
       </div>
 
-      {text && (
-        <TypingArea
-          text={text}
-          onComplete={handleComplete}
-          onRestart={handleRestart}
+      {sentenceSet.length > 0 && (
+        <MultiSentenceRunner
+          key={`${lang}-${category}`}
+          sentences={sentenceSet}
+          onRetry={handleRetry}
         />
       )}
     </div>
