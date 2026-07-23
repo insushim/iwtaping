@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TypingArea } from '@/components/typing/TypingArea';
+import { TypingArea, TypingAreaHandle } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useStatsStore } from '@/stores/useStatsStore';
@@ -17,6 +17,7 @@ export default function SpeedTestPage() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [isRunning, setIsRunning] = useState(false);
   const recordSession = useStatsStore((s) => s.recordSession);
+  const areaRef = useRef<TypingAreaHandle>(null);
 
   const loadText = useCallback(async () => {
     try {
@@ -45,6 +46,7 @@ export default function SpeedTestPage() {
     if (!isRunning) return;
     if (timeLeft <= 0) {
       setIsRunning(false);
+      areaRef.current?.finish(); // 시간 종료 → 현재까지 입력분으로 결과 확정
       return;
     }
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
@@ -85,12 +87,14 @@ export default function SpeedTestPage() {
 
       {text && (
         <TypingArea
+          ref={areaRef}
           text={text}
+          onStart={() => setIsRunning(true)}
           onComplete={(result) => {
             setIsRunning(false);
             recordSession(result);
           }}
-          onRestart={loadText}
+          onRestart={() => { setIsRunning(false); setTimeLeft(duration); loadText(); }}
         />
       )}
     </div>

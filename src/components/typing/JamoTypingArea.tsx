@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CharState, TypingResult } from '@/types/typing';
-import { TextDisplay } from './TextDisplay';
+import { TextDisplay, TypedLine } from './TextDisplay';
 import { LiveStats } from './LiveStats';
 import { ResultPanel } from './ResultPanel';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -46,6 +46,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
   const [liveSpeed, setLiveSpeed] = useState(0);
   const [liveAccuracy, setLiveAccuracy] = useState(100);
   const [result, setResult] = useState<TypingResult | null>(null);
+  const [typedJamos, setTypedJamos] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const startTimeRef = useRef<number | null>(null);
   const correctCountRef = useRef(0);
@@ -71,6 +72,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     setLiveSpeed(0);
     setLiveAccuracy(100);
     setResult(null);
+    setTypedJamos([]);
     startTimeRef.current = null;
     correctCountRef.current = 0;
     totalCountRef.current = 0;
@@ -105,6 +107,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     setLiveSpeed(0);
     setLiveAccuracy(100);
     setResult(null);
+    setTypedJamos([]);
     startTimeRef.current = null;
     correctCountRef.current = 0;
     totalCountRef.current = 0;
@@ -113,6 +116,29 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     setTimeout(() => inputRef.current?.focus(), 100);
     onRestart?.();
   }, [text, onRestart]);
+
+  /** 백스페이스 — 마지막 입력 자모를 취소하고 커서를 한 칸 되돌린다. */
+  const handleBackspace = useCallback(() => {
+    if (statusRef.current === 'finished') return;
+    const idx = currentIndexRef.current;
+    if (idx <= 0) return;
+    const prevIdx = idx - 1;
+    setCharStates((prev) => {
+      const next = [...prev];
+      // 되돌린 자모가 맞았던 경우 화면상 정답 수를 줄인다(속도 계산 정합)
+      if (next[prevIdx]?.status === 'correct' && correctCountRef.current > 0) {
+        correctCountRef.current--;
+      }
+      next[prevIdx] = { char: next[prevIdx].char, status: 'current' };
+      if (idx < next.length) next[idx] = { char: next[idx].char, status: 'pending' };
+      return next;
+    });
+    setCurrentIndex(prevIdx);
+    currentIndexRef.current = prevIdx;
+    setTypedJamos((prev) => prev.slice(0, -1));
+    setCombo(0);
+    setLiveAccuracy(calculateAccuracy(Math.max(correctCountRef.current, 0), Math.max(totalCountRef.current, 1)));
+  }, []);
 
   // Process a single jamo input
   const processJamo = useCallback((jamo: string) => {
@@ -130,6 +156,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
     const targetChar = text[idx];
     const isCorrect = jamo === targetChar;
     totalCountRef.current++;
+    setTypedJamos((prev) => [...prev, jamo]); // 내가 실제로 친 자모 기록(입력 라인 표시용)
 
     // 손가락·키 통계 수집 (목표 자모 기준 — 취약 키 드릴의 데이터 원천)
     const finger = getFingerForChar(targetChar);
@@ -212,6 +239,11 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
         handleRestart();
         return;
       }
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+        return;
+      }
 
       // Try physical key mapping (works when IME is off or e.code isn't 'Process')
       const code = e.code;
@@ -237,7 +269,7 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleRestart, processJamo]);
+  }, [handleRestart, processJamo, handleBackspace]);
 
   // Hidden input handler - catches IME-composed jamo characters
   const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
@@ -294,6 +326,8 @@ export function JamoTypingArea({ text, onComplete, onRestart, className = '' }: 
           caretStyle={settings.caretStyle}
           fontSize={settings.fontSize}
         />
+
+        <TypedLine typed={typedJamos.join('')} target={text} fontSize={settings.fontSize} />
 
         {/* Hidden input to capture IME-composed jamo */}
         <input
