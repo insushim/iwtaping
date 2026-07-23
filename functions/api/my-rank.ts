@@ -1,5 +1,5 @@
 import { Env, json, badRequest, requireUser } from '../lib/common';
-import { kstDayKey, kstWeekKey } from '../lib/verify';
+import { kstDayKey, kstWeekKey, kstMonthStartMs } from '../lib/verify';
 
 /**
  * 요청자 본인의 전국 순위. 리더보드(GET /api/leaderboard)는 엣지 캐시라
@@ -8,7 +8,7 @@ import { kstDayKey, kstWeekKey } from '../lib/verify';
  * 순위 = 같은 모드/기간에서 나보다 높은 최고기록을 가진 (비-provisional) 유저 수 + 1.
  */
 
-const PERIODS = new Set(['daily', 'weekly', 'all']);
+const PERIODS = new Set(['daily', 'weekly', 'monthly', 'all']);
 const MODES: Record<string, { column: 'kpm' | 'score' }> = {
   speed: { column: 'kpm' },
   accuracy: { column: 'kpm' },
@@ -44,6 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   let myPeriod = '';
   if (period === 'daily') { myBinds.push(kstDayKey()); myPeriod = `AND s.day_key = ?${myBinds.length}`; }
   else if (period === 'weekly') { myBinds.push(kstWeekKey()); myPeriod = `AND s.week_key = ?${myBinds.length}`; }
+  else if (period === 'monthly') { myBinds.push(kstMonthStartMs()); myPeriod = `AND s.created_at >= ?${myBinds.length}`; }
 
   const mine = await env.DB.prepare(
     `SELECT MAX(${col}) AS best FROM scores s
@@ -61,6 +62,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const filters = [`s.mode = ?1`, `s.verify_status = 'ok'`, `u.banned = 0`, `u.provisional = 0`];
   if (period === 'daily') { binds.push(kstDayKey()); filters.push(`s.day_key = ?${binds.length}`); }
   else if (period === 'weekly') { binds.push(kstWeekKey()); filters.push(`s.week_key = ?${binds.length}`); }
+  else if (period === 'monthly') { binds.push(kstMonthStartMs()); filters.push(`s.created_at >= ?${binds.length}`); }
   if (gradeBand) { binds.push(gradeBand); filters.push(`u.grade_band = ?${binds.length}`); }
 
   const grouped = `

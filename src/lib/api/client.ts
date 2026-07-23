@@ -163,7 +163,7 @@ export async function submitScore(
 
 export async function fetchLeaderboard(
   mode = 'speed',
-  period: 'daily' | 'weekly' | 'all' = 'weekly',
+  period: 'daily' | 'weekly' | 'monthly' | 'all' = 'weekly',
   grade?: string
 ): Promise<LeaderboardEntry[] | null> {
   const params = new URLSearchParams({ mode, period });
@@ -211,7 +211,7 @@ export interface MyRank {
 /** 요청자 본인의 전국 순위 (인증 필요). ranked=false면 아직 집계 전. */
 export async function fetchMyRank(
   mode = 'speed',
-  period: 'daily' | 'weekly' | 'all' = 'weekly'
+  period: 'daily' | 'weekly' | 'monthly' | 'all' = 'weekly'
 ): Promise<MyRank | null> {
   if (!getToken()) return null;
   const res = await request<{ ok: boolean; ranked: boolean; rank?: number; total?: number; value?: number }>(

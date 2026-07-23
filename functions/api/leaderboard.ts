@@ -1,5 +1,5 @@
 import { Env, json, badRequest } from '../lib/common';
-import { kstDayKey, kstWeekKey } from '../lib/verify';
+import { kstDayKey, kstWeekKey, kstMonthStartMs } from '../lib/verify';
 
 /**
  * 전국 순위.
@@ -10,7 +10,7 @@ import { kstDayKey, kstWeekKey } from '../lib/verify';
  */
 
 const CACHE_SECONDS = 60;
-const PERIODS = new Set(['daily', 'weekly', 'all']);
+const PERIODS = new Set(['daily', 'weekly', 'monthly', 'all']);
 const LIMIT = 50;
 
 /**
@@ -66,6 +66,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   } else if (period === 'weekly') {
     binds.push(kstWeekKey());
     filters.push(`s.week_key = ?${binds.length}`);
+  } else if (period === 'monthly') {
+    binds.push(kstMonthStartMs());
+    filters.push(`s.created_at >= ?${binds.length}`);
   }
 
   if (gradeBand) {

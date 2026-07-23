@@ -164,6 +164,16 @@ export function kstDayKey(now: number = Date.now()): string {
   return kst.toISOString().slice(0, 10);
 }
 
+/**
+ * KST 기준 이번 달 1일 00:00의 epoch(ms).
+ * scores.created_at(= Date.now() ms)와 직접 비교해 월간 순위를 낸다
+ * (월간은 별도 키 컬럼 없이 created_at 범위로 집계 — 마이그레이션 불요).
+ */
+export function kstMonthStartMs(now: number = Date.now()): number {
+  const kst = new Date(now + 9 * 3600 * 1000);
+  return Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), 1, 0, 0, 0) - 9 * 3600 * 1000;
+}
+
 /** KST 기준 ISO 주차 키 (리그 주기) */
 export function kstWeekKey(now: number = Date.now()): string {
   const kst = new Date(now + 9 * 3600 * 1000);
