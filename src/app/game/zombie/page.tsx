@@ -256,13 +256,14 @@ export default function ZombieGamePage() {
 
       // Spawn zombies — refill quickly when the screen is nearly empty
       const zSpawnInterval = zombiesRef.current.length < 2 ? 380 : Math.max(1300 - currentWave * 70, 500);
-      const zMax = 6 + currentWave;
+      const zMax = Math.min(6 + currentWave, 14);
       if (time - lastSpawnRef.current > zSpawnInterval) {
         lastSpawnRef.current = time;
         if (zombiesRef.current.length < zMax) {
           const angle = Math.random() * Math.PI * 2;
           const dist = Math.max(W, H) * 0.55;
-          const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '좀비' : 'zombie');
+          const wordFloor = isKorean ? Math.min(2 + Math.floor(currentWave / 3), 5) : Math.min(3 + Math.floor(currentWave / 2), 8);
+          const word = wordGenerator.getUniqueWord(wordPool, wordFloor) || (isKorean ? '좀비' : 'zombie');
           const baseSpeed = 0.3 + currentWave * 0.04;
           const speedVariant = Math.random();
           let variant, speed;
