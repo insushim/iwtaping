@@ -117,7 +117,7 @@ export default function TranscribePage() {
         <>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg font-bold" style={{ fontFamily: "'Outfit'" }}>{current.title}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.2)', color: 'var(--color-primary-light)' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.2)', color: 'var(--color-primary-light)' }}>
               {current.source} · {LEVEL_LABEL[current.level]}
             </span>
           </div>
@@ -149,7 +149,7 @@ export default function TranscribePage() {
                 style={{ background: 'linear-gradient(90deg, rgba(255,251,235,0.04), transparent)', borderLeft: '3px solid var(--color-accent-warm)' }}>
                 <div className="min-w-0">
                   <div className="font-medium truncate">{r.title}
-                    <span className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>{r.source}</span>
+                    <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>{r.source}</span>
                   </div>
                   <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {new Date(r.at).toLocaleDateString('ko-KR')} · {r.chars}자

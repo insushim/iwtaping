@@ -66,7 +66,7 @@ export function LeagueCard({
           </span>
           <div>
             <div className="text-sm font-bold">{tier.name} 리그</div>
-            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {size}명 중 경쟁
             </div>
           </div>
@@ -76,7 +76,7 @@ export function LeagueCard({
             <div className="text-xs font-bold" style={{ color: 'var(--color-accent-warm)' }}>
               {formatCountdown(remaining)}
             </div>
-            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
               마감까지
             </div>
           </div>
@@ -108,7 +108,7 @@ export function LeagueCard({
         )}
       </div>
 
-      <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
         {zone === 'promote' && '승급권이에요! 마감까지 유지하세요.'}
         {zone === 'safe' && promoteLine > 0 && `${promoteLine}위 안에 들면 승급해요.`}
         {zone === 'safe' && promoteLine === 0 && '이번 주 참가자가 아직 적어요. 마감까지 인원이 차면 승급 자리가 열립니다.'}

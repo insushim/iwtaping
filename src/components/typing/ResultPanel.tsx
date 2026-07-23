@@ -144,7 +144,7 @@ export function ResultPanel({ result, maxCombo, onRestart }: ResultPanelProps) {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
           {stats.map((stat, i) => (
             <Card key={stat.label} className="p-3 text-center slide-up" style={{ animationDelay: `${i * 0.08}s`, opacity: 0 }}>
-              <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
                 {stat.label}
               </div>
               <div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: stat.color }}>
@@ -183,7 +183,7 @@ export function ResultPanel({ result, maxCombo, onRestart }: ResultPanelProps) {
       {/* Speed chart */}
       {phase >= 1 && result.speedHistory.length > 1 && (
         <Card className="p-3 mb-4 slide-up" style={{ animationDelay: '0.6s', opacity: 0 }}>
-          <h3 className="text-[10px] font-semibold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>속도 변화</h3>
+          <h3 className="text-xs font-semibold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>속도 변화</h3>
           <div className="h-24 flex items-end gap-[2px]">
             {result.speedHistory.map((speed, i) => {
               const max = Math.max(...result.speedHistory, 1);

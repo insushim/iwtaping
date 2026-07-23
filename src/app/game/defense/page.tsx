@@ -662,15 +662,15 @@ export default function DefenseGamePage() {
       </h1>
       <div className="grid grid-cols-3 gap-3 mb-8 max-w-md mx-auto">
         <Card className="p-3">
-          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '점수' : 'SCORE'}</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{isKorean ? '점수' : 'SCORE'}</div>
           <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-primary)' }}>{score}</div>
         </Card>
         <Card className="p-3">
-          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '웨이브' : 'WAVE'}</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{isKorean ? '웨이브' : 'WAVE'}</div>
           <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-secondary)' }}>{wave}</div>
         </Card>
         <Card className="p-3">
-          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isKorean ? '골드' : 'GOLD'}</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{isKorean ? '골드' : 'GOLD'}</div>
           <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: '#FECA57' }}>{gold}</div>
         </Card>
       </div>

@@ -66,7 +66,7 @@ export default function ShopPage() {
               <div className="min-w-0">
                 <div className="font-bold flex items-center gap-2">
                   {item.label}
-                  {equipped && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-primary)', color: 'white' }}>장착중</span>}
+                  {equipped && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-primary)', color: 'white' }}>장착중</span>}
                 </div>
                 <div className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{item.desc}</div>
               </div>
@@ -101,7 +101,7 @@ export default function ShopPage() {
                 <div className="min-w-0">
                   <div className="font-bold flex items-center gap-2">
                     {item.label}
-                    {equipped && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-primary)', color: 'white' }}>장착중</span>}
+                    {equipped && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-primary)', color: 'white' }}>장착중</span>}
                   </div>
                   <div className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{item.desc}</div>
                 </div>

@@ -122,7 +122,7 @@ export function AccountOnboarding() {
           {busy ? '만드는 중…' : '시작하기'}
         </Button>
       </div>
-      <p className="text-[11px] text-center mt-3" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-xs text-center mt-3" style={{ color: 'var(--text-muted)' }}>
         실명·이메일은 받지 않아요. 닉네임에 실명을 넣지 마세요.
       </p>
     </Modal>

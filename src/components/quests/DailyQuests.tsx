@@ -56,7 +56,7 @@ export function DailyQuests({ className = '', compact = false }: DailyQuestsProp
             오늘의 퀘스트
           </h3>
           <span
-            className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+            className="text-xs px-1.5 py-0.5 rounded-full font-bold"
             style={{
               background: done === quests.length ? 'var(--color-success)' : 'var(--bg-tertiary)',
               color: done === quests.length ? '#fff' : 'var(--text-secondary)',
@@ -66,7 +66,7 @@ export function DailyQuests({ className = '', compact = false }: DailyQuestsProp
           </span>
         </div>
         {remaining !== null && (
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {formatRemaining(remaining)} 남음
           </span>
         )}
@@ -85,12 +85,12 @@ export function DailyQuests({ className = '', compact = false }: DailyQuestsProp
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-sm font-medium truncate">{quest.title}</span>
-                  <span className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
                     {Math.min(quest.target, Math.floor(state.progress[quest.metric] ?? 0))}/{quest.target} {quest.unit}
                   </span>
                 </div>
                 {!compact && (
-                  <div className="text-[10px] mb-1 truncate" style={{ color: 'var(--text-muted)' }}>
+                  <div className="text-xs mb-1 truncate" style={{ color: 'var(--text-muted)' }}>
                     {quest.description}
                   </div>
                 )}
@@ -110,7 +110,7 @@ export function DailyQuests({ className = '', compact = false }: DailyQuestsProp
                 type="button"
                 disabled={!complete || claimed}
                 onClick={() => handleClaim(quest.id)}
-                className="text-[10px] font-bold px-2 py-1 rounded-md shrink-0 transition-opacity disabled:opacity-40"
+                className="text-xs font-bold px-2 py-1 rounded-md shrink-0 transition-opacity disabled:opacity-40"
                 style={{
                   background: claimed ? 'var(--bg-tertiary)' : 'var(--color-primary)',
                   color: claimed ? 'var(--text-muted)' : '#fff',

@@ -29,22 +29,30 @@ export function Header() {
   }, [loadProgress, checkStreak]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--key-border)]" style={{ background: 'var(--bg-secondary)' }}>
+    <header
+      className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--key-border)]"
+      style={{
+        // 글래스모피즘: 스크롤 콘텐츠가 비쳐 보이는 반투명 헤더
+        background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      }}
+    >
       <div className="max-w-[1400px] mx-auto h-[var(--header-height)] flex items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 no-underline">
-          <span className="text-xl font-extrabold neon-text" style={{ fontFamily: "'Outfit', sans-serif", color: 'var(--color-primary)' }}>
+          <span className="text-2xl font-extrabold neon-text" style={{ fontFamily: "'Outfit', sans-serif", color: 'var(--color-primary)' }}>
             TypingVerse
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-0.5">
+        <nav className="hidden md:flex items-center gap-1">
           {navItems.map((item) => {
             const isActive = pathname?.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 no-underline ${
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 no-underline ${
                   isActive
                     ? 'text-[var(--color-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -66,7 +74,7 @@ export function Header() {
                 <path d="M8 1C8 1 3 6 3 9.5C3 12.5 5.2 14.5 8 14.5C10.8 14.5 13 12.5 13 9.5C13 6 8 1 8 1Z" fill="#FF6B6B"/>
                 <path d="M8 5C8 5 5.5 8 5.5 10C5.5 11.7 6.6 12.5 8 12.5C9.4 12.5 10.5 11.7 10.5 10C10.5 8 8 5 8 5Z" fill="#FECA57"/>
               </svg>
-              <span className="text-xs font-bold" style={{ color: '#FECA57', fontFamily: "'JetBrains Mono'" }}>
+              <span className="text-sm font-bold" style={{ color: '#FECA57', fontFamily: "'JetBrains Mono'" }}>
                 {progress.streakDays}
               </span>
             </div>
@@ -75,17 +83,17 @@ export function Header() {
           {/* Level badge */}
           <div className="hidden sm:flex items-center gap-1.5">
             <span
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-              style={{ background: 'var(--color-primary)', color: 'white' }}
+              className="text-xs font-bold px-2 py-1 rounded-lg"
+              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', color: 'white', boxShadow: '0 2px 8px rgba(108,92,231,0.35)' }}
             >
               Lv.{progress.level}
             </span>
           </div>
 
           {/* Coins */}
-          <div className="hidden sm:flex items-center gap-1" title="코인">
-            <span className="text-xs">🪙</span>
-            <span className="text-xs font-bold" style={{ color: 'var(--color-accent-warm)', fontFamily: "'JetBrains Mono'" }}>
+          <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg" title="코인" style={{ background: 'rgba(254,202,87,0.10)' }}>
+            <span className="text-sm">🪙</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--color-accent-warm)', fontFamily: "'JetBrains Mono'" }}>
               {progress.coins}
             </span>
           </div>
@@ -116,7 +124,7 @@ export function Header() {
           {/* Mobile stats row */}
           <div className="flex items-center justify-around py-2 border-b border-[var(--key-border)]">
             <div className="flex items-center gap-1">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-primary)', color: 'white' }}>
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-primary)', color: 'white' }}>
                 Lv.{progress.level}
               </span>
             </div>

@@ -45,7 +45,7 @@ const KeyComponent = memo(function KeyComponent({
     >
       <div className="flex flex-col items-center">
         {keyData.shiftLabel && (
-          <span className="text-[9px] opacity-50 leading-none">{keyData.shiftLabel}</span>
+          <span className="text-[10px] opacity-50 leading-none">{keyData.shiftLabel}</span>
         )}
         <span className="leading-none">{keyData.label}</span>
       </div>
