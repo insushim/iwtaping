@@ -111,12 +111,10 @@ describe('도전과제 정의 정합성', () => {
     expect(orphans).toEqual([]);
   });
 
-  it('규칙이 없는 과제는 영원히 잠기므로 목록으로 추적한다', () => {
+  it('표시되는 모든 뱃지는 판정 규칙이 있다 (영원히 잠기는 유령 뱃지 0)', () => {
     const ruled = new Set(RULED_KEYS);
     const unruled = ACHIEVEMENTS_LIST.map((a) => a.key as string).filter((k) => !ruled.has(k));
-    // 아직 판정 근거 데이터가 없는 과제들 — 늘어나면 안 된다
-    expect(unruled.sort()).toEqual(
-      ['all_positions', 'code_master', 'diamond', 'king'].sort()
-    );
+    // 유령 뱃지(all_positions/code_master/diamond/king)를 달성 가능한 뱃지로 교체 완료
+    expect(unruled).toEqual([]);
   });
 });
