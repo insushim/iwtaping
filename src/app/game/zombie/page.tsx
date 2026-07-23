@@ -7,6 +7,7 @@ import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
+import { submitGameScore } from '@/lib/api/client';
 import {
   ParticleSystem, ScreenShake,
   drawWordBubble, drawShieldBar, drawHUD,
@@ -52,6 +53,7 @@ export default function ZombieGamePage() {
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
   const scoreRef = useRef(0);
+  const startedAtRef = useRef(0);
   const waveRef = useRef(1);
   const hpRef = useRef(10);
   const killCountRef = useRef(0);
@@ -94,7 +96,14 @@ export default function ZombieGamePage() {
     }
   }, [wave, settings.language]);
 
+  useEffect(() => {
+    if (status === 'gameover' && scoreRef.current > 0) {
+      void submitGameScore('zombie', scoreRef.current, Date.now() - startedAtRef.current, settings.language);
+    }
+  }, [status, settings.language]);
+
   const startGame = () => {
+    startedAtRef.current = Date.now();
     setStatus('countdown'); setScore(0); setWave(1); setHp(10); setInput('');
     setKillCount(0);
     zombiesRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;

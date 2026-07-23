@@ -174,6 +174,53 @@ export async function fetchLeaderboard(
   return res?.ok ? res.entries : null;
 }
 
+/**
+ * 게임 점수 제출 — 순위 전용.
+ * 서버는 game:* 모드에 지갑/리그 XP를 지급하지 않고 game 리더보드 순위만 매긴다.
+ * 토큰(계정)이 없으면 submitScore가 조용히 무시한다(로컬 전용 모드).
+ */
+export async function submitGameScore(
+  game: string,
+  score: number,
+  elapsedMs: number,
+  language = 'ko'
+): Promise<void> {
+  if (!getToken()) return;
+  if (!Number.isFinite(score) || score <= 0) return;
+  if (elapsedMs < 3000) return; // 서버 MIN_ELAPSED_MS와 동일 — 너무 짧은 세션은 거부됨
+  await submitScore({
+    mode: `game:${game}`,
+    language,
+    kpm: 0,
+    accuracy: 0,
+    score: Math.round(score),
+    maxCombo: 0,
+    elapsedMs: Math.round(elapsedMs),
+    totalKeystrokes: 0,
+    correctKeystrokes: 0,
+  });
+}
+
+export interface MyRank {
+  ranked: boolean;
+  rank?: number;
+  total?: number;
+  value?: number;
+}
+
+/** 요청자 본인의 전국 순위 (인증 필요). ranked=false면 아직 집계 전. */
+export async function fetchMyRank(
+  mode = 'speed',
+  period: 'daily' | 'weekly' | 'all' = 'weekly'
+): Promise<MyRank | null> {
+  if (!getToken()) return null;
+  const res = await request<{ ok: boolean; ranked: boolean; rank?: number; total?: number; value?: number }>(
+    `/api/my-rank?mode=${encodeURIComponent(mode)}&period=${period}`
+  );
+  if (!res?.ok) return null;
+  return { ranked: res.ranked, rank: res.rank, total: res.total, value: res.value };
+}
+
 export interface LeagueMemberEntry {
   rank: number;
   nickname: string;

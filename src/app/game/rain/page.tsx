@@ -7,6 +7,7 @@ import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
+import { submitGameScore } from '@/lib/api/client';
 import {
   ParticleSystem, ScreenShake,
   createStarfield, drawStarfield,
@@ -47,6 +48,7 @@ export default function RainGamePage() {
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
   const scoreRef = useRef(0);
+  const startedAtRef = useRef(0);
   const levelRef = useRef(1);
   const comboRef = useRef(0);
   const phRef = useRef(10.0);
@@ -102,8 +104,15 @@ export default function RainGamePage() {
     }
   }, [level, settings.language]);
 
+  useEffect(() => {
+    if (status === 'gameover' && scoreRef.current > 0) {
+      void submitGameScore('rain', scoreRef.current, Date.now() - startedAtRef.current, settings.language);
+    }
+  }, [status, settings.language]);
+
   const startGame = () => {
     setStatus('countdown');
+    startedAtRef.current = Date.now();
     setScore(0); setLevel(1); setCombo(0); setMaxCombo(0); setPh(10.0);
     setInput(''); setDestroyCount(0);
     wordsRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;

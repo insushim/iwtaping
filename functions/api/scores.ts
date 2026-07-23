@@ -12,8 +12,12 @@ interface Body extends ScoreSubmission {
 const RATE_MAX = 30;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 
-/** provisional 해제 기준: 검증 통과 세션 5회 */
-const PROVISIONAL_THRESHOLD = 5;
+/**
+ * provisional 해제 기준: 검증 통과 세션 1회.
+ * (교실 사용 — 학생이 한 판만 해도 전국 순위에 잡히도록. Sybil 방어는
+ *  verify_status='ok'(치팅 로그 거부)가 담당하고, 이 문턱은 가시성 지연만 준다.)
+ */
+const PROVISIONAL_THRESHOLD = 1;
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const user = await requireUser(request, env);
@@ -74,6 +78,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // 검증 통과분만 재화를 지급한다 (서버 원장 + audit log)
   let wallet = null;
   if (verdict.status === 'ok') {
+    // 게임 점수는 순위 전용 — 지갑/리그 XP를 지급하지 않는다.
+    // (게임은 타건 검증이 없어 XP 파밍이 쉽고, 리그는 타이핑 실력 지표로 유지한다.
+    //  게임은 game:* 리더보드에서 점수로 순위만 매긴다.)
+    const isGame = body.mode.startsWith('game:');
+
+    if (!isGame) {
     // 클라이언트(ResultPanel)와 같은 공식을 쓴다 — 두 값이 다르면
     // 화면에 보이는 XP와 서버 잔액이 갈라진다.
     const earnedXp = earnedXpFor(body.kpm, body.accuracy, body.maxCombo ?? 0);
@@ -109,7 +119,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       // 재시도는 없다 — 이번 세션의 주간 XP는 유실되고, 다음 세션분부터 정상 적립된다.
       // (리그는 부가 기능이라 점수 제출·지갑 지급까지 막지 않는 쪽을 택했다)
     }
+    } // end !isGame
 
+    // provisional 해제는 게임/타이핑 모두의 'ok' 세션을 센다 (한 판이면 순위 노출)
     await env.DB.prepare(
       `UPDATE users SET provisional = 0, last_seen_at = ?2
         WHERE id = ?1 AND provisional = 1

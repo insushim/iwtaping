@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
+import { submitGameScore } from '@/lib/api/client';
 
 interface WordEntry {
   word: string;
@@ -29,7 +30,15 @@ export default function PuzzleGamePage() {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const chainEndRef = useRef<HTMLDivElement>(null);
+  const startedAtRef = useRef(0);
   const isKorean = settings.language === 'ko';
+
+  // 게임 종료 시 서버 순위 제출 (계정 없으면 무시)
+  useEffect(() => {
+    if (status === 'gameover' && score > 0) {
+      void submitGameScore('puzzle', score, Date.now() - startedAtRef.current, settings.language);
+    }
+  }, [status, score, settings.language]);
 
   // Load word pool with massive expansion
   useEffect(() => {
@@ -90,6 +99,7 @@ export default function PuzzleGamePage() {
       : (isKorean ? '사과' : 'apple');
 
     setStatus('playing');
+    startedAtRef.current = Date.now();
     setScore(0);
     setCombo(0);
     setMaxCombo(0);

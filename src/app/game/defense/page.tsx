@@ -7,6 +7,7 @@ import { soundManager } from '@/lib/sound/sound-manager';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
+import { submitGameScore } from '@/lib/api/client';
 import {
   ParticleSystem, ScreenShake,
   drawCastle, drawCastleDetailed, drawSoldierEnemy, drawWordBubble, drawShieldBar,
@@ -60,6 +61,7 @@ export default function DefenseGamePage() {
   const nextIdRef = useRef(0);
   const lastSpawnRef = useRef(0);
   const scoreRef = useRef(0);
+  const startedAtRef = useRef(0);
   const waveRef = useRef(1);
   const goldRef = useRef(0);
   const castleHpRef = useRef(20);
@@ -103,8 +105,15 @@ export default function DefenseGamePage() {
     }
   }, [wave, settings.language]);
 
+  useEffect(() => {
+    if (status === 'gameover' && scoreRef.current > 0) {
+      void submitGameScore('defense', scoreRef.current, Date.now() - startedAtRef.current, settings.language);
+    }
+  }, [status, settings.language]);
+
   const startGame = () => {
     setStatus('countdown');
+    startedAtRef.current = Date.now();
     setScore(0); setWave(1); setGold(0); setCastleHp(20);
     setInput(''); setKillCount(0);
     enemiesRef.current = []; arrowsRef.current = [];

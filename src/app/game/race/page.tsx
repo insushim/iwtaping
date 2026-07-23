@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { TypingArea } from '@/components/typing/TypingArea';
 import { shuffleArray } from '@/lib/utils/helpers';
 import { TypingResult } from '@/types/typing';
+import { submitScore } from '@/lib/api/client';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { generateKoreanSentence, generateEnglishSentence } from '@/lib/content/word-generator';
 
@@ -105,6 +106,19 @@ export default function RaceGamePage() {
     setCars(prev => prev.map(car => car.isPlayer ? { ...car, progress: 100 } : car));
     if (intervalRef.current) clearInterval(intervalRef.current);
     setStatus('finished');
+    // 레이스는 실제 타이핑 — WPM으로 game:race 순위 제출(실제 타건 로그로 검증).
+    void submitScore({
+      mode: 'game:race',
+      language: settings.language,
+      kpm: result.kpm,
+      accuracy: result.accuracy,
+      score: Math.round(result.wpm),
+      maxCombo: 0,
+      elapsedMs: Math.round(result.elapsedTime * 1000),
+      totalKeystrokes: result.totalKeystrokes,
+      correctKeystrokes: result.correctKeystrokes,
+      intervals: result.keyIntervals,
+    });
   };
 
   const rank = [...cars].sort((a, b) => b.progress - a.progress);

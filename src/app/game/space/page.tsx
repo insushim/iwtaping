@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
+import { submitGameScore } from '@/lib/api/client';
 import {
   ParticleSystem, ScreenShake,
   createStarfield, drawStarfield, drawNebula, drawSpaceBackground,
@@ -69,6 +70,7 @@ export default function SpaceGamePage() {
   const lastSpawnRef = useRef(0);
   const targetRef = useRef<number | null>(null);
   const scoreRef = useRef(0);
+  const startedAtRef = useRef(0);
   const levelRef = useRef(1);
   const comboRef = useRef(0);
   const shieldRef = useRef(10);
@@ -128,8 +130,16 @@ export default function SpaceGamePage() {
     }
   }, [level, settings.language]);
 
+  // 게임 종료 시 서버 순위 제출(계정 없으면 조용히 무시). 게임은 순위 전용.
+  useEffect(() => {
+    if (status === 'gameover' && scoreRef.current > 0) {
+      void submitGameScore('space', scoreRef.current, Date.now() - startedAtRef.current, settings.language);
+    }
+  }, [status, settings.language]);
+
   const startGame = () => {
     setStatus('countdown');
+    startedAtRef.current = Date.now();
     setScore(0); setLevel(1); setCombo(0); setMaxCombo(0);
     setShield(10); setInput(''); setDestroyCount(0);
     enemiesRef.current = []; projectilesRef.current = [];
