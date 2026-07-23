@@ -280,7 +280,16 @@ export default function PuzzleGamePage() {
   const formatTime = (s: number) => s.toString();
 
   return (
-    <div className="max-w-[600px] mx-auto px-4 py-4">
+    <div
+      className="max-w-[600px] mx-auto px-4 py-5 rounded-2xl"
+      style={{
+        backgroundImage:
+          'linear-gradient(rgba(9,7,22,0.80), rgba(9,7,22,0.90)), url(/game/puzzle/bg.webp)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        border: '1px solid rgba(108,92,231,0.28)',
+      }}
+    >
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div>

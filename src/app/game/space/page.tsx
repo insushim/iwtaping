@@ -11,8 +11,15 @@ import {
   createStarfield, drawStarfield, drawNebula, drawSpaceBackground,
   drawPlayerShip, drawEnemyShip, drawLaser, drawMissile,
   drawShieldBar, drawHUD, drawWordBubble,
+  preloadSprites, drawSprite, drawBackgroundImage,
   type Star,
 } from '@/lib/game/renderer';
+
+const SPACE_SPRITES = {
+  'space-bg': '/game/space/bg.webp',
+  'space-player': '/game/space/ship.webp',
+  'space-enemy': '/game/space/enemy.webp',
+};
 
 interface Enemy {
   id: number;
@@ -70,6 +77,9 @@ export default function SpaceGamePage() {
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
   const isKorean = settings.language === 'ko';
+
+  // Preload AI-generated sprites (procedural art stays as fallback until ready)
+  useEffect(() => { preloadSprites(SPACE_SPRITES); }, []);
 
   // Load word pool with procedural generation
   useEffect(() => {
@@ -172,12 +182,23 @@ export default function SpaceGamePage() {
       ctx.translate(shakeOffset.x, shakeOffset.y);
 
       // === BACKGROUND ===
-      drawSpaceBackground(ctx, W, H, time);
+      if (!drawBackgroundImage(ctx, 'space-bg', W, H, 0.2)) {
+        drawSpaceBackground(ctx, W, H, time);
+      }
       drawStarfield(ctx, starsRef.current, time, 0.015);
       drawNebula(ctx, W, H, time);
 
       // === PLAYER SHIP ===
-      drawPlayerShip(ctx, cx, cy, time, currentShield > 0);
+      if (!drawSprite(ctx, 'space-player', cx, cy, { h: 62 })) {
+        drawPlayerShip(ctx, cx, cy, time, currentShield > 0);
+      } else if (currentShield > 0) {
+        // keep the shield ring the procedural ship would have drawn
+        ctx.beginPath();
+        ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0,210,211,${0.3 + Math.sin(time * 0.01) * 0.15})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
 
       // === SPAWN ENEMIES ===
       const spawnInterval = Math.max(2200 - currentLevel * 100, 600);
@@ -245,12 +266,14 @@ export default function SpaceGamePage() {
         ctx.globalAlpha = e.dying ? (0.3 + Math.sin(time * 0.02) * 0.2) : Math.min(1, age * 2);
 
         const scale = e.isBoss ? 1.8 : 1;
-        ctx.save();
-        ctx.translate(e.x, e.y);
-        ctx.scale(scale, scale);
-        ctx.translate(-e.x, -e.y);
-        drawEnemyShip(ctx, e.x, e.y, e.shipType, time, e.color);
-        ctx.restore();
+        if (!drawSprite(ctx, 'space-enemy', e.x, e.y, { h: 40 * scale })) {
+          ctx.save();
+          ctx.translate(e.x, e.y);
+          ctx.scale(scale, scale);
+          ctx.translate(-e.x, -e.y);
+          drawEnemyShip(ctx, e.x, e.y, e.shipType, time, e.color);
+          ctx.restore();
+        }
 
         // Draw word bubble (hide for dying enemies)
         if (!e.dying) {
