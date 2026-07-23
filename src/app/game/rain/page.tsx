@@ -54,7 +54,15 @@ export default function RainGamePage() {
   const starsRef = useRef<Star[]>([]);
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
   const isKorean = settings.language === 'ko';
+
+  // 네오/사이버펑크 배경 씬(AI 생성). 로드 전에는 절차적 그라데이션으로 폴백한다.
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/game/rain/bg.webp';
+    img.onload = () => { bgImageRef.current = img; };
+  }, []);
 
   useEffect(() => {
     wordGenerator.reset();
@@ -138,38 +146,50 @@ export default function RainGamePage() {
       ctx.save();
       ctx.translate(shakeOffset.x, shakeOffset.y);
 
-      // Background - dramatic stormy sky
-      const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, '#030310');
-      grad.addColorStop(0.3, '#0A0820');
-      grad.addColorStop(0.6, '#120E30');
-      grad.addColorStop(0.8, '#1A1545');
-      grad.addColorStop(1, '#0D0B25');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-
-      // Stars (dimmer through storm)
-      drawStarfield(ctx, starsRef.current, time, 0.005);
-
-      // Dramatic storm clouds (layered, moving)
-      ctx.save();
-      for (let layer = 0; layer < 3; layer++) {
-        const speed = 0.008 + layer * 0.005;
-        const opacity = 0.15 + layer * 0.1;
-        const yBase = -20 + layer * 25;
-        for (let i = 0; i < 6; i++) {
-          const cx = (i * 180 + time * speed + layer * 100) % (W + 300) - 150;
-          const cloudGrad = ctx.createRadialGradient(cx, yBase, 10, cx, yBase, 100 + layer * 30);
-          cloudGrad.addColorStop(0, `rgba(40,30,80,${opacity})`);
-          cloudGrad.addColorStop(0.6, `rgba(25,20,50,${opacity * 0.5})`);
-          cloudGrad.addColorStop(1, 'transparent');
-          ctx.fillStyle = cloudGrad;
-          ctx.beginPath();
-          ctx.ellipse(cx, yBase, 130 + layer * 20, 35 + layer * 10, 0, 0, Math.PI * 2);
-          ctx.fill();
+      // Background — AI 생성 사이버펑크 씬(cover-fit). 로드 전에는 그라데이션 폴백.
+      const bg = bgImageRef.current;
+      if (bg && bg.width > 0) {
+        const scale = Math.max(W / bg.width, H / bg.height);
+        const dw = bg.width * scale;
+        const dh = bg.height * scale;
+        ctx.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        // 낙하 단어·HUD 가독성을 위한 어두운 오버레이(상단은 살짝, 하단은 더 진하게)
+        const readGrad = ctx.createLinearGradient(0, 0, 0, H);
+        readGrad.addColorStop(0, 'rgba(6,4,20,0.32)');
+        readGrad.addColorStop(0.55, 'rgba(6,4,20,0.12)');
+        readGrad.addColorStop(1, 'rgba(6,4,20,0.45)');
+        ctx.fillStyle = readGrad;
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#030310');
+        grad.addColorStop(0.3, '#0A0820');
+        grad.addColorStop(0.6, '#120E30');
+        grad.addColorStop(0.8, '#1A1545');
+        grad.addColorStop(1, '#0D0B25');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+        // 별·구름은 폴백 배경에서만(AI 씬에는 이미 도시 불빛·구름이 있어 겹치면 탁해짐)
+        drawStarfield(ctx, starsRef.current, time, 0.005);
+        ctx.save();
+        for (let layer = 0; layer < 3; layer++) {
+          const speed = 0.008 + layer * 0.005;
+          const opacity = 0.15 + layer * 0.1;
+          const yBase = -20 + layer * 25;
+          for (let i = 0; i < 6; i++) {
+            const cx = (i * 180 + time * speed + layer * 100) % (W + 300) - 150;
+            const cloudGrad = ctx.createRadialGradient(cx, yBase, 10, cx, yBase, 100 + layer * 30);
+            cloudGrad.addColorStop(0, `rgba(40,30,80,${opacity})`);
+            cloudGrad.addColorStop(0.6, `rgba(25,20,50,${opacity * 0.5})`);
+            cloudGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = cloudGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, yBase, 130 + layer * 20, 35 + layer * 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
+        ctx.restore();
       }
-      ctx.restore();
 
       // Lightning effect (dramatic fork)
       if (currentLevel > 3 && Math.random() < 0.004) {
