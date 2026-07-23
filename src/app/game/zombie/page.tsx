@@ -254,10 +254,12 @@ export default function ZombieGamePage() {
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Spawn zombies
-      if (time - lastSpawnRef.current > Math.max(2200 - currentWave * 80, 500)) {
+      // Spawn zombies — refill quickly when the screen is nearly empty
+      const zSpawnInterval = zombiesRef.current.length < 2 ? 380 : Math.max(1300 - currentWave * 70, 500);
+      const zMax = 6 + currentWave;
+      if (time - lastSpawnRef.current > zSpawnInterval) {
         lastSpawnRef.current = time;
-        if (zombiesRef.current.length < 4 + currentWave) {
+        if (zombiesRef.current.length < zMax) {
           const angle = Math.random() * Math.PI * 2;
           const dist = Math.max(W, H) * 0.55;
           const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '좀비' : 'zombie');

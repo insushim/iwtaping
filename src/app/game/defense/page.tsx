@@ -267,7 +267,10 @@ export default function DefenseGamePage() {
       }
 
       // Spawn enemies
-      if (time - lastSpawnRef.current > Math.max(2800 - currentWave * 100, 800) && enemiesRef.current.length < 3 + currentWave) {
+      const aliveFoes = enemiesRef.current.filter(e => !e.dying).length;
+      const dSpawnInterval = aliveFoes < 2 ? 450 : Math.max(1500 - currentWave * 90, 650);
+      const dMax = 5 + currentWave;
+      if (time - lastSpawnRef.current > dSpawnInterval && enemiesRef.current.length < dMax) {
         lastSpawnRef.current = time;
         const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '적군' : 'enemy');
 

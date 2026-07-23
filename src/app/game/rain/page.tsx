@@ -244,8 +244,9 @@ export default function RainGamePage() {
       }
       ctx.restore();
 
-      // Spawn word
-      if (time - lastSpawnRef.current > Math.max(1200 - currentLevel * 50, 400) && wordsRef.current.length < 2 + currentLevel) {
+      // Spawn word — nudge one out quickly if the screen is empty
+      const rSpawnInterval = wordsRef.current.length < 1 ? 500 : Math.max(1000 - currentLevel * 50, 400);
+      if (time - lastSpawnRef.current > rSpawnInterval && wordsRef.current.length < 3 + currentLevel) {
         lastSpawnRef.current = time;
         const text = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '단어' : 'word');
         wordsRef.current.push({

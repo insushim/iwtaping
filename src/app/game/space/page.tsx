@@ -201,8 +201,12 @@ export default function SpaceGamePage() {
       }
 
       // === SPAWN ENEMIES ===
-      const spawnInterval = Math.max(2200 - currentLevel * 100, 600);
-      const maxEnemies = Math.min(3 + currentLevel, 15);
+      // Keep the screen populated: refill fast when nearly empty so there is
+      // always a word to type, then settle to a steady (level-scaled) cadence.
+      const aliveEnemies = enemiesRef.current.filter(e => !e.dying).length;
+      const baseInterval = Math.max(1200 - currentLevel * 70, 500);
+      const spawnInterval = aliveEnemies < 2 ? 350 : baseInterval;
+      const maxEnemies = Math.min(5 + currentLevel, 15);
       if (time - lastSpawnRef.current > spawnInterval && enemiesRef.current.length < maxEnemies) {
         lastSpawnRef.current = time;
         const isBoss = currentLevel > 3 && killCountRef.current > 0 && killCountRef.current % 20 === 0 && !enemiesRef.current.some(e => e.isBoss);
