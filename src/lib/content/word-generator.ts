@@ -350,12 +350,18 @@ export class WordGenerator {
     return pool.slice(0, count);
   }
 
-  /** Get a single random word not recently used */
-  getUniqueWord(pool: string[]): string {
-    const available = pool.filter(w => !this.usedWords.has(w));
+  /**
+   * Get a single random word not recently used.
+   * `minLen` biases toward longer/harder words as difficulty rises; if the pool
+   * has nothing that long yet it falls back to the whole pool, so it never fails.
+   */
+  getUniqueWord(pool: string[], minLen = 0): string {
+    const longEnough = minLen > 0 ? pool.filter(w => w.length >= minLen) : pool;
+    const base = longEnough.length ? longEnough : pool;
+    const available = base.filter(w => !this.usedWords.has(w));
     if (available.length === 0) {
       this.usedWords.clear();
-      return pool[Math.floor(Math.random() * pool.length)] || 'word';
+      return base[Math.floor(Math.random() * base.length)] || 'word';
     }
     const word = available[Math.floor(Math.random() * available.length)];
     this.usedWords.add(word);

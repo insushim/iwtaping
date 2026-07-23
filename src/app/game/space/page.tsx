@@ -212,7 +212,8 @@ export default function SpaceGamePage() {
         const isBoss = currentLevel > 3 && killCountRef.current > 0 && killCountRef.current % 20 === 0 && !enemiesRef.current.some(e => e.isBoss);
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.max(W, H) * 0.65;
-        const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '적기' : 'enemy');
+        const wordFloor = isKorean ? Math.min(2 + Math.floor(currentLevel / 3), 5) : Math.min(3 + Math.floor(currentLevel / 2), 9);
+        const word = wordGenerator.getUniqueWord(wordPool, wordFloor) || (isKorean ? '적기' : 'enemy');
 
         const enemy: Enemy = {
           id: nextIdRef.current++,

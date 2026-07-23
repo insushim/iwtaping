@@ -269,10 +269,11 @@ export default function DefenseGamePage() {
       // Spawn enemies
       const aliveFoes = enemiesRef.current.filter(e => !e.dying).length;
       const dSpawnInterval = aliveFoes < 2 ? 450 : Math.max(1500 - currentWave * 90, 650);
-      const dMax = 5 + currentWave;
+      const dMax = Math.min(5 + currentWave, 13);
       if (time - lastSpawnRef.current > dSpawnInterval && enemiesRef.current.length < dMax) {
         lastSpawnRef.current = time;
-        const word = wordGenerator.getUniqueWord(wordPool) || (isKorean ? '적군' : 'enemy');
+        const wordFloor = isKorean ? Math.min(2 + Math.floor(currentWave / 3), 5) : Math.min(3 + Math.floor(currentWave / 2), 9);
+        const word = wordGenerator.getUniqueWord(wordPool, wordFloor) || (isKorean ? '적군' : 'enemy');
 
         // Enemy type distribution: 50% swordsman, 30% spearman, 20% knight (higher HP)
         const typeRoll = Math.random();
