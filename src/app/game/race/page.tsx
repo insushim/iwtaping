@@ -152,7 +152,16 @@ export default function RaceGamePage() {
   return (
     <div className="max-w-[900px] mx-auto px-4 py-4">
       {/* Race track */}
-      <Card className="p-4 mb-4">
+      <Card
+        className="p-4 mb-4"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(10,8,26,0.72), rgba(10,8,26,0.86)), url(/game/race/bg.webp)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          border: '1px solid rgba(108,92,231,0.35)',
+        }}
+      >
         {cars.map((car, i) => (
           <div key={i} className="mb-3">
             <div className="flex items-center gap-2 text-sm mb-1">
@@ -170,13 +179,13 @@ export default function RaceGamePage() {
                 style={{ width: `${Math.max(5, car.progress)}%`, background: `linear-gradient(90deg, ${car.color}40, ${car.color})` }}>
                 <span className="text-sm">
                   {car.isPlayer ? (
-                    <svg viewBox="0 0 24 12" width="24" height="12">
-                      <rect x="2" y="1" width="20" height="10" rx="3" fill={car.color}/>
-                      <rect x="0" y="3" width="4" height="6" rx="1" fill="#A29BFE"/>
-                      <rect x="20" y="3" width="4" height="6" rx="1" fill="#A29BFE"/>
-                      <circle cx="6" cy="12" r="2" fill="#333"/>
-                      <circle cx="18" cy="12" r="2" fill="#333"/>
-                    </svg>
+                    <img
+                      src="/game/race/car.webp"
+                      width={34}
+                      height={20}
+                      alt=""
+                      style={{ filter: 'drop-shadow(0 0 4px rgba(108,92,231,0.9))', objectFit: 'contain' }}
+                    />
                   ) : '🚗'}
                 </span>
               </div>

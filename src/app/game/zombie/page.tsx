@@ -11,7 +11,14 @@ import {
   ParticleSystem, ScreenShake,
   drawWordBubble, drawShieldBar, drawHUD,
   drawZombieSprite, drawPlayerCharacter, drawMoonlight, drawCityscape,
+  preloadSprites, drawSprite, drawBackgroundImage,
 } from '@/lib/game/renderer';
+
+const ZOMBIE_SPRITES = {
+  'zombie-bg': '/game/zombie/bg.webp',
+  'zombie-hero': '/game/zombie/hero.webp',
+  'zombie-mob': '/game/zombie/mob.webp',
+};
 
 interface Zombie {
   id: number;
@@ -51,6 +58,8 @@ export default function ZombieGamePage() {
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
   const isKorean = settings.language === 'ko';
+
+  useEffect(() => { preloadSprites(ZOMBIE_SPRITES); }, []);
 
   useEffect(() => {
     wordGenerator.reset();
@@ -128,36 +137,38 @@ export default function ZombieGamePage() {
 
       // Background - Night sky with moon and city
       const groundY = H - 60;
-      drawMoonlight(ctx, W, H, time);
-      drawCityscape(ctx, W, H, groundY);
+      if (!drawBackgroundImage(ctx, 'zombie-bg', W, H, 0.3)) {
+        drawMoonlight(ctx, W, H, time);
+        drawCityscape(ctx, W, H, groundY);
 
-      // Ground area with cracked pavement texture
-      const groundGrad = ctx.createLinearGradient(0, groundY, 0, H);
-      groundGrad.addColorStop(0, '#2A2A2A');
-      groundGrad.addColorStop(0.5, '#1A1A1A');
-      groundGrad.addColorStop(1, '#0A0A0A');
-      ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, groundY, W, H - groundY);
+        // Ground area with cracked pavement texture
+        const groundGrad = ctx.createLinearGradient(0, groundY, 0, H);
+        groundGrad.addColorStop(0, '#2A2A2A');
+        groundGrad.addColorStop(0.5, '#1A1A1A');
+        groundGrad.addColorStop(1, '#0A0A0A');
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(0, groundY, W, H - groundY);
 
-      // Pavement cracks
-      ctx.strokeStyle = 'rgba(100,80,60,0.25)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 15; i++) {
-        const gx = (i * 97) % W;
-        const gy = groundY + (i * 13) % (H - groundY);
-        ctx.beginPath();
-        ctx.moveTo(gx, gy);
-        ctx.lineTo(gx + 25, gy + 10);
-        ctx.lineTo(gx + 35, gy + 25);
-        ctx.stroke();
+        // Pavement cracks
+        ctx.strokeStyle = 'rgba(100,80,60,0.25)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 15; i++) {
+          const gx = (i * 97) % W;
+          const gy = groundY + (i * 13) % (H - groundY);
+          ctx.beginPath();
+          ctx.moveTo(gx, gy);
+          ctx.lineTo(gx + 25, gy + 10);
+          ctx.lineTo(gx + 35, gy + 25);
+          ctx.stroke();
+        }
+
+        // Fog/mist between ground and city
+        const mistGrad = ctx.createLinearGradient(0, groundY - 30, 0, groundY);
+        mistGrad.addColorStop(0, 'rgba(40,40,80,0.2)');
+        mistGrad.addColorStop(1, 'rgba(40,40,80,0)');
+        ctx.fillStyle = mistGrad;
+        ctx.fillRect(0, groundY - 30, W, 30);
       }
-
-      // Fog/mist between ground and city
-      const mistGrad = ctx.createLinearGradient(0, groundY - 30, 0, groundY);
-      mistGrad.addColorStop(0, 'rgba(40,40,80,0.2)');
-      mistGrad.addColorStop(1, 'rgba(40,40,80,0)');
-      ctx.fillStyle = mistGrad;
-      ctx.fillRect(0, groundY - 30, W, 30);
 
       // Calculate player facing direction (toward nearest zombie or mouse)
       let facingAngle = 0;
@@ -172,7 +183,9 @@ export default function ZombieGamePage() {
 
       // Player character - position at center-bottom
       const playerY = groundY - 25;
-      drawPlayerCharacter(ctx, cx, playerY, facingAngle, time, muzzleFlash);
+      if (!drawSprite(ctx, 'zombie-hero', cx, playerY, { h: 72, flip: Math.cos(facingAngle) < 0 })) {
+        drawPlayerCharacter(ctx, cx, playerY, facingAngle, time, muzzleFlash);
+      }
 
       // Enhanced flashlight effect
       ctx.save();
@@ -316,7 +329,9 @@ export default function ZombieGamePage() {
         if (z.variant === 2) size = 10; // Crawler smaller
 
         const walkPhase = time * 0.005 + z.id;
-        drawZombieSprite(ctx, z.x, z.y, size, z.variant, walkPhase, time);
+        if (!drawSprite(ctx, 'zombie-mob', z.x, z.y, { h: size * 3, flip: z.x > cx })) {
+          drawZombieSprite(ctx, z.x, z.y, size, z.variant, walkPhase, time);
+        }
 
         // Slime trail for fat zombies
         if (z.variant === 1) {

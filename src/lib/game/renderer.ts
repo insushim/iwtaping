@@ -37,6 +37,85 @@ export interface Debris {
   life: number;
 }
 
+// ===== SPRITE MANAGER =====
+// AI-generated sprites/backgrounds live in public/game/**. They load lazily in
+// the browser; every draw helper falls back to the procedural art until the
+// image is decoded, so the game never blanks out waiting on a texture.
+const _sprites: Record<string, HTMLImageElement> = {};
+const _spriteReady: Record<string, boolean> = {};
+
+/** Kick off loading a set of {key: url} sprites. Safe to call repeatedly. */
+export function preloadSprites(map: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  for (const key in map) {
+    if (_sprites[key]) continue;
+    const img = new Image();
+    img.onload = () => { _spriteReady[key] = true; };
+    img.onerror = () => { /* keep procedural fallback */ };
+    img.src = map[key];
+    _sprites[key] = img;
+  }
+}
+
+/** The decoded image for a key, or null if not ready (→ caller draws fallback). */
+export function getSprite(key: string): HTMLImageElement | null {
+  return _spriteReady[key] ? _sprites[key] : null;
+}
+
+/**
+ * Draw a sprite centered at (x,y), fit inside a box. Returns false if the sprite
+ * isn't ready yet so the caller can draw the procedural version instead.
+ */
+export function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  x: number,
+  y: number,
+  opts: { w?: number; h?: number; flip?: boolean; rotate?: number; alpha?: number } = {}
+): boolean {
+  const img = getSprite(key);
+  if (!img || !img.width) return false;
+  const ar = img.width / img.height;
+  let w = opts.w, h = opts.h;
+  if (w && !h) h = w / ar;
+  else if (h && !w) w = h * ar;
+  else if (!w && !h) { w = img.width; h = img.height; }
+  ctx.save();
+  if (opts.alpha != null) ctx.globalAlpha *= opts.alpha;
+  ctx.translate(x, y);
+  if (opts.rotate) ctx.rotate(opts.rotate);
+  if (opts.flip) ctx.scale(-1, 1);
+  ctx.drawImage(img, -(w as number) / 2, -(h as number) / 2, w as number, h as number);
+  ctx.restore();
+  return true;
+}
+
+/**
+ * Cover-fit a full-scene background image + optional darkening overlay for text
+ * readability. Returns false if not ready (→ caller draws procedural background).
+ */
+export function drawBackgroundImage(
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  W: number,
+  H: number,
+  overlay = 0.28
+): boolean {
+  const img = getSprite(key);
+  if (!img || !img.width) return false;
+  const ar = img.width / img.height;
+  const sar = W / H;
+  let dw = W, dh = H, dx = 0, dy = 0;
+  if (ar > sar) { dh = H; dw = H * ar; dx = (W - dw) / 2; }
+  else { dw = W; dh = W / ar; dy = (H - dh) / 2; }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  if (overlay > 0) {
+    ctx.fillStyle = `rgba(6,4,20,${overlay})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  return true;
+}
+
 // ===== PARTICLE SYSTEM =====
 export class ParticleSystem {
   particles: Particle[] = [];

@@ -10,7 +10,14 @@ import { wordGenerator } from '@/lib/content/word-generator';
 import {
   ParticleSystem, ScreenShake,
   drawCastle, drawCastleDetailed, drawSoldierEnemy, drawWordBubble, drawShieldBar,
+  preloadSprites, drawSprite, drawBackgroundImage,
 } from '@/lib/game/renderer';
+
+const DEFENSE_SPRITES = {
+  'defense-bg': '/game/defense/bg.webp',
+  'defense-castle': '/game/defense/castle.webp',
+  'defense-enemy': '/game/defense/enemy.webp',
+};
 
 interface Enemy {
   id: number;
@@ -60,6 +67,8 @@ export default function DefenseGamePage() {
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
   const isKorean = settings.language === 'ko';
+
+  useEffect(() => { preloadSprites(DEFENSE_SPRITES); }, []);
 
   useEffect(() => {
     wordGenerator.reset();
@@ -138,7 +147,9 @@ export default function DefenseGamePage() {
       ctx.save();
       ctx.translate(shakeOffset.x, shakeOffset.y);
 
-      // Background - scenic sunset landscape
+      // Background - scenic sunset landscape (AI art if loaded, else procedural)
+      const bgLoaded = drawBackgroundImage(ctx, 'defense-bg', W, H, 0.24);
+      if (!bgLoaded) {
       const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
       skyGrad.addColorStop(0, '#FF6B35'); // Orange sunset
       skyGrad.addColorStop(0.3, '#F7931E'); // Warm orange
@@ -230,9 +241,30 @@ export default function DefenseGamePage() {
         ctx.ellipse(x + 15, trackY + 5, 3, 6, -0.2, 0, Math.PI * 2);
         ctx.fill();
       }
+      } // end procedural background
 
-      // Castle (detailed version, positioned on the right)
-      drawCastleDetailed(ctx, W - 100, H * 0.75 - 20, hpVal, 20, time);
+      // Castle — AI sprite with HP bar + damage tint, else procedural (damage states built-in)
+      const castleBaseX = W - 100;
+      const castleBaseY = H * 0.75;
+      if (drawSprite(ctx, 'defense-castle', castleBaseX, castleBaseY - 72, { h: 150 })) {
+        const hpRatio = Math.max(0, hpVal / 20);
+        // damage reddening as the castle takes hits
+        if (hpRatio < 1) {
+          ctx.save();
+          ctx.globalAlpha = (1 - hpRatio) * 0.35;
+          ctx.fillStyle = '#8B1A1A';
+          ctx.fillRect(castleBaseX - 55, castleBaseY - 150, 110, 150);
+          ctx.restore();
+        }
+        // HP bar above the castle
+        const barW = 90, barX = castleBaseX - barW / 2, barY = castleBaseY - 158;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(barX - 2, barY - 2, barW + 4, 8);
+        ctx.fillStyle = hpRatio > 0.5 ? '#48DBFB' : hpRatio > 0.25 ? '#FECA57' : '#FF6B6B';
+        ctx.fillRect(barX, barY, barW * hpRatio, 4);
+      } else {
+        drawCastleDetailed(ctx, W - 100, H * 0.75 - 20, hpVal, 20, time);
+      }
 
       // Spawn enemies
       if (time - lastSpawnRef.current > Math.max(2800 - currentWave * 100, 800) && enemiesRef.current.length < 3 + currentWave) {
@@ -301,7 +333,11 @@ export default function DefenseGamePage() {
         // Calculate walking animation phase based on movement
         const walkPhase = time * 0.008 + e.id + e.x * 0.01;
 
-        drawSoldierEnemy(ctx, e.x, e.y, e.type, walkPhase, time);
+        // slight walk bob keeps the static sprite feeling alive
+        const bob = Math.sin(walkPhase) * 1.5;
+        if (!drawSprite(ctx, 'defense-enemy', e.x, e.y - 8 + bob, { h: e.type === 2 ? 56 : 44 })) {
+          drawSoldierEnemy(ctx, e.x, e.y, e.type, walkPhase, time);
+        }
 
         ctx.restore();
 
