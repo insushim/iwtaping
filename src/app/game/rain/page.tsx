@@ -336,7 +336,9 @@ export default function RainGamePage() {
       for (let i = 0; i < 12; i++) {
         const rx = (i * 95 + time * 0.04) % W;
         const ripplePhase = (time * 0.003 + i * 1.2) % (Math.PI * 2);
-        const rippleSize = 8 + Math.sin(ripplePhase) * 12;
+        // ⚠️ sin이 음수일 때 rippleSize가 음수가 되면 ctx.ellipse가 IndexSizeError를
+        //    던져 렌더 루프 전체가 죽는다(단어·HUD가 안 그려짐). 반드시 0 이상으로 clamp.
+        const rippleSize = Math.max(0, 8 + Math.sin(ripplePhase) * 12);
         const rippleAlpha = Math.max(0, 0.12 - rippleSize * 0.004);
         ctx.strokeStyle = `rgba(140,120,240,${rippleAlpha})`;
         ctx.lineWidth = 0.8;
