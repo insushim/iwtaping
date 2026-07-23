@@ -51,6 +51,11 @@ export default function RootLayout({
         <main id="main-content" className="pt-[calc(var(--header-height)+4px)]">
           {children}
         </main>
+        <footer className="mt-12 py-6 text-center text-xs" style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--key-border)' }}>
+          <a href="/privacy" className="hover:underline" style={{ color: 'var(--text-secondary)' }}>개인정보처리방침</a>
+          <span className="mx-2">·</span>
+          <span>© {new Date().getFullYear()} TypingVerse</span>
+        </footer>
         <GlobalOverlays />
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
