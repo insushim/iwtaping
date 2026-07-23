@@ -43,9 +43,14 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('ko-KR');
 }
 
+type Period = 'daily' | 'weekly' | 'monthly';
+const GAME_KEYS: string[] = ['rain', 'space', 'race', 'defense', 'zombie', 'puzzle'];
+
 export default function RankingPage() {
   const [mode, setMode] = useState<RankMode>('speed');
   const [scope, setScope] = useState<'me' | 'national'>('me');
+  const [period, setPeriod] = useState<Period>('weekly');
+  const [gameKey, setGameKey] = useState<string>('rain');
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [national, setNational] = useState<LeaderboardEntry[] | null>(null);
@@ -63,24 +68,30 @@ export default function RankingPage() {
   }, [loadProgress]);
 
   // 전국 순위는 백엔드가 있을 때만 채워진다. 없으면 null → 안내 문구.
+  const serverMode = mode === 'game' ? `game:${gameKey}` : mode;
+
+  // 전국 리더보드는 '전국 순위' 탭에서만 로드
   useEffect(() => {
     if (scope !== 'national') return;
     let cancelled = false;
     setNationalLoading(true);
-    const serverMode = mode === 'game' ? 'game:rain' : mode;
-    setMyRank(null);
-    fetchLeaderboard(serverMode, 'weekly').then((entries) => {
+    fetchLeaderboard(serverMode, period).then((entries) => {
       if (cancelled) return;
       setNational(entries);
       setNationalLoading(false);
     });
-    fetchMyRank(serverMode, 'weekly').then((r) => {
+    return () => { cancelled = true; };
+  }, [scope, serverMode, period]);
+
+  // 내 전국 순위는 탭과 무관하게 항상 갱신(실시간 내 등수 확인)
+  useEffect(() => {
+    let cancelled = false;
+    setMyRank(null);
+    fetchMyRank(serverMode, period).then((r) => {
       if (!cancelled) setMyRank(r);
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [scope, mode]);
+    return () => { cancelled = true; };
+  }, [serverMode, period, accountStatus]);
 
   // 서버가 진실원이다. 미배포·미등록이면 레벨로 티어를 추정한다(레벨 10마다 한 단계).
   useEffect(() => {
@@ -140,8 +151,10 @@ export default function RankingPage() {
         ? { label: '지문', primary: '속도', secondary: '정확도' }
         : { label: '지문', primary: '정확도', secondary: '속도' };
 
+  const periodLabel = period === 'daily' ? '오늘' : period === 'monthly' ? '이번 달' : '이번 주';
+
   // 내 전국 순위 배너 (national 탭에서만). 계정 없으면 만들기 유도.
-  const rankModeLabel = mode === 'game' ? '게임' : mode === 'accuracy' ? '정확도' : '속도';
+  const rankModeLabel = mode === 'game' ? (GAME_NAMES[gameKey] ?? '게임') : mode === 'accuracy' ? '정확도' : '속도';
   const rankBannerContent =
     accountStatus === 'unregistered' ? (
       <div className="flex items-center justify-between gap-3">
@@ -172,12 +185,11 @@ export default function RankingPage() {
       </span>
     ) : null;
 
-  const myRankBanner =
-    scope === 'national' && rankBannerContent ? (
-      <Card className="mb-3 px-4 py-3" style={{ border: '1px solid rgba(108,92,231,0.35)' }}>
-        {rankBannerContent}
-      </Card>
-    ) : null;
+  const myRankBanner = rankBannerContent ? (
+    <Card className="mb-3 px-4 py-3" style={{ border: '1px solid rgba(108,92,231,0.35)' }}>
+      {rankBannerContent}
+    </Card>
+  ) : null;
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
@@ -230,9 +242,38 @@ export default function RankingPage() {
         </Button>
       </div>
 
+      {/* 내 전국 순위 — 두 탭 모두에서 항상 표시(실시간 확인) */}
+      {myRankBanner}
+
       {scope === 'national' ? (
         <>
-        {myRankBanner}
+        {/* 기간 선택: 일간 / 주간 / 월간 */}
+        <div className="flex gap-2 mb-3">
+          {([['daily', '일간'], ['weekly', '주간'], ['monthly', '월간']] as [Period, string][]).map(([p, label]) => (
+            <Button key={p} variant={period === p ? 'primary' : 'secondary'} size="sm" onClick={() => setPeriod(p)}>
+              {label}
+            </Button>
+          ))}
+        </div>
+        {/* 게임 모드일 때 게임별 선택 */}
+        {mode === 'game' && (
+          <div className="flex gap-1.5 mb-3 flex-wrap">
+            {GAME_KEYS.map((g) => (
+              <button
+                key={g}
+                onClick={() => setGameKey(g)}
+                className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                style={{
+                  background: gameKey === g ? 'var(--color-primary)' : 'var(--bg-card)',
+                  color: gameKey === g ? 'white' : 'var(--text-secondary)',
+                  border: `1px solid ${gameKey === g ? 'var(--color-primary)' : 'var(--key-border)'}`,
+                }}
+              >
+                {GAME_NAMES[g] ?? g}
+              </button>
+            ))}
+          </div>
+        )}
         <Card className="overflow-hidden">
           {nationalLoading ? (
             <p className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -273,7 +314,7 @@ export default function RankingPage() {
           ) : (
             <div className="text-center py-12 px-6">
               <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-                아직 이번 주 전국 기록이 없어요.
+                아직 {periodLabel} {rankModeLabel} 전국 기록이 없어요.
               </p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 게임이나 테스트를 한 판 완료하면 순위가 만들어져요. 첫 기록의 주인공이 되어보세요!
