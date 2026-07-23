@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { CharState, TypingResult } from '@/types/typing';
 import { useTypingEngine } from '@/hooks/useTypingEngine';
-import { TextDisplay } from './TextDisplay';
+import { TextDisplay, TypedLine } from './TextDisplay';
 import { LiveStats } from './LiveStats';
 import { ResultPanel } from './ResultPanel';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -18,11 +18,21 @@ interface TypingAreaProps {
   onComplete?: (result: TypingResult) => void;
   onRestart?: () => void;
   onProgress?: (progress: number) => void;
+  /** 첫 타건으로 타이핑이 실제 시작될 때 1회 호출(시간제한 테스트 타이머 시작용). */
+  onStart?: () => void;
   showKeyboard?: boolean;
   className?: string;
 }
 
-export function TypingArea({ text, onComplete, onRestart, onProgress, className = '' }: TypingAreaProps) {
+/** 외부에서 시간제한 등으로 즉시 종료를 명령하기 위한 핸들. */
+export interface TypingAreaHandle {
+  finish: () => void;
+}
+
+export const TypingArea = forwardRef<TypingAreaHandle, TypingAreaProps>(function TypingArea(
+  { text, onComplete, onRestart, onProgress, onStart, className = '' },
+  ref,
+) {
   const settings = useSettingsStore((s) => s.settings);
   const addSession = useTypingStore((s) => s.addSession);
   const recordSession = useStatsStore((s) => s.recordSession);
@@ -45,6 +55,7 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
     handleInput,
     handleKeyDown,
     getResult,
+    finish,
     reset,
   } = useTypingEngine({
     text,
@@ -83,6 +94,19 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
     },
     soundEnabled: settings.keySound,
   });
+
+  // 외부(시간제한 테스트)에서 즉시 종료 명령을 받기 위한 핸들
+  useImperativeHandle(ref, () => ({ finish }), [finish]);
+
+  // 첫 타건으로 typing 상태 진입 시 1회 onStart 통지(타이머 시작)
+  const startedNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (status === 'typing' && !startedNotifiedRef.current) {
+      startedNotifiedRef.current = true;
+      onStart?.();
+    }
+    if (status === 'ready') startedNotifiedRef.current = false;
+  }, [status, onStart]);
 
   // Report progress
   useEffect(() => {
@@ -127,6 +151,7 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
 
   const handleCompositionUpdate = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
     const value = (e.target as HTMLTextAreaElement).value;
+    setInputValue(value); // 합성 중인 글자도 아래 입력 라인에 즉시 반영
     handleInput(value, true);
   };
 
@@ -177,6 +202,8 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
           fontSize={settings.fontSize}
         />
 
+        <TypedLine typed={inputValue} target={text} fontSize={settings.fontSize} />
+
         <textarea
           ref={inputRef}
           value={inputValue}
@@ -200,4 +227,4 @@ export function TypingArea({ text, onComplete, onRestart, onProgress, className 
       )}
     </div>
   );
-}
+});

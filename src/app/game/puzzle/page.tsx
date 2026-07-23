@@ -26,6 +26,8 @@ export default function PuzzleGamePage() {
   const [maxCombo, setMaxCombo] = useState(0);
   const [totalWords, setTotalWords] = useState(0);
   const [wordPool, setWordPool] = useState<string[]>([]);
+  /** 실제 단어 검증용 사전(초·중·고급 통합). 여기 없는 문자열은 정답으로 인정하지 않는다. */
+  const [validWords, setValidWords] = useState<Set<string>>(new Set());
   const [usedWords, setUsedWords] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,17 +56,28 @@ export default function PuzzleGamePage() {
         if (isKorean) {
           const m1 = await import('@/data/korean/words-beginner');
           const m2 = await import('@/data/korean/words-intermediate');
-          setWordPool([...new Set([...m1.koreanWordsBeginner, ...m2.koreanWordsIntermediate, ...extraWords])].filter(w => w.length >= 2));
+          const m3 = await import('@/data/korean/words-advanced');
+          const pool = [...new Set([...m1.koreanWordsBeginner, ...m2.koreanWordsIntermediate, ...extraWords])].filter(w => w.length >= 2);
+          // 검증 사전 = 컴퓨터가 쓰는 풀 + 고급 단어까지(플레이어가 아는 단어를 최대한 인정)
+          const dict = new Set<string>([...pool, ...m3.koreanWordsAdvanced].filter(w => w.length >= 2));
+          setWordPool(pool);
+          setValidWords(dict);
         } else {
           const m1 = await import('@/data/english/words-common200');
           const m2 = await import('@/data/english/words-common1000');
-          setWordPool([...new Set([...m1.englishCommon200, ...m2.englishCommon1000, ...extraWords])].filter(w => w.length >= 3));
+          const m3 = await import('@/data/english/words-advanced');
+          const pool = [...new Set([...m1.englishCommon200, ...m2.englishCommon1000, ...extraWords])].filter(w => w.length >= 3);
+          const dict = new Set<string>([...pool, ...m3.englishWordsAdvanced].map(w => w.toLowerCase()).filter(w => w.length >= 3));
+          setWordPool(pool);
+          setValidWords(dict);
         }
       } catch {
-        setWordPool(extraWords.length > 0 ? extraWords :
+        const fb = extraWords.length > 0 ? extraWords :
           (isKorean
             ? ['사과', '과일', '일출', '출발', '발자국', '국어', '어머니', '니트', '트럭', '럭비']
-            : ['apple', 'elephant', 'tiger', 'rabbit', 'turtle', 'eagle', 'eel', 'lion', 'newt']));
+            : ['apple', 'elephant', 'tiger', 'rabbit', 'turtle', 'eagle', 'eel', 'lion', 'newt']);
+        setWordPool(fb);
+        setValidWords(new Set(fb.map(w => isKorean ? w : w.toLowerCase())));
       }
     })();
   }, [isKorean, settings.language]);
@@ -159,6 +172,16 @@ export default function PuzzleGamePage() {
 
     if (word.length < 2) {
       setMessage(isKorean ? '2글자 이상 입력하세요!' : 'Word must be at least 2 letters!');
+      setInput('');
+      return;
+    }
+
+    // 실제 단어인지 검증 — 사전에 없는 문자열(예: "리아ㅓㅣㅏ")은 거부
+    const lookup = isKorean ? word : word.toLowerCase();
+    if (validWords.size > 0 && !validWords.has(lookup)) {
+      setMessage(isKorean ? '사전에 없는 단어예요! 실제 단어만 입력하세요.' : 'Not a real word! Use dictionary words only.');
+      setCombo(0);
+      soundManager?.play('keyError');
       setInput('');
       return;
     }

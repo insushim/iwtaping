@@ -215,6 +215,14 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     }
   }, [status, text, onComplete, soundEnabled, recordCharStroke, getResult]);
 
+  /** 외부(시간제한 테스트 등)에서 현재까지 입력분으로 즉시 종료시킨다. */
+  const finish = useCallback(() => {
+    if (status === 'finished') return;
+    setStatus('finished');
+    const result = getResult();
+    onComplete?.(result);
+  }, [status, getResult, onComplete]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (status === 'finished') return;
     if (e.key === 'Escape' || e.key === 'Tab') return;
@@ -250,6 +258,7 @@ export function useTypingEngine({ text, onComplete, soundEnabled = true }: UseTy
     handleInput,
     handleKeyDown,
     getResult,
+    finish,
     reset,
   };
 }
