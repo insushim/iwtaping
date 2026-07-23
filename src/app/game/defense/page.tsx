@@ -30,6 +30,7 @@ interface Enemy {
   hp: number;
   color: string;
   type: number; // 0=swordsman, 1=spearman, 2=knight
+  lane: number; // 세로 레인 인덱스(말풍선 겹침 방지)
   spawnTime: number;
   dying?: boolean;
   special?: boolean;
@@ -281,11 +282,21 @@ export default function DefenseGamePage() {
         drawCastleDetailed(ctx, W - 100, H * 0.75 - 20, hpVal, 20, time);
       }
 
-      // Spawn enemies
+      // Spawn enemies — 세로 레인으로 분산 + 스폰 지점 여유 게이트로 말풍선 겹침 방지
+      const D_LANES = 5;
+      const laneY = (i: number) => H * 0.58 + i * (H * 0.24 / (D_LANES - 1)); // H*0.58 ~ H*0.82
+      const D_MIN_GAP = 72; // 스폰 지점 앞 최소 여유(px). 이보다 붐비면 스폰 보류
+      // 가장 여유 있는 레인 = 스폰 지점(x=-20)에서 가장 가까운 적이 가장 멀리 나가 있는 레인
+      let bestLane = 0, bestClear = -Infinity;
+      for (let i = 0; i < D_LANES; i++) {
+        let nearest = Infinity;
+        for (const e of enemiesRef.current) if (e.lane === i && e.x < nearest) nearest = e.x;
+        if (nearest > bestClear) { bestClear = nearest; bestLane = i; }
+      }
       const aliveFoes = enemiesRef.current.filter(e => !e.dying).length;
       const dSpawnInterval = aliveFoes < 2 ? 450 : Math.max(1500 - currentWave * 90, 650);
       const dMax = Math.min(5 + currentWave, 13);
-      if (time - lastSpawnRef.current > dSpawnInterval && enemiesRef.current.length < dMax) {
+      if (time - lastSpawnRef.current > dSpawnInterval && enemiesRef.current.length < dMax && bestClear >= D_MIN_GAP) {
         lastSpawnRef.current = time;
         const isSpecial = rollSpecial(currentWave, enemiesRef.current.some(e => e.special));
         const ability = isSpecial ? pickAbility() : undefined;
@@ -312,12 +323,13 @@ export default function DefenseGamePage() {
           id: nextIdRef.current++,
           text: word,
           x: -20, // 왼쪽 화면 밖에서 스폰 → 성(오른쪽)을 향해 행군
-          y: H * 0.75 + randomBetween(-25, 15), // Keep on the path
+          y: laneY(bestLane) + randomBetween(-4, 4), // 레인별 세로 위치
           // 특수 병사는 느리게 행군해 긴 단어를 입력할 시간을 준다
           speed: (0.25 + currentWave * 0.04) * (isSpecial ? 0.55 : 1),
           hp: enemyHp,
           color: isSpecial ? '#FECA57' : pickRandom(['#FF6B6B', '#FECA57', '#FD79A8', '#00D2D3']),
           type: enemyType,
+          lane: bestLane,
           spawnTime: time,
           special: isSpecial,
           ability,
