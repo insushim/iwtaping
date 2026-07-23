@@ -14,6 +14,7 @@ import {
   drawZombieSprite, drawPlayerCharacter, drawMoonlight, drawCityscape,
   preloadSprites, drawSprite, drawBackgroundImage,
 } from '@/lib/game/renderer';
+import { Ability, ABILITY_META, FREEZE_MS, rollSpecial, pickAbility, drawSpecialMarker } from '@/lib/game/special-words';
 
 const ZOMBIE_SPRITES = {
   'zombie-bg': '/game/zombie/bg.webp',
@@ -32,6 +33,8 @@ interface Zombie {
   type: number;
   variant: number;
   spawnTime: number;
+  special?: boolean;
+  ability?: Ability;
 }
 
 export default function ZombieGamePage() {
@@ -47,6 +50,8 @@ export default function ZombieGamePage() {
   const [wordPool, setWordPool] = useState<string[]>([]);
   const [killCount, setKillCount] = useState(0);
   const [muzzleFlash, setMuzzleFlash] = useState(false);
+  const [effectMsg, setEffectMsg] = useState('');
+  const freezeUntilRef = useRef(0);
 
   const zombiesRef = useRef<Zombie[]>([]);
   const animRef = useRef<number>(0);
@@ -108,6 +113,7 @@ export default function ZombieGamePage() {
     setKillCount(0);
     zombiesRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;
     scoreRef.current = 0; waveRef.current = 1; hpRef.current = 10; killCountRef.current = 0;
+    freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
     setCountdown(3);
@@ -271,7 +277,11 @@ export default function ZombieGamePage() {
         if (zombiesRef.current.length < zMax) {
           const angle = Math.random() * Math.PI * 2;
           const dist = Math.max(W, H) * 0.55;
-          const wordFloor = isKorean ? Math.min(2 + Math.floor(currentWave / 3), 5) : Math.min(3 + Math.floor(currentWave / 2), 8);
+          const isSpecial = rollSpecial(currentWave, zombiesRef.current.some(z => z.special));
+          const ability = isSpecial ? pickAbility() : undefined;
+          const wordFloor = isSpecial
+            ? (isKorean ? 4 : 6)
+            : (isKorean ? Math.min(2 + Math.floor(currentWave / 3), 5) : Math.min(3 + Math.floor(currentWave / 2), 8));
           const word = wordGenerator.getUniqueWord(wordPool, wordFloor) || (isKorean ? '좀비' : 'zombie');
           const baseSpeed = 0.3 + currentWave * 0.04;
           const speedVariant = Math.random();
@@ -294,21 +304,27 @@ export default function ZombieGamePage() {
             x: cx + Math.cos(angle) * dist,
             y: cy + Math.sin(angle) * dist,
             angle: 0,
-            speed,
-            color: pickRandom(['#00B894', '#FF6B6B', '#FDCB6E', '#55E6C1', '#B33939']),
+            // 특수 좀비는 느리게 접근해 긴 단어를 입력할 시간을 준다
+            speed: isSpecial ? baseSpeed * 0.55 : speed,
+            color: isSpecial ? '#FECA57' : pickRandom(['#00B894', '#FF6B6B', '#FDCB6E', '#55E6C1', '#B33939']),
             type: Math.floor(Math.random() * 3),
             variant,
             spawnTime: time,
+            special: isSpecial,
+            ability,
           });
         }
       }
 
       // Update & draw zombies
+      const frozen = time < freezeUntilRef.current;
       const alive: Zombie[] = [];
       for (const z of zombiesRef.current) {
         const a = Math.atan2(playerY - z.y, cx - z.x);
-        z.x += Math.cos(a) * z.speed;
-        z.y += Math.sin(a) * z.speed;
+        if (!frozen) {
+          z.x += Math.cos(a) * z.speed;
+          z.y += Math.sin(a) * z.speed;
+        }
         const dist = Math.hypot(z.x - cx, z.y - playerY);
 
         if (dist < 38) {
@@ -364,6 +380,11 @@ export default function ZombieGamePage() {
         ctx.lineTo(z.x, bubbleY + 8);
         ctx.stroke();
 
+        // 특수 좀비: 금빛 후광 링 + 능력 라벨
+        if (z.special && z.ability) {
+          drawSpecialMarker(ctx, z.x, z.y, z.ability, time, z.id);
+        }
+
         // Enhanced word bubble for targeted zombie
         const isTargeted = input.trim().length > 0 && z.text.startsWith(input.trim());
         if (isTargeted) {
@@ -371,7 +392,7 @@ export default function ZombieGamePage() {
           ctx.shadowBlur = 10;
         }
 
-        drawWordBubble(ctx, z.x, bubbleY, z.text, z.color, { fontSize: 13 });
+        drawWordBubble(ctx, z.x, bubbleY, z.text, z.color, { fontSize: z.special ? 15 : 13 });
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
         alive.push(z);
@@ -381,6 +402,18 @@ export default function ZombieGamePage() {
       // Particles
       particles.update();
       particles.draw(ctx);
+
+      // 일시정지(freeze) 발동 중 얼음 오버레이
+      if (frozen) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(72,219,251,0.10)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = "bold 13px 'Noto Sans KR', sans-serif";
+        ctx.fillStyle = 'rgba(180,240,255,0.9)';
+        ctx.textAlign = 'center';
+        ctx.fillText('❄️ 일시정지', W / 2, 52);
+        ctx.restore();
+      }
 
       // Enhanced HUD
       drawHUD(ctx, {
@@ -414,6 +447,35 @@ export default function ZombieGamePage() {
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
   }, [status, wordPool, isKorean]);
+
+  const flashEffect = (msg: string) => {
+    setEffectMsg(msg);
+    setTimeout(() => setEffectMsg(''), 2200);
+  };
+
+  /** 특수 좀비를 맞혔을 때 능력 발동. */
+  const triggerAbility = (ability: Ability) => {
+    const meta = ABILITY_META[ability];
+    if (ability === 'freeze') {
+      freezeUntilRef.current = performance.now() + FREEZE_MS;
+      soundManager?.play('achievement');
+    } else if (ability === 'clear') {
+      // 화면의 모든 좀비 소탕 — 폭발 + 보너스 점수
+      for (const z of zombiesRef.current) {
+        particlesRef.current.explode(z.x, z.y, 0.6);
+        scoreRef.current += 20;
+      }
+      zombiesRef.current = [];
+      setScore(scoreRef.current);
+      shakeRef.current.shake(8);
+      soundManager?.play('explosion');
+    } else if (ability === 'heal') {
+      hpRef.current = Math.min(10, hpRef.current + 2);
+      setHp(hpRef.current);
+      soundManager?.play('levelUp');
+    }
+    flashEffect(`${meta.icon} ${meta.label} 발동!`);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -450,10 +512,11 @@ export default function ZombieGamePage() {
         });
       }
 
-      particlesRef.current.explode(z.x, z.y, 0.8);
+      particlesRef.current.explode(z.x, z.y, z.special ? 1.1 : 0.8);
       shakeRef.current.shake(4);
       zombiesRef.current.splice(idx, 1);
-      scoreRef.current += input.length * 12;
+      scoreRef.current += input.length * 12 * (z.special ? 2 : 1); // 특수 좀비는 2배
+      if (z.special && z.ability) triggerAbility(z.ability);
       setScore(scoreRef.current);
       killCountRef.current += 1;
       setKillCount(killCountRef.current);
@@ -493,9 +556,15 @@ export default function ZombieGamePage() {
       <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit'" }}>
         {isKorean ? '좀비 서바이벌' : 'Zombie Survival'}
       </h1>
-      <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mb-3" style={{ color: 'var(--text-secondary)' }}>
         {isKorean ? '좀비를 물리치며 생존하세요!' : 'Survive the zombie horde!'}
       </p>
+      {isKorean && (
+        <p className="mb-6 text-sm max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
+          ✨ 금빛으로 빛나는 <b style={{ color: '#FECA57' }}>특수 좀비</b>를 잡으면 능력 발동 —
+          ❄️ 일시정지 · 💥 전체 소탕 · 💚 체력 회복 (점수 2배!)
+        </p>
+      )}
       <Button size="lg" onClick={startGame}>{isKorean ? '게임 시작' : 'Start Game'}</Button>
     </div>
   );
@@ -530,8 +599,14 @@ export default function ZombieGamePage() {
 
   return (
     <div className="max-w-[900px] mx-auto px-4 py-4">
-      <div className="rounded-xl overflow-hidden border border-[var(--key-border)]" style={{ height: '450px' }}>
+      <div className="relative rounded-xl overflow-hidden border border-[var(--key-border)]" style={{ height: '450px' }}>
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
+        {effectMsg && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-sm font-bold pointer-events-none"
+            style={{ background: 'rgba(254,202,87,0.92)', color: '#3A2A00', boxShadow: '0 4px 16px rgba(254,202,87,0.4)' }}>
+            {effectMsg}
+          </div>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
         <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}

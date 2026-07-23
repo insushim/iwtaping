@@ -15,6 +15,7 @@ import {
   preloadSprites, drawSprite, drawBackgroundImage,
   type Star,
 } from '@/lib/game/renderer';
+import { Ability, ABILITY_META, FREEZE_MS, rollSpecial, pickAbility, drawSpecialMarker } from '@/lib/game/special-words';
 
 const SPACE_SPRITES = {
   'space-bg': '/game/space/bg.webp',
@@ -37,6 +38,8 @@ interface Enemy {
   isBoss: boolean;
   spawnTime: number;
   dying?: boolean;
+  special?: boolean;
+  ability?: Ability;
 }
 
 interface Projectile {
@@ -62,6 +65,8 @@ export default function SpaceGamePage() {
   const [countdown, setCountdown] = useState(3);
   const [wordPool, setWordPool] = useState<string[]>([]);
   const [destroyCount, setDestroyCount] = useState(0);
+  const [effectMsg, setEffectMsg] = useState('');
+  const freezeUntilRef = useRef(0);
 
   const enemiesRef = useRef<Enemy[]>([]);
   const projectilesRef = useRef<Projectile[]>([]);
@@ -147,6 +152,7 @@ export default function SpaceGamePage() {
     targetRef.current = null;
     scoreRef.current = 0; levelRef.current = 1; comboRef.current = 0;
     shieldRef.current = 10; killCountRef.current = 0;
+    freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
     wordGenerator.reset();
@@ -220,6 +226,8 @@ export default function SpaceGamePage() {
       if (time - lastSpawnRef.current > spawnInterval && enemiesRef.current.length < maxEnemies) {
         lastSpawnRef.current = time;
         const isBoss = currentLevel > 3 && killCountRef.current > 0 && killCountRef.current % 20 === 0 && !enemiesRef.current.some(e => e.isBoss);
+        const isSpecial = !isBoss && rollSpecial(currentLevel, enemiesRef.current.some(e => e.special));
+        const ability = isSpecial ? pickAbility() : undefined;
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.max(W, H) * 0.65;
         const wordFloor = isKorean ? Math.min(2 + Math.floor(currentLevel / 3), 5) : Math.min(3 + Math.floor(currentLevel / 2), 9);
@@ -228,30 +236,37 @@ export default function SpaceGamePage() {
         const enemy: Enemy = {
           id: nextIdRef.current++,
           text: (() => {
-            if (!isBoss) return word;
-            const candidates = wordPool.filter(w => w.length >= (isKorean ? 4 : 6));
-            return (candidates[Math.floor(Math.random() * candidates.length)] || (isKorean ? '최종보스' : 'destroyer'));
+            if (isBoss) {
+              const candidates = wordPool.filter(w => w.length >= (isKorean ? 4 : 6));
+              return (candidates[Math.floor(Math.random() * candidates.length)] || (isKorean ? '최종보스' : 'destroyer'));
+            }
+            if (isSpecial) return wordGenerator.getUniqueWord(wordPool, isKorean ? 4 : 7) || word;
+            return word;
           })(),
           x: cx + Math.cos(angle) * dist,
           y: cy + Math.sin(angle) * dist - H * 0.15,
           angle: 0,
-          speed: isBoss ? 0.15 + currentLevel * 0.01 : 0.25 + currentLevel * 0.04,
-          color: isBoss ? '#FF0000' : ['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8', '#48DBFB', '#A29BFE'][Math.floor(Math.random() * 6)],
+          // 특수 적기는 조금 느리게 접근해 입력할 시간을 준다
+          speed: isBoss ? 0.15 + currentLevel * 0.01 : isSpecial ? 0.16 + currentLevel * 0.02 : 0.25 + currentLevel * 0.04,
+          color: isBoss ? '#FF0000' : isSpecial ? '#FECA57' : ['#FF6B6B', '#00D2D3', '#FECA57', '#FD79A8', '#48DBFB', '#A29BFE'][Math.floor(Math.random() * 6)],
           typed: '',
           shipType: isBoss ? 2 : Math.floor(Math.random() * 4),
           hp: isBoss ? 1 : 1,
           maxHp: isBoss ? 1 : 1,
           isBoss,
           spawnTime: time,
+          special: isSpecial,
+          ability,
         };
         enemy.angle = Math.atan2(cy - enemy.y, cx - enemy.x);
         enemiesRef.current.push(enemy);
       }
 
       // === UPDATE & DRAW ENEMIES ===
+      const frozen = time < freezeUntilRef.current;
       const alive: Enemy[] = [];
       for (const e of enemiesRef.current) {
-        if (!e.dying) {
+        if (!e.dying && !frozen) {
           e.x += Math.cos(e.angle) * e.speed;
           e.y += Math.sin(e.angle) * e.speed;
 
@@ -293,9 +308,13 @@ export default function SpaceGamePage() {
         // Draw word bubble (hide for dying enemies)
         if (!e.dying) {
           const isTargeted = targetRef.current === e.id;
+          // 특수 적기: 금빛 후광 링 + 능력 라벨
+          if (e.special && e.ability) {
+            drawSpecialMarker(ctx, e.x, e.y, e.ability, time, e.id);
+          }
           drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
             targeted: isTargeted,
-            fontSize: e.isBoss ? 16 : 14,
+            fontSize: e.isBoss ? 16 : e.special ? 16 : 14,
           });
 
           // Boss health bar
@@ -347,6 +366,18 @@ export default function SpaceGamePage() {
       particles.update();
       particles.draw(ctx);
 
+      // 일시정지(freeze) 발동 중 얼음 오버레이
+      if (frozen) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(72,219,251,0.10)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = "bold 13px 'Noto Sans KR', sans-serif";
+        ctx.fillStyle = 'rgba(180,240,255,0.9)';
+        ctx.textAlign = 'center';
+        ctx.fillText('❄️ 일시정지', W / 2, 52);
+        ctx.restore();
+      }
+
       // === HUD ===
       drawHUD(ctx, {
         score: scoreRef.current,
@@ -376,6 +407,36 @@ export default function SpaceGamePage() {
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
   }, [status, wordPool, isKorean]);
+
+  const flashEffect = useCallback((msg: string) => {
+    setEffectMsg(msg);
+    setTimeout(() => setEffectMsg(''), 2200);
+  }, []);
+
+  /** 특수 적기를 맞혔을 때 능력 발동. */
+  const triggerAbility = useCallback((ability: Ability) => {
+    const meta = ABILITY_META[ability];
+    if (ability === 'freeze') {
+      freezeUntilRef.current = performance.now() + FREEZE_MS;
+      soundManager?.play('achievement');
+    } else if (ability === 'clear') {
+      // 화면의 모든 적기 격추 — 폭발 + 보너스 점수
+      for (const e of enemiesRef.current) {
+        if (e.dying) continue;
+        particlesRef.current.explode(e.x, e.y, e.isBoss ? 1.5 : 0.7);
+        scoreRef.current += 25;
+      }
+      enemiesRef.current = enemiesRef.current.filter(e => e.dying);
+      setScore(scoreRef.current);
+      shakeRef.current.shake(8);
+      soundManager?.play('explosion');
+    } else if (ability === 'heal') {
+      shieldRef.current = Math.min(10, shieldRef.current + 2);
+      setShield(shieldRef.current);
+      soundManager?.play('levelUp');
+    }
+    flashEffect(`${meta.icon} ${meta.label} 발동!`);
+  }, [flashEffect]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -408,10 +469,11 @@ export default function SpaceGamePage() {
 
       const basePoints = trimmed.length * 15;
       const comboBonus = Math.floor(comboRef.current / 5) * 0.5;
-      const bossBonus = enemy.isBoss ? 5 : 1;
+      const bossBonus = enemy.isBoss ? 5 : enemy.special ? 2 : 1; // 특수 적기는 2배
       const points = Math.round(basePoints * (1 + comboBonus) * bossBonus);
 
       scoreRef.current += points;
+      if (enemy.special && enemy.ability) triggerAbility(enemy.ability);
       setScore(scoreRef.current);
       comboRef.current += 1;
       setCombo(comboRef.current);
@@ -438,7 +500,7 @@ export default function SpaceGamePage() {
     }
     setInput('');
     targetRef.current = null;
-  }, [input]);
+  }, [input, triggerAbility]);
 
   // Auto-target as user types
   useEffect(() => {
@@ -489,6 +551,7 @@ export default function SpaceGamePage() {
               <li>{isKorean ? '• 콤보로 보너스 점수 획득' : '• Chain combos for bonus points'}</li>
               <li>{isKorean ? '• 보스 적기 등장 시 긴 단어 입력 필요' : '• Boss enemies require longer words'}</li>
               <li>{isKorean ? '• 레벨 업 시 방어막 1 회복' : '• Shield +1 on level up'}</li>
+              <li style={{ color: '#FECA57' }}>{isKorean ? '• ✨ 금빛 특수 적기 격파 시 능력 발동 (❄️정지·💥전멸·💚방어막) + 점수 2배' : '• ✨ Golden ships trigger abilities (freeze/clear/heal) + 2x points'}</li>
             </ul>
           </Card>
         </div>
@@ -541,6 +604,12 @@ export default function SpaceGamePage() {
     <div className="max-w-[900px] mx-auto px-4 py-4">
       <div className="relative rounded-xl overflow-hidden border border-[var(--key-border)]" style={{ height: '500px' }}>
         <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
+        {effectMsg && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-sm font-bold pointer-events-none"
+            style={{ background: 'rgba(254,202,87,0.92)', color: '#3A2A00', boxShadow: '0 4px 16px rgba(254,202,87,0.4)' }}>
+            {effectMsg}
+          </div>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
         <input
