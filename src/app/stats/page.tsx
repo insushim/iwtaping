@@ -46,14 +46,14 @@ export default function StatsPage() {
                 <div className="text-xl font-bold" style={{ color: '#FECA57', fontFamily: "'JetBrains Mono'" }}>
                   🔥 {progress.streakDays}
                 </div>
-                <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>연속 출석</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>연속 출석</div>
               </div>
             )}
             <div className="text-center">
               <div className="text-xl font-bold" style={{ color: 'var(--color-accent-warm)', fontFamily: "'JetBrains Mono'" }}>
                 🪙 {progress.coins}
               </div>
-              <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>보유 코인</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>보유 코인</div>
             </div>
           </div>
         </div>
@@ -152,9 +152,9 @@ export default function StatsPage() {
             >
               <div className={`text-2xl mb-1 ${unlocked ? 'bounce-in' : ''}`}>{ach.icon}</div>
               <div className="text-xs font-bold">{ach.title}</div>
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{ach.description}</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{ach.description}</div>
               {unlocked && (
-                <div className="text-[9px] mt-1" style={{ color: 'var(--color-success)' }}>해금됨 ✓</div>
+                <div className="text-[10px] mt-1" style={{ color: 'var(--color-success)' }}>해금됨 ✓</div>
               )}
             </Card>
           );

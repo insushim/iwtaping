@@ -43,15 +43,15 @@ export function LiveStats({ speed, accuracy, combo, progress, status, speedUnit 
   return (
     <div className="flex items-center gap-4 md:gap-6 flex-wrap">
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>속도</span>
+        <span className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>속도</span>
         <span className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--color-primary)' }}>
           {Math.round(displaySpeed)}
         </span>
-        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{unitLabel}</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{unitLabel}</span>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>정확도</span>
+        <span className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>정확도</span>
         <span className="text-2xl font-bold" style={{
           fontFamily: "'JetBrains Mono', monospace",
           color: accuracy >= 95 ? 'var(--color-success)' : accuracy >= 80 ? 'var(--color-warning)' : 'var(--color-error)',
@@ -67,7 +67,7 @@ export function LiveStats({ speed, accuracy, combo, progress, status, speedUnit 
             {combo}
           </span>
           <span
-            className="text-[10px] font-bold"
+            className="text-xs font-bold"
             style={{
               color: comboColor,
               textShadow: combo >= 20 ? `0 0 8px ${comboColor}` : 'none',
@@ -91,7 +91,7 @@ export function LiveStats({ speed, accuracy, combo, progress, status, speedUnit 
           />
         </div>
         <div className="text-right mt-0.5">
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{Math.round(progress)}%</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{Math.round(progress)}%</span>
         </div>
       </div>
     </div>

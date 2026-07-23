@@ -43,7 +43,7 @@ export function StreakCard({ className = '' }: { className?: string }) {
           <div className="text-3xl font-black leading-none" style={{ fontFamily: "'JetBrains Mono'", color: '#FECA57' }}>
             🔥 {progress.streakDays}
           </div>
-          <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
             일 연속
           </div>
         </div>
@@ -60,7 +60,7 @@ export function StreakCard({ className = '' }: { className?: string }) {
                 🧊
               </span>
             ))}
-            <span className="text-[10px] ml-1" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
               프리즈 {progress.freezes}/{MAX_FREEZES}
             </span>
           </div>
@@ -68,7 +68,7 @@ export function StreakCard({ className = '' }: { className?: string }) {
             type="button"
             onClick={handleBuy}
             disabled={!canBuy}
-            className="text-[11px] font-bold px-2.5 py-1 rounded-md transition-opacity disabled:opacity-40"
+            className="text-xs font-bold px-2.5 py-1 rounded-md transition-opacity disabled:opacity-40"
             style={{
               background: canBuy ? 'var(--color-primary)' : 'var(--bg-tertiary)',
               color: canBuy ? '#fff' : 'var(--text-muted)',
@@ -79,12 +79,12 @@ export function StreakCard({ className = '' }: { className?: string }) {
         </div>
       </div>
 
-      <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
         하루 쉬어도 프리즈가 있으면 연속 기록이 유지돼요.
       </p>
 
       {message && (
-        <div className="mt-2 text-center text-[11px] font-bold" style={{ color: 'var(--color-secondary)' }} role="status">
+        <div className="mt-2 text-center text-xs font-bold" style={{ color: 'var(--color-secondary)' }} role="status">
           {message}
         </div>
       )}

@@ -75,7 +75,7 @@ export function ContributionCalendar({ dailyStats, className = '' }: Contributio
   return (
     <div className={`overflow-x-auto ${className}`}>
       {/* Month labels */}
-      <div className="flex mb-1 text-[10px]" style={{ color: 'var(--text-muted)', paddingLeft: 28 }}>
+      <div className="flex mb-1 text-xs" style={{ color: 'var(--text-muted)', paddingLeft: 28 }}>
         {months.map((m, i) => (
           <span key={i} style={{ position: 'relative', left: m.col * (cellSize + gap) - (i > 0 ? months[i-1].col * (cellSize + gap) : 0), minWidth: 0 }}>
             {m.label}
@@ -85,7 +85,7 @@ export function ContributionCalendar({ dailyStats, className = '' }: Contributio
 
       <div className="flex gap-0.5">
         {/* Day labels */}
-        <div className="flex flex-col gap-0.5 text-[10px] pr-1" style={{ color: 'var(--text-muted)', width: 24 }}>
+        <div className="flex flex-col gap-0.5 text-xs pr-1" style={{ color: 'var(--text-muted)', width: 24 }}>
           <span style={{ height: cellSize }}></span>
           <span style={{ height: cellSize, lineHeight: `${cellSize}px` }}>월</span>
           <span style={{ height: cellSize }}></span>
@@ -120,7 +120,7 @@ export function ContributionCalendar({ dailyStats, className = '' }: Contributio
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-1 mt-2 justify-end text-[10px]" style={{ color: 'var(--text-muted)' }}>
+      <div className="flex items-center gap-1 mt-2 justify-end text-xs" style={{ color: 'var(--text-muted)' }}>
         <span>적음</span>
         {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
           <div

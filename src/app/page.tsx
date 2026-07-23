@@ -120,27 +120,27 @@ export default function Home() {
         {/* Today's stats */}
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>오늘의 기록</h3>
-            <Link href="/stats" className="text-xs no-underline" style={{ color: 'var(--color-primary)' }}>더보기</Link>
+            <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>오늘의 기록</h3>
+            <Link href="/stats" className="text-sm font-medium no-underline" style={{ color: 'var(--color-primary)' }}>더보기</Link>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <div className="text-lg font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-primary)' }}>
+              <div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-primary)' }}>
                 {todayStats ? formatTime(todayStats.totalPracticeSeconds) : '00:00'}
               </div>
-              <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>연습 시간</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>연습 시간</div>
             </div>
             <div>
-              <div className="text-lg font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-secondary)' }}>
+              <div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-secondary)' }}>
                 {Math.round(todayStats?.avgSpeed || 0)}
               </div>
-              <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>평균 타수</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>평균 타수</div>
             </div>
             <div>
-              <div className="text-lg font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-success)' }}>
+              <div className="text-2xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-success)' }}>
                 {(todayStats?.avgAccuracy || 0).toFixed(0)}%
               </div>
-              <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>정확도</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>정확도</div>
             </div>
           </div>
         </Card>
@@ -148,7 +148,7 @@ export default function Home() {
         {/* XP Progress */}
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>내 성장</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>내 성장</h3>
             <div className="flex items-center gap-2">
               {progress.streakDays > 0 && (
                 <span className="flex items-center gap-1 text-xs">
@@ -184,11 +184,11 @@ export default function Home() {
                 </span>
               </div>
             )}
-            <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>오늘의 챌린지</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>오늘의 챌린지</h3>
             <div className="flex items-center gap-3 mb-2">
               <span className="text-2xl">{challenge.icon}</span>
               <div>
-                <div className="text-sm font-bold">{challenge.title}</div>
+                <div className="text-base font-bold">{challenge.title}</div>
                 <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                   {challenge.target}{challenge.unit} 달성
                 </div>
@@ -218,18 +218,18 @@ export default function Home() {
       {/* Practice Modes */}
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold" style={{ fontFamily: "'Outfit'" }}>연습 모드</h2>
-          <Link href="/practice" className="text-xs no-underline" style={{ color: 'var(--color-primary)' }}>전체 보기</Link>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: "'Outfit'" }}>연습 모드</h2>
+          <Link href="/practice" className="text-sm font-medium no-underline" style={{ color: 'var(--color-primary)' }}>전체 보기</Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {practiceCards.map((card, i) => (
             <Link key={card.href} href={card.href} className="no-underline">
               <Card hoverable className="p-4 h-full text-center slide-up" style={{ animationDelay: `${i * 0.05}s`, opacity: 0 }}>
                 <div className="flex justify-center mb-2">{card.icon}</div>
-                <h3 className="text-sm font-bold mb-0.5" style={{ fontFamily: "'Outfit'" }}>{card.title}</h3>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
+                <h3 className="text-base font-bold mb-0.5" style={{ fontFamily: "'Outfit'" }}>{card.title}</h3>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
                 {card.tag && (
-                  <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.15)', color: 'var(--color-primary-light)' }}>
+                  <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(108,92,231,0.15)', color: 'var(--color-primary-light)' }}>
                     {card.tag}
                   </span>
                 )}
@@ -242,16 +242,16 @@ export default function Home() {
       {/* Game Modes */}
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold" style={{ fontFamily: "'Outfit'" }}>게임 모드</h2>
-          <Link href="/game" className="text-xs no-underline" style={{ color: 'var(--color-primary)' }}>전체 보기</Link>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: "'Outfit'" }}>게임 모드</h2>
+          <Link href="/game" className="text-sm font-medium no-underline" style={{ color: 'var(--color-primary)' }}>전체 보기</Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {gameCards.map((card, i) => (
             <Link key={card.href} href={card.href} className="no-underline">
               <Card hoverable className="p-4 h-full text-center slide-up" style={{ animationDelay: `${(i + 6) * 0.05}s`, opacity: 0 }}>
                 <div className="text-3xl mb-2">{card.icon}</div>
-                <h3 className="text-sm font-bold mb-0.5" style={{ fontFamily: "'Outfit'" }}>{card.title}</h3>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
+                <h3 className="text-base font-bold mb-0.5" style={{ fontFamily: "'Outfit'" }}>{card.title}</h3>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
               </Card>
             </Link>
           ))}
@@ -272,7 +272,7 @@ export default function Home() {
               <div className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono'", color: 'var(--color-secondary)' }}>
                 {stat.value}
               </div>
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
             </Card>
           ))}
         </div>

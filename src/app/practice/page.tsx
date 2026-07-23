@@ -40,7 +40,7 @@ export default function PracticePage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>{mode.title}</h2>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${mode.color}22`, color: mode.color }}>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: `${mode.color}22`, color: mode.color }}>
                     {mode.badge}
                   </span>
                 </div>

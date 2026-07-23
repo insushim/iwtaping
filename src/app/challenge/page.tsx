@@ -203,7 +203,7 @@ export default function ChallengePage() {
 
             return (
               <div key={i} className="text-center flex-1">
-                <div className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>{day}</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{day}</div>
                 <div
                   className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center text-xs font-bold ${isToday ? 'pulse-glow' : ''}`}
                   style={{

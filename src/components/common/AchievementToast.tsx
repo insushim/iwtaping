@@ -50,11 +50,11 @@ export function AchievementToast() {
           {current.icon}
         </span>
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent-warm)' }}>
+          <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent-warm)' }}>
             도전과제 달성
           </div>
           <div className="text-sm font-bold">{current.title}</div>
-          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {current.description}
           </div>
         </div>

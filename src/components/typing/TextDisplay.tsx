@@ -112,7 +112,7 @@ export function TypedLine({ typed, target, fontSize = 'md' }: TypedLineProps) {
       className="mt-3 pt-3 border-t border-[var(--key-border)]"
       aria-label="입력한 글자"
     >
-      <div className="text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
         내가 입력한 글자
       </div>
       <div
