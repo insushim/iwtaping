@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { GameResult, GameType } from '@/types/game';
 import { PracticeSession } from '@/types/typing';
 import { LeagueCard } from '@/components/league/LeagueCard';
-import { fetchLeaderboard, fetchLeague, LeaderboardEntry, LeagueState } from '@/lib/api/client';
+import { fetchLeaderboard, fetchLeague, fetchMyRank, LeaderboardEntry, LeagueState, MyRank } from '@/lib/api/client';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useAccountStore } from '@/stores/useAccountStore';
 
@@ -49,6 +49,7 @@ export default function RankingPage() {
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [national, setNational] = useState<LeaderboardEntry[] | null>(null);
+  const [myRank, setMyRank] = useState<MyRank | null>(null);
   const [league, setLeague] = useState<LeagueState | null>(null);
   const [nationalLoading, setNationalLoading] = useState(false);
 
@@ -67,10 +68,14 @@ export default function RankingPage() {
     let cancelled = false;
     setNationalLoading(true);
     const serverMode = mode === 'game' ? 'game:rain' : mode;
+    setMyRank(null);
     fetchLeaderboard(serverMode, 'weekly').then((entries) => {
       if (cancelled) return;
       setNational(entries);
       setNationalLoading(false);
+    });
+    fetchMyRank(serverMode, 'weekly').then((r) => {
+      if (!cancelled) setMyRank(r);
     });
     return () => {
       cancelled = true;
@@ -135,6 +140,45 @@ export default function RankingPage() {
         ? { label: '지문', primary: '속도', secondary: '정확도' }
         : { label: '지문', primary: '정확도', secondary: '속도' };
 
+  // 내 전국 순위 배너 (national 탭에서만). 계정 없으면 만들기 유도.
+  const rankModeLabel = mode === 'game' ? '게임' : mode === 'accuracy' ? '정확도' : '속도';
+  const rankBannerContent =
+    accountStatus === 'unregistered' ? (
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>계정을 만들면 전국 순위에 참여하고 내 등수를 볼 수 있어요.</span>
+        <Button
+          size="sm"
+          onClick={() => {
+            try { localStorage.removeItem('typingverse-onboard-seen'); } catch { /* ignore */ }
+            location.reload();
+          }}
+        >
+          계정 만들기
+        </Button>
+      </div>
+    ) : myRank?.ranked ? (
+      <div className="flex items-center justify-between">
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>내 전국 순위 · {rankModeLabel}</span>
+        <span>
+          <b style={{ fontSize: '1.35rem', color: 'var(--color-primary)', fontFamily: "'JetBrains Mono'" }}>{myRank.rank}위</b>
+          <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
+            / {myRank.total}명 · 기록 {myRank.value?.toLocaleString()}
+          </span>
+        </span>
+      </div>
+    ) : myRank && !myRank.ranked ? (
+      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        아직 순위 집계 전이에요 — {rankModeLabel} 기록을 한 판 남기면 순위에 올라와요.
+      </span>
+    ) : null;
+
+  const myRankBanner =
+    scope === 'national' && rankBannerContent ? (
+      <Card className="mb-3 px-4 py-3" style={{ border: '1px solid rgba(108,92,231,0.35)' }}>
+        {rankBannerContent}
+      </Card>
+    ) : null;
+
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2 gradient-text" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -187,6 +231,8 @@ export default function RankingPage() {
       </div>
 
       {scope === 'national' ? (
+        <>
+        {myRankBanner}
         <Card className="overflow-hidden">
           {nationalLoading ? (
             <p className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -215,19 +261,27 @@ export default function RankingPage() {
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : national === null ? (
             <div className="text-center py-12 px-6">
               <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
                 전국 순위를 불러올 수 없어요.
               </p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {accountStatus === 'offline' || accountStatus === 'unregistered'
-                  ? '오프라인 상태예요. 연습 기록은 이 기기에 안전하게 저장됩니다.'
-                  : '아직 이번 주 기록이 없습니다.'}
+                오프라인이거나 일시적 오류일 수 있어요. 연습 기록은 이 기기에 안전하게 저장됩니다.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-12 px-6">
+              <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+                아직 이번 주 전국 기록이 없어요.
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                게임이나 테스트를 한 판 완료하면 순위가 만들어져요. 첫 기록의 주인공이 되어보세요!
               </p>
             </div>
           )}
         </Card>
+        </>
       ) : (
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
