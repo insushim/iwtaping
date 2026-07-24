@@ -161,6 +161,25 @@ export async function submitScore(
   });
 }
 
+export interface GhostRun {
+  nickname: string;
+  wpm: number;
+}
+
+/**
+ * 고스트 레이스 상대 목록(익명 닉네임 + WPM).
+ * 순위와 달리 신규·미검증 기록도 포함해 소규모 유저풀에서도 실제 사람과 대결하게 한다.
+ * 토큰 불필요(공개 GET). 실패 시 null → 호출부에서 순위/합성 AI로 폴백.
+ */
+export async function fetchRaceGhosts(language?: string): Promise<GhostRun[] | null> {
+  const params = new URLSearchParams({ mode: 'game:race' });
+  if (language) params.set('lang', language);
+  const res = await request<{ ok: boolean; ghosts: GhostRun[] }>(
+    `/api/ghosts?${params.toString()}`
+  );
+  return res?.ok ? res.ghosts : null;
+}
+
 export async function fetchLeaderboard(
   mode = 'speed',
   period: 'daily' | 'weekly' | 'monthly' | 'all' = 'weekly',

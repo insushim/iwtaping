@@ -9,7 +9,7 @@ import { TypingResult } from '@/types/typing';
 import { submitScore } from '@/lib/api/client';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { generateKoreanSentence, generateEnglishSentence } from '@/lib/content/word-generator';
-import { fetchLeaderboard, type LeaderboardEntry } from '@/lib/api/client';
+import { fetchRaceGhosts, fetchLeaderboard } from '@/lib/api/client';
 
 interface Car {
   name: string;
@@ -81,25 +81,34 @@ export default function RaceGamePage() {
    *  네트워크 실패·무계정·기록 부족이면 빈 배열 → 합성 AI로 폴백. */
   const loadGhosts = async (): Promise<{ name: string; wpm: number; isReal: boolean }[]> => {
     try {
-      const entries = await fetchLeaderboard('game:race', 'all');
-      if (!entries || entries.length === 0) return [];
-      // value = WPM. 정렬은 WPM 내림차순 → 난이도 스펙트럼이 되도록 구간별로 1명씩 뽑는다.
-      const valid = entries.filter((e: LeaderboardEntry) => e.value > 0 && e.nickname);
+      // 1순위: 고스트 전용 엔드포인트(신규·미검증 기록 포함 → 소규모 유저풀에서도 실제 사람과 대결).
+      let raw: { name: string; wpm: number }[] = [];
+      const g = await fetchRaceGhosts(settings.language);
+      if (g && g.length > 0) {
+        raw = g.map(x => ({ name: x.nickname, wpm: Math.round(x.wpm) }));
+      } else {
+        // 2순위 폴백: 전국 순위(검증 완료 기록). value = WPM.
+        const entries = await fetchLeaderboard('game:race', 'all');
+        if (entries) raw = entries.filter(e => e.value > 0 && e.nickname).map(e => ({ name: e.nickname, wpm: Math.round(e.value) }));
+      }
+      const valid = raw.filter(r => r.wpm > 0 && r.name);
       if (valid.length === 0) return [];
+      // WPM 내림차순 → 난이도 스펙트럼이 되도록 구간별로 1명씩 뽑는다(빠름/중간/이길만함).
+      valid.sort((a, b) => b.wpm - a.wpm);
       const n = valid.length;
       const bands: [number, number][] = [
-        [0, Math.max(1, Math.ceil(n * 0.2))],                 // 빠른 편
-        [Math.floor(n * 0.35), Math.max(1, Math.ceil(n * 0.6))], // 중간
-        [Math.floor(n * 0.6), n],                              // 이길 만한 편
+        [0, Math.max(1, Math.ceil(n * 0.2))],
+        [Math.floor(n * 0.35), Math.max(1, Math.ceil(n * 0.6))],
+        [Math.floor(n * 0.6), n],
       ];
       const picked: { name: string; wpm: number; isReal: boolean }[] = [];
       const usedNames = new Set<string>();
       for (const [lo, hi] of bands) {
-        const range = valid.slice(lo, Math.max(lo + 1, hi)).filter(e => !usedNames.has(e.nickname));
+        const range = valid.slice(lo, Math.max(lo + 1, hi)).filter(e => !usedNames.has(e.name));
         if (range.length === 0) continue;
         const pick = range[Math.floor(Math.random() * range.length)];
-        usedNames.add(pick.nickname);
-        picked.push({ name: pick.nickname, wpm: Math.round(pick.value), isReal: true });
+        usedNames.add(pick.name);
+        picked.push({ name: pick.name, wpm: pick.wpm, isReal: true });
       }
       return picked;
     } catch {
