@@ -87,7 +87,10 @@ export default function PuzzleGamePage() {
           const m1 = await import('@/data/korean/words-beginner');
           const m2 = await import('@/data/korean/words-intermediate');
           const m3 = await import('@/data/korean/words-advanced');
-          const pool = [...new Set([...m1.koreanWordsBeginner, ...m2.koreanWordsIntermediate, ...extraWords])].filter(w => w.length >= 2);
+          // 대용량 실단어 사전(약 29k, 실사용 빈도순 실제 표제어) — AI가 자연스럽게 이어가고
+          // 막다른 글자 판정이 정확해진다. 절차생성 extraWords(가짜일 수 있음)는 AI 풀에서 제외.
+          const md = await import('@/data/korean/words-dictionary');
+          const pool = [...new Set([...md.koreanDictionary, ...m1.koreanWordsBeginner, ...m2.koreanWordsIntermediate])].filter(w => w.length >= 2);
           // 검증 사전 = 컴퓨터가 쓰는 풀 + 고급 단어까지(플레이어가 아는 단어를 최대한 인정)
           const dict = new Set<string>([...pool, ...m3.koreanWordsAdvanced].filter(w => w.length >= 2));
           setWordPool(pool);
@@ -308,7 +311,7 @@ export default function PuzzleGamePage() {
             <ul className="text-sm space-y-1" style={{ color: 'var(--text-secondary)' }}>
               <li>{isKorean ? '• 상대 단어의 마지막 글자로 시작하는 단어 입력' : '• Type a word starting with the last letter'}</li>
               <li>{isKorean ? '• 이미 사용한 단어는 사용 불가' : '• No repeating words'}</li>
-              <li>{isKorean ? '• 정답 시 시간 +3초 보너스' : '• Correct answer gives +3 seconds'}</li>
+              <li>{isKorean ? '• 정답 시 시간 +4초 보너스' : '• Correct answer gives +4 seconds'}</li>
               <li>{isKorean ? '• 연속 정답으로 콤보 보너스 점수!' : '• Chain combos for bonus points!'}</li>
               <li>{isKorean ? '• 시간이 0이 되면 게임 오버' : '• Game over when time runs out'}</li>
             </ul>
