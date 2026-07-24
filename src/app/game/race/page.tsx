@@ -9,14 +9,35 @@ import { TypingResult } from '@/types/typing';
 import { submitScore } from '@/lib/api/client';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { generateKoreanSentence, generateEnglishSentence } from '@/lib/content/word-generator';
+import { fetchLeaderboard, type LeaderboardEntry } from '@/lib/api/client';
 
-interface Car { name: string; progress: number; speed: number; color: string; isPlayer: boolean; }
+interface Car {
+  name: string;
+  progress: number;
+  color: string;
+  isPlayer: boolean;
+  wpm?: number;        // 고스트: 재생할 실제(또는 합성) WPM
+  finishMs?: number;   // 고스트: 현재 텍스트 완주까지 걸리는 시간
+  isGhost?: boolean;
+  isReal?: boolean;    // 실제 유저 기록이면 true, 합성 AI면 false
+  seed?: number;       // 사람다운 페이스 흔들림용 시드
+}
 
-const AI_SPEEDS = [
-  { name: 'AI 초급', speed: 0.5, color: '#48DBFB' },
-  { name: 'AI 중급', speed: 1.2, color: '#FECA57' },
-  { name: 'AI 고급', speed: 2.2, color: '#FF6B6B' },
+// 실제 고스트가 부족할 때 채우는 합성 AI. 같은 WPM→완주시간 모델을 공유한다.
+// WPM = (문자수/5)/분 기준 — 한국어 초급~고급 대략치(폴백용).
+const AI_GHOSTS = [
+  { name: 'AI 초급', wpm: 22, color: '#48DBFB' },
+  { name: 'AI 중급', wpm: 38, color: '#FECA57' },
+  { name: 'AI 고급', wpm: 58, color: '#FF6B6B' },
 ];
+
+const GHOST_COLORS = ['#1DD1A1', '#54A0FF', '#FF9FF3', '#FECA57', '#FF6B6B'];
+
+/** 고스트 WPM으로 현재 텍스트(len 글자)를 완주하는 데 걸리는 시간(ms).
+ *  WPM=(글자/5)/분 이므로 완주ms = (len/5)/WPM*60000 = len*12000/WPM.
+ *  → 플레이어의 실제 WPM이 고스트 WPM보다 크면 이긴다(정확히 공정). */
+const ghostFinishMs = (wpm: number, textLen: number): number =>
+  (textLen * 12000) / Math.max(1, wpm);
 
 export default function RaceGamePage() {
   const { settings } = useSettingsStore();
@@ -28,7 +49,7 @@ export default function RaceGamePage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isKorean = settings.language === 'ko';
 
-  const loadText = async () => {
+  const loadText = async (): Promise<string> => {
     try {
       if (settings.language === 'ko') {
         const mod = await import('@/data/korean/sentences-short');
@@ -37,26 +58,84 @@ export default function RaceGamePage() {
         // Add procedurally generated sentences
         for (let i = 0; i < 2; i++) t += ' ' + generateKoreanSentence();
         setText(t);
+        return t;
       } else {
         const mod = await import('@/data/english/sentences-short');
         const sentences = shuffleArray(mod.englishSentencesShort).slice(0, 3);
         let t = sentences.map(s => s.text).join(' ');
         for (let i = 0; i < 2; i++) t += ' ' + generateEnglishSentence();
         setText(t);
+        return t;
       }
     } catch {
       const s = isKorean
         ? Array.from({ length: 5 }, () => generateKoreanSentence()).join(' ')
         : Array.from({ length: 5 }, () => generateEnglishSentence()).join(' ');
       setText(s);
+      return s;
+    }
+  };
+
+  /** 전국 레이스 순위에서 실제 유저 기록을 가져와 고스트 후보로 만든다.
+   *  공개 순위(닉네임+WPM)만 읽으므로 개인정보·서버 쓰기·실시간 연결이 없다.
+   *  네트워크 실패·무계정·기록 부족이면 빈 배열 → 합성 AI로 폴백. */
+  const loadGhosts = async (): Promise<{ name: string; wpm: number; isReal: boolean }[]> => {
+    try {
+      const entries = await fetchLeaderboard('game:race', 'all');
+      if (!entries || entries.length === 0) return [];
+      // value = WPM. 정렬은 WPM 내림차순 → 난이도 스펙트럼이 되도록 구간별로 1명씩 뽑는다.
+      const valid = entries.filter((e: LeaderboardEntry) => e.value > 0 && e.nickname);
+      if (valid.length === 0) return [];
+      const n = valid.length;
+      const bands: [number, number][] = [
+        [0, Math.max(1, Math.ceil(n * 0.2))],                 // 빠른 편
+        [Math.floor(n * 0.35), Math.max(1, Math.ceil(n * 0.6))], // 중간
+        [Math.floor(n * 0.6), n],                              // 이길 만한 편
+      ];
+      const picked: { name: string; wpm: number; isReal: boolean }[] = [];
+      const usedNames = new Set<string>();
+      for (const [lo, hi] of bands) {
+        const range = valid.slice(lo, Math.max(lo + 1, hi)).filter(e => !usedNames.has(e.nickname));
+        if (range.length === 0) continue;
+        const pick = range[Math.floor(Math.random() * range.length)];
+        usedNames.add(pick.nickname);
+        picked.push({ name: pick.nickname, wpm: Math.round(pick.value), isReal: true });
+      }
+      return picked;
+    } catch {
+      return [];
     }
   };
 
   const startRace = async () => {
-    await loadText();
+    const raceText = await loadText();
+    const L = raceText.length;
+    const real = await loadGhosts();
+    // 상대 3명 구성: 실제 유저 고스트 우선, 부족분만 합성 AI로 채운다.
+    const opponents: { name: string; wpm: number; isReal: boolean; color: string }[] = [];
+    real.slice(0, 3).forEach((g, i) => opponents.push({ ...g, color: GHOST_COLORS[i % GHOST_COLORS.length] }));
+    for (const ai of AI_GHOSTS) {
+      if (opponents.length >= 3) break;
+      opponents.push({
+        name: isKorean ? ai.name : ai.name.replace('AI 초급', 'AI Easy').replace('AI 중급', 'AI Medium').replace('AI 고급', 'AI Hard'),
+        wpm: ai.wpm,
+        isReal: false,
+        color: ai.color,
+      });
+    }
     setCars([
-      { name: isKorean ? '플레이어' : 'Player', progress: 0, speed: 0, color: '#6C5CE7', isPlayer: true },
-      ...AI_SPEEDS.map(ai => ({ ...ai, name: isKorean ? ai.name : ai.name.replace('AI 초급', 'AI Easy').replace('AI 중급', 'AI Medium').replace('AI 고급', 'AI Hard'), progress: 0, isPlayer: false })),
+      { name: isKorean ? '플레이어' : 'Player', progress: 0, color: '#6C5CE7', isPlayer: true },
+      ...opponents.map((o, i) => ({
+        name: o.name,
+        progress: 0,
+        color: o.color,
+        isPlayer: false,
+        wpm: o.wpm,
+        finishMs: ghostFinishMs(o.wpm, L),
+        isGhost: true,
+        isReal: o.isReal,
+        seed: i * 2.3 + 0.7,
+      })),
     ]);
     setPlayerProgress(0);
     setStatus('countdown');
@@ -72,16 +151,22 @@ export default function RaceGamePage() {
 
   useEffect(() => {
     if (status !== 'racing') return;
+    const startT = performance.now();
     intervalRef.current = setInterval(() => {
+      const elapsed = performance.now() - startT;
       setCars(prev => {
         const updated = prev.map(car => {
-          if (car.isPlayer) return car;
-          // Natural speed variation: sometimes pause, sometimes burst
-          const variation = 0.3 + Math.random() * 1.4; // 0.3x ~ 1.7x
-          const newProgress = Math.min(100, car.progress + car.speed * 0.2 * variation);
-          return { ...car, progress: newProgress };
+          if (car.isPlayer || !car.finishMs) return car;
+          // 고스트 진행률 = 경과/완주시간. 완주시간은 실제 WPM으로 계산되므로
+          // 플레이어가 더 빠르면(=더 높은 WPM) 반드시 이긴다.
+          const base = Math.min(100, (elapsed / car.finishMs) * 100);
+          // 사람다운 페이스 흔들림 — 시작(0%)·끝(100%)에서 0이라 완주시간은 정확히 보존된다.
+          const env = Math.sin((Math.PI * base) / 100);
+          const noise = 3.5 * env * Math.sin(elapsed * 0.0016 + (car.seed ?? 0));
+          const progress = Math.max(0, Math.min(100, base + noise));
+          return { ...car, progress };
         });
-        // End race if any AI finishes
+        // 고스트가 먼저 100%면 레이스 종료(플레이어 패배)
         const anyFinished = updated.some(c => !c.isPlayer && c.progress >= 100);
         if (anyFinished) {
           if (intervalRef.current) clearInterval(intervalRef.current);
@@ -89,7 +174,7 @@ export default function RaceGamePage() {
         }
         return updated;
       });
-    }, 500);
+    }, 80);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [status]);
 
@@ -147,8 +232,11 @@ export default function RaceGamePage() {
         <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
           {isKorean ? '타이핑 레이스' : 'Typing Race'}
         </h1>
-        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
-          {isKorean ? 'AI와 타이핑 속도 대결!' : 'Race against AI opponents!'}
+        <p className="mb-2" style={{ color: 'var(--text-secondary)' }}>
+          {isKorean ? '실제 유저의 기록(👻)과 타이핑 속도 대결!' : 'Race real players’ recorded runs (👻)!'}
+        </p>
+        <p className="mb-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+          {isKorean ? '전국 순위 기록을 고스트로 불러옵니다 · 기록이 없으면 AI가 대신 뜁니다' : 'Ghosts are loaded from the national leaderboard · AI fills in when none are available'}
         </p>
         <Button size="lg" onClick={startRace}>{isKorean ? '레이스 시작' : 'Start Race'}</Button>
       </div>
@@ -179,8 +267,17 @@ export default function RaceGamePage() {
         {cars.map((car, i) => (
           <div key={i} className="mb-3">
             <div className="flex items-center gap-2 text-sm mb-1">
+              {car.isGhost && <span className="text-xs">{car.isReal ? '👻' : '🤖'}</span>}
               <span style={{ color: car.color, fontWeight: 'bold', fontFamily: "'JetBrains Mono'" }}>{car.name}</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono'" }}>{Math.round(car.progress)}%</span>
+              {car.isReal && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(29,209,161,0.15)', color: '#1DD1A1', fontWeight: 'bold' }}>
+                  {isKorean ? '실제 기록' : 'REAL'}
+                </span>
+              )}
+              {car.isGhost && car.wpm != null && (
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono'" }}>{car.wpm} WPM</span>
+              )}
+              <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono'" }}>{Math.round(car.progress)}%</span>
             </div>
             <div className="h-8 rounded-lg overflow-hidden relative" style={{ background: 'var(--bg-tertiary)' }}>
               {/* Track markings */}
@@ -201,7 +298,7 @@ export default function RaceGamePage() {
                       className="race-car-drive"
                       style={{ filter: 'drop-shadow(0 0 4px rgba(108,92,231,0.9))', objectFit: 'contain' }}
                     />
-                  ) : '🚗'}
+                  ) : (car.isReal ? '👻' : '🚗')}
                 </span>
               </div>
             </div>
