@@ -365,29 +365,29 @@ export default function DefenseGamePage() {
           }
         }
 
-        // Draw detailed enemy soldier
+        // Draw detailed enemy soldier — keep hit (dying) enemies fully visible
+        // until the arrow reaches them, so nothing pops before impact.
         ctx.save();
-        if (e.dying) ctx.globalAlpha = 0.4 + Math.sin(time * 0.02) * 0.3;
 
         // Calculate walking animation phase based on movement
         const walkPhase = time * 0.008 + e.id + e.x * 0.01;
 
-        // slight walk bob keeps the static sprite feeling alive
-        const bob = Math.sin(walkPhase) * 1.5;
-        if (!drawSprite(ctx, 'defense-enemy', e.x, e.y - 8 + bob, { h: e.type === 2 ? 56 : 44 })) {
+        // 절차적 행진: 발걸음 상하 홉(bob) + 몸통 좌우 흔들림(sway) — 전진하는 병사 느낌
+        const bob = Math.abs(Math.sin(walkPhase)) * 3;
+        const sway = Math.sin(walkPhase) * 0.09;
+        if (!drawSprite(ctx, 'defense-enemy', e.x, e.y - 8 - bob, { h: e.type === 2 ? 56 : 44, rotate: sway })) {
           drawSoldierEnemy(ctx, e.x, e.y, e.type, walkPhase, time);
         }
 
         ctx.restore();
 
-        // Word bubble (hide for dying enemies)
-        if (!e.dying) {
-          // 특수 병사: 금빛 후광 링 + 능력 라벨
-          if (e.special && e.ability) {
-            drawSpecialMarker(ctx, e.x, e.y - 8, e.ability, time, e.id);
-          }
-          drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: e.special ? 15 : 13 });
+        // Word bubble — keep visible until the arrow hits (dying enemies too),
+        // so the word and the soldier explode together on impact.
+        // 특수 병사: 금빛 후광 링 + 능력 라벨
+        if (e.special && e.ability) {
+          drawSpecialMarker(ctx, e.x, e.y - 8, e.ability, time, e.id);
         }
+        drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: e.special ? 15 : 13 });
         alive.push(e);
       }
       enemiesRef.current = alive;

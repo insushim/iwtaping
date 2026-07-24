@@ -198,6 +198,7 @@ export default function RaceGamePage() {
                       width={34}
                       height={20}
                       alt=""
+                      className="race-car-drive"
                       style={{ filter: 'drop-shadow(0 0 4px rgba(108,92,231,0.9))', objectFit: 'contain' }}
                     />
                   ) : '🚗'}
