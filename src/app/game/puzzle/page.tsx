@@ -14,6 +14,34 @@ interface WordEntry {
   isCorrect: boolean;
 }
 
+// ── 한글 두음법칙(끝말잇기에서 허용되는 시작 글자) ──
+function hangulParts(ch: string): { cho: number; jung: number; jong: number } | null {
+  const code = ch.charCodeAt(0) - 0xac00;
+  if (code < 0 || code > 11171) return null;
+  return { cho: Math.floor(code / 588), jung: Math.floor((code % 588) / 28), jong: code % 28 };
+}
+function composeHangul(cho: number, jung: number, jong: number): string {
+  return String.fromCharCode(0xac00 + cho * 588 + jung * 28 + jong);
+}
+const YA_GROUP = [2, 3, 6, 7, 12, 17, 20]; // ㅑㅒㅕㅖㅛㅠㅣ
+const A_GROUP = [0, 1, 8, 11, 13, 18]; //     ㅏㅐㅗㅚㅜㅡ
+/** 끝글자로 이을 수 있는 시작 글자 집합(두음법칙 포함, 관대하게 양방향). 영문/비한글은 자기 자신만. */
+function allowedStarts(ch: string): Set<string> {
+  const set = new Set<string>([ch]);
+  const p = hangulParts(ch);
+  if (!p) return set;
+  const { cho, jung, jong } = p;
+  if (cho === 5 && YA_GROUP.includes(jung)) set.add(composeHangul(11, jung, jong)); // 려→여·료→요·리→이
+  if (cho === 5 && A_GROUP.includes(jung)) set.add(composeHangul(2, jung, jong)); //   라→나·로→노
+  if (cho === 2 && YA_GROUP.includes(jung)) set.add(composeHangul(11, jung, jong)); // 녀→여·뇨→요
+  // 역방향도 허용(여→려/녀, 나→라)
+  if (cho === 11 && YA_GROUP.includes(jung)) { set.add(composeHangul(5, jung, jong)); set.add(composeHangul(2, jung, jong)); }
+  if (cho === 2 && A_GROUP.includes(jung)) set.add(composeHangul(5, jung, jong));
+  return set;
+}
+const HANGUL_WORD = /^[가-힣]+$/;
+const ENGLISH_WORD = /^[a-zA-Z]+$/;
+
 export default function PuzzleGamePage() {
   const { settings } = useSettingsStore();
   const [status, setStatus] = useState<'menu' | 'playing' | 'gameover'>('menu');
@@ -33,6 +61,8 @@ export default function PuzzleGamePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const chainEndRef = useRef<HTMLDivElement>(null);
   const startedAtRef = useRef(0);
+  /** 사전 단어들의 첫 글자 집합 — 어떤 끝글자가 이어갈 수 있는지(막다른지) 판정용 */
+  const dictFirstCharsRef = useRef<Set<string>>(new Set());
   const isKorean = settings.language === 'ko';
 
   // 게임 종료 시 서버 순위 제출 (계정 없으면 무시)
@@ -62,6 +92,7 @@ export default function PuzzleGamePage() {
           const dict = new Set<string>([...pool, ...m3.koreanWordsAdvanced].filter(w => w.length >= 2));
           setWordPool(pool);
           setValidWords(dict);
+          dictFirstCharsRef.current = new Set([...dict].map(w => w[0]));
         } else {
           const m1 = await import('@/data/english/words-common200');
           const m2 = await import('@/data/english/words-common1000');
@@ -70,6 +101,7 @@ export default function PuzzleGamePage() {
           const dict = new Set<string>([...pool, ...m3.englishWordsAdvanced].map(w => w.toLowerCase()).filter(w => w.length >= 3));
           setWordPool(pool);
           setValidWords(dict);
+          dictFirstCharsRef.current = new Set([...dict].map(w => w[0].toLowerCase()));
         }
       } catch {
         const fb = extraWords.length > 0 ? extraWords :
@@ -98,17 +130,33 @@ export default function PuzzleGamePage() {
     }
   }, [isKorean]);
 
+  /** 이 끝글자로 이어갈 단어가 사전에 실제로 존재하는가(= 막다른 글자가 아닌가). */
+  const answerable = useCallback((ch: string): boolean => {
+    if (!ch) return false;
+    const idx = dictFirstCharsRef.current;
+    if (idx.size === 0) return true; // 사전 로딩 전이면 막지 않음
+    for (const s of allowedStarts(ch)) if (idx.has(s)) return true;
+    return false;
+  }, []);
+
   const findComputerWord = useCallback((lastChar: string): string | null => {
+    const starts = allowedStarts(lastChar);
     const candidates = wordPool.filter(w =>
-      getFirstChar(w) === lastChar && !usedWords.has(w)
+      starts.has(getFirstChar(w)) && !usedWords.has(w)
     );
     if (candidates.length === 0) return null;
-    return candidates[Math.floor(Math.random() * candidates.length)];
-  }, [wordPool, usedWords, getFirstChar]);
+    // 플레이어가 이어갈 수 있는 단어만 낸다(막다른 글자로 끝나는 단어는 내지 않음).
+    const safe = candidates.filter(w => answerable(getLastChar(w)));
+    if (safe.length === 0) return null;
+    return safe[Math.floor(Math.random() * safe.length)];
+  }, [wordPool, usedWords, getFirstChar, getLastChar, answerable]);
 
   const startGame = () => {
-    const starter = wordPool.length > 0
-      ? wordPool[Math.floor(Math.random() * wordPool.length)]
+    // 이어갈 단어가 실제로 존재하는 시작 단어만 고른다("스켈레톤 → 톤..." 같은 막다른 시작 방지)
+    const solvable = wordPool.filter(w => w.length >= 2 && answerable(getLastChar(w)));
+    const pickFrom = solvable.length > 0 ? solvable : wordPool;
+    const starter = pickFrom.length > 0
+      ? pickFrom[Math.floor(Math.random() * pickFrom.length)]
       : (isKorean ? '사과' : 'apple');
 
     setStatus('playing');
@@ -121,7 +169,7 @@ export default function PuzzleGamePage() {
     setCurrentWord(starter);
     setUsedWords(new Set([starter]));
     setInput('');
-    setTimeLeft(12);
+    setTimeLeft(16); // 난이도 완화(기존 12초)
     setMessage('');
     setTimeout(() => inputRef.current?.focus(), 100);
   };
@@ -151,8 +199,8 @@ export default function PuzzleGamePage() {
     const lastChar = getLastChar(currentWord);
     const firstChar = getFirstChar(word);
 
-    // Validate
-    if (firstChar !== lastChar) {
+    // Validate — 두음법칙 허용(료→요, 라→나 등)
+    if (!allowedStarts(lastChar).has(firstChar)) {
       setMessage(isKorean
         ? `'${lastChar}'(으)로 시작하는 단어를 입력하세요!`
         : `Word must start with '${lastChar.toUpperCase()}'!`);
@@ -176,10 +224,13 @@ export default function PuzzleGamePage() {
       return;
     }
 
-    // 실제 단어인지 검증 — 사전에 없는 문자열(예: "리아ㅓㅣㅏ")은 거부
+    // 형태 검증 — 자모 낙서("리아ㅓㅣㅏ")·기호는 거부.
+    // 내장 사전이 작아(약 900단어) 궁사·궁예 같은 실제 단어까지 막히던 문제가 있어,
+    // 사전에 없어도 "완성된 한글 2글자 이상"이면 인정한다(사전 단어는 당연히 통과).
     const lookup = isKorean ? word : word.toLowerCase();
-    if (validWords.size > 0 && !validWords.has(lookup)) {
-      setMessage(isKorean ? '사전에 없는 단어예요! 실제 단어만 입력하세요.' : 'Not a real word! Use dictionary words only.');
+    const wellFormed = isKorean ? HANGUL_WORD.test(word) : ENGLISH_WORD.test(word);
+    if (!wellFormed && !validWords.has(lookup)) {
+      setMessage(isKorean ? '완성된 한글 단어만 입력하세요!' : 'Letters only!');
       setCombo(0);
       soundManager?.play('keyError');
       setInput('');
@@ -198,7 +249,7 @@ export default function PuzzleGamePage() {
     setMaxCombo(m => Math.max(m, newCombo));
     setTotalWords(t => t + 1);
     setUsedWords(newUsed);
-    setTimeLeft(Math.min(timeLeft + 3, 15)); // Bonus time
+    setTimeLeft(Math.min(timeLeft + 4, 20)); // Bonus time (난이도 완화)
     setMessage('');
     soundManager?.play('keyClick');
     setInput('');
@@ -213,7 +264,7 @@ export default function PuzzleGamePage() {
       setMessage(isKorean ? '상대가 단어를 못 찾았습니다! +100점 보너스!' : "Opponent can't find a word! +100 bonus!");
       soundManager?.play('levelUp');
       // Pick a new random starter
-      const newStarter = wordPool.filter(w => !newUsed.has(w));
+      const newStarter = wordPool.filter(w => !newUsed.has(w) && answerable(getLastChar(w)));
       if (newStarter.length > 0) {
         const next = newStarter[Math.floor(Math.random() * newStarter.length)];
         newUsed.add(next);

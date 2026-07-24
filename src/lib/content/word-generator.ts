@@ -398,29 +398,78 @@ export class WordGenerator {
 }
 
 // ===== SENTENCE GENERATOR =====
-const KO_SENTENCE_TEMPLATES = [
-  '{noun}이/가 {adj} {noun}을/를 {verb}.',
-  '{adv} {verb}는 {noun}은/는 {adj}다.',
-  '{noun}에서 {noun}을/를 {verb}고 있다.',
-  '오늘은 {adj} 날씨에 {noun}을/를 {verb}기로 했다.',
-  '{noun}이/가 {noun}과/와 함께 {adv} {verb}.',
-  '{adj} {noun}이/가 {noun} 위에서 {verb}고 있었다.',
-  '우리는 {noun}을/를 위해 {adv} {verb}해야 한다.',
-  '{noun}의 {adj} {noun}이/가 세상을 {verb}했다.',
-];
+// ⚠️ 과거 버그: 템플릿에 '을/를'이 그대로 남고({noun}을/를), 동사 사전형에 어미를 붙여
+//    "음악을/를 빛나다고 있다" 같은 비문이 생성됐다. 아래처럼 조사 자동선택(받침 판별) +
+//    어간 추출 + 자/타동사 분리로 문법에 맞는 문장만 만든다.
+
+/** 마지막 글자에 받침이 있는가 */
+function hasJongseong(word: string): boolean {
+  const ch = word[word.length - 1];
+  const code = ch.charCodeAt(0) - 0xac00;
+  if (code < 0 || code > 11171) return false;
+  return code % 28 !== 0;
+}
+/** 받침에 따라 조사 선택 (을/를, 이/가, 은/는, 과/와) */
+function withJosa(word: string, withJong: string, withoutJong: string): string {
+  return word + (hasJongseong(word) ? withJong : withoutJong);
+}
+/** 동사 어간 ('-다' 제거): 빛나다 → 빛나 */
+function stem(verb: string): string {
+  return verb.endsWith('다') ? verb.slice(0, -1) : verb;
+}
+/** 관형형 '-는' (ㄹ 어간은 ㄹ 탈락: 만들다 → 만드는) */
+function modifierForm(verb: string): string {
+  let s = stem(verb);
+  const last = s[s.length - 1];
+  const code = last.charCodeAt(0) - 0xac00;
+  if (code >= 0 && code <= 11171 && code % 28 === 8) {
+    // 종성 ㄹ 제거
+    s = s.slice(0, -1) + String.fromCharCode(
+      0xac00 + Math.floor(code / 588) * 588 + Math.floor((code % 588) / 28) * 28
+    );
+  }
+  return s + '는';
+}
 
 const KO_NOUNS = ['바다','하늘','세상','사람','마음','시간','음악','여행','꿈','미래','별','달','태양','바람','숲','강','산','꽃','나무','구름','도시','마을','학교','집','공원','광장','거리'];
+/** 관형형 형용사(명사 수식용) */
 const KO_ADJS = ['아름다운','거대한','작은','빛나는','조용한','활기찬','따뜻한','시원한','깊은','넓은','높은','맑은','흐린','밝은','어두운','신비로운','평화로운','강렬한'];
-const KO_VERBS = ['바라보다','걸어가다','만들다','찾아가다','시작하다','변화하다','성장하다','빛나다','흐르다','펼치다','담아내다','노래하다','춤추다','발견하다'];
+/** 서술형 형용사(문장 끝맺음용) */
+const KO_ADJ_PREDS = ['아름답다','거대하다','조용하다','활기차다','따뜻하다','시원하다','깊다','넓다','높다','맑다','밝다','신비롭다','평화롭다','강렬하다'];
+/** 타동사 — 목적어(을/를)를 취한다 */
+const KO_TRANS_VERBS = ['바라보다','만들다','찾아가다','펼치다','담아내다','노래하다','발견하다','기억하다'];
+/** 자동사 — 목적어를 취하지 않는다 */
+const KO_INTRANS_VERBS = ['걸어가다','변화하다','성장하다','빛나다','흐르다','춤추다','피어나다','머물다'];
 const KO_ADVS = ['조용히','빠르게','천천히','힘차게','가볍게','무겁게','끊임없이','열심히','자유롭게','즐겁게','평화롭게','신나게'];
 
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * 문법에 맞는 한국어 문장 생성.
+ * 어미는 어간에 그대로 붙여도 안전한 것만 사용한다(-고 있다 / -기로 했다 / -기 시작했다).
+ */
 export function generateKoreanSentence(): string {
-  const template = KO_SENTENCE_TEMPLATES[Math.floor(Math.random() * KO_SENTENCE_TEMPLATES.length)];
-  return template
-    .replace(/\{noun\}/g, () => KO_NOUNS[Math.floor(Math.random() * KO_NOUNS.length)])
-    .replace(/\{adj\}/g, () => KO_ADJS[Math.floor(Math.random() * KO_ADJS.length)])
-    .replace(/\{verb\}/g, () => KO_VERBS[Math.floor(Math.random() * KO_VERBS.length)])
-    .replace(/\{adv\}/g, () => KO_ADVS[Math.floor(Math.random() * KO_ADVS.length)]);
+  const n1 = pick(KO_NOUNS);
+  const n2 = pick(KO_NOUNS);
+  const adj = pick(KO_ADJS);
+  const adjPred = pick(KO_ADJ_PREDS);
+  const adv = pick(KO_ADVS);
+  const tv = pick(KO_TRANS_VERBS);
+  const iv = pick(KO_INTRANS_VERBS);
+
+  const builders: Array<() => string> = [
+    () => `${withJosa(n1, '이', '가')} ${adj} ${withJosa(n2, '을', '를')} ${stem(tv)}고 있다.`,
+    () => `${adv} ${modifierForm(iv)} ${withJosa(n1, '은', '는')} ${adjPred}.`,
+    () => `${n1}에서 ${withJosa(n2, '을', '를')} ${stem(tv)}기로 했다.`,
+    () => `${withJosa(n1, '이', '가')} ${withJosa(n2, '과', '와')} 함께 ${adv} ${stem(iv)}고 있다.`,
+    () => `${adj} ${withJosa(n1, '이', '가')} ${n2} 위에서 ${stem(iv)}고 있었다.`,
+    () => `우리는 ${withJosa(n1, '을', '를')} 위해 ${adv} ${stem(tv)}기 시작했다.`,
+    () => `${n1}의 ${adj} ${withJosa(n2, '이', '가')} ${adv} ${stem(iv)}고 있다.`,
+    () => `오늘은 ${adj} 날씨에 ${withJosa(n1, '을', '를')} ${stem(tv)}기로 했다.`,
+  ];
+  return pick(builders)();
 }
 
 const EN_SENTENCE_TEMPLATES = [
