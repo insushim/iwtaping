@@ -64,6 +64,7 @@ export default function ZombieGamePage() {
   const killCountRef = useRef(0);
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
+  const recoilRef = useRef(0); // 마지막 사격 시각(ms) — 반동 애니메이션용
   const isKorean = settings.language === 'ko';
 
   useEffect(() => { preloadSprites(ZOMBIE_SPRITES); }, []);
@@ -197,8 +198,16 @@ export default function ZombieGamePage() {
       }
 
       // Player character - position at center-bottom
+      // 절차적 애니메이션: 숨쉬기 상하 흔들림 + 사격 반동(총 반대방향으로 살짝 밀림)
       const playerY = groundY - 25;
-      if (!drawSprite(ctx, 'zombie-hero', cx, playerY, { h: 72, flip: Math.cos(facingAngle) < 0 })) {
+      const breathe = Math.sin(time * 0.0032) * 1.8;
+      const sinceShot = time - recoilRef.current;
+      const recoil = sinceShot < 200 ? (1 - sinceShot / 200) * 6 : 0;
+      const facingLeft = Math.cos(facingAngle) < 0;
+      const heroX = cx - Math.cos(facingAngle) * recoil;
+      const heroY = playerY - Math.sin(facingAngle) * recoil + breathe;
+      const recoilTilt = recoil * 0.012 * (facingLeft ? -1 : 1);
+      if (!drawSprite(ctx, 'zombie-hero', heroX, heroY, { h: 72, rotate: recoilTilt, flip: facingLeft })) {
         drawPlayerCharacter(ctx, cx, playerY, facingAngle, time, muzzleFlash);
       }
 
@@ -356,8 +365,11 @@ export default function ZombieGamePage() {
         if (z.variant === 1) size = 16; // Fat zombie bigger
         if (z.variant === 2) size = 10; // Crawler smaller
 
+        // 절차적 좀비 걸음: 비틀거리는 좌우 흔들림(lurch) + 발걸음마다 상하 홉(hop)
         const walkPhase = time * 0.005 + z.id;
-        if (!drawSprite(ctx, 'zombie-mob', z.x, z.y, { h: size * 3, flip: z.x > cx })) {
+        const lurch = Math.sin(walkPhase) * 0.14;
+        const hop = Math.abs(Math.sin(walkPhase * 2)) * (size * 0.16);
+        if (!drawSprite(ctx, 'zombie-mob', z.x, z.y - hop, { h: size * 3, rotate: lurch, flip: z.x > cx })) {
           drawZombieSprite(ctx, z.x, z.y, size, z.variant, walkPhase, time);
         }
 
@@ -487,6 +499,7 @@ export default function ZombieGamePage() {
       // Muzzle flash effect
       setMuzzleFlash(true);
       setTimeout(() => setMuzzleFlash(false), 100);
+      recoilRef.current = performance.now(); // 사격 반동 시작
 
       // Gunfire line and particles
       const canvas = canvasRef.current;

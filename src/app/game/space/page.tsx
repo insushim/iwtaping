@@ -205,12 +205,25 @@ export default function SpaceGamePage() {
       drawNebula(ctx, W, H, time);
 
       // === PLAYER SHIP ===
-      if (!drawSprite(ctx, 'space-player', cx, cy, { h: 62 })) {
+      // 절차적 애니메이션: 부드러운 호버(상하 부유) + 미세 뱅크(좌우 기울임) + 추진기 점멸
+      const hoverY = cy + Math.sin(time * 0.003) * 4;
+      const bank = Math.sin(time * 0.0016) * 0.05;
+      // 추진기 불꽃(선체 뒤쪽) — 매 프레임 세기 흔들림
+      const thrust = 0.6 + Math.abs(Math.sin(time * 0.02)) * 0.4;
+      const tGrad = ctx.createRadialGradient(cx, hoverY + 40, 0, cx, hoverY + 40, 22 * thrust);
+      tGrad.addColorStop(0, `rgba(120,230,255,${0.55 * thrust})`);
+      tGrad.addColorStop(0.5, `rgba(80,160,255,${0.3 * thrust})`);
+      tGrad.addColorStop(1, 'rgba(80,160,255,0)');
+      ctx.fillStyle = tGrad;
+      ctx.beginPath();
+      ctx.ellipse(cx, hoverY + 40, 12 * thrust, 26 * thrust, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (!drawSprite(ctx, 'space-player', cx, hoverY, { h: 88, rotate: bank })) {
         drawPlayerShip(ctx, cx, cy, time, currentShield > 0);
       } else if (currentShield > 0) {
         // keep the shield ring the procedural ship would have drawn
         ctx.beginPath();
-        ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+        ctx.arc(cx, hoverY, 50, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(0,210,211,${0.3 + Math.sin(time * 0.01) * 0.15})`;
         ctx.lineWidth = 2;
         ctx.stroke();
@@ -291,12 +304,16 @@ export default function SpaceGamePage() {
           }
         }
 
-        // Draw enemy ship
+        // Draw enemy ship — keep hit (dying) enemies fully visible until the
+        // missile actually reaches them, so nothing "pops" before impact.
         const age = (time - e.spawnTime) / 1000;
-        ctx.globalAlpha = e.dying ? (0.3 + Math.sin(time * 0.02) * 0.2) : Math.min(1, age * 2);
+        ctx.globalAlpha = e.dying ? 1 : Math.min(1, age * 2);
 
-        const scale = e.isBoss ? 1.8 : 1;
-        if (!drawSprite(ctx, 'space-enemy', e.x, e.y, { h: 40 * scale })) {
+        // 절차적 애니메이션: 비행 중 좌우 워블(흔들림) + 크기 맥동(pulse)으로 생동감
+        const wobble = Math.sin(time * 0.006 + e.id * 1.7) * 0.12;
+        const pulse = 1 + Math.sin(time * 0.008 + e.id) * 0.05;
+        const scale = (e.isBoss ? 1.8 : 1) * pulse;
+        if (!drawSprite(ctx, 'space-enemy', e.x, e.y, { h: 40 * scale, rotate: wobble })) {
           ctx.save();
           ctx.translate(e.x, e.y);
           ctx.scale(scale, scale);
@@ -305,28 +322,27 @@ export default function SpaceGamePage() {
           ctx.restore();
         }
 
-        // Draw word bubble (hide for dying enemies)
-        if (!e.dying) {
-          const isTargeted = targetRef.current === e.id;
-          // 특수 적기: 금빛 후광 링 + 능력 라벨
-          if (e.special && e.ability) {
-            drawSpecialMarker(ctx, e.x, e.y, e.ability, time, e.id);
-          }
-          drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
-            targeted: isTargeted,
-            fontSize: e.isBoss ? 16 : e.special ? 16 : 14,
-          });
+        // Draw word bubble — keep visible (dying enemies too) until the missile
+        // hits and removes the enemy, so the word and the ship explode together.
+        const isTargeted = targetRef.current === e.id;
+        // 특수 적기: 금빛 후광 링 + 능력 라벨
+        if (e.special && e.ability) {
+          drawSpecialMarker(ctx, e.x, e.y, e.ability, time, e.id);
+        }
+        drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
+          targeted: isTargeted,
+          fontSize: e.isBoss ? 16 : e.special ? 16 : 14,
+        });
 
-          // Boss health bar
-          if (e.isBoss) {
-            drawShieldBar(ctx, e.x - 30, e.y + 40, e.hp, e.maxHp, 60);
-          }
+        // Boss health bar
+        if (e.isBoss) {
+          drawShieldBar(ctx, e.x - 30, e.y + 40, e.hp, e.maxHp, 60);
+        }
 
-          // Draw laser to targeted enemy
-          if (isTargeted && e.typed.length > 0) {
-            drawLaser(ctx, cx, cy - 20, e.x, e.y, time, '#00D2D3');
-            particles.laserHit(e.x, e.y);
-          }
+        // Aiming laser — only while the enemy is still typeable (not yet hit)
+        if (!e.dying && isTargeted && e.typed.length > 0) {
+          drawLaser(ctx, cx, cy - 20, e.x, e.y, time, '#00D2D3');
+          particles.laserHit(e.x, e.y);
         }
 
         ctx.globalAlpha = 1;
@@ -448,14 +464,18 @@ export default function SpaceGamePage() {
     if (idx >= 0) {
       const enemy = enemiesRef.current[idx];
 
-      // Fire projectile
+      // Fire projectile — launch from the ship's actual on-canvas position
+      // (the render loop draws the ship at cx=W/2, cy=H*0.55), so the missile
+      // visibly leaves the ship's nose rather than appearing from screen bottom.
       const canvas = canvasRef.current;
       if (canvas) {
         const W = canvas.offsetWidth;
-        const cx = W / 2, cy = canvas.offsetHeight - 70;
-        const angle = Math.atan2(enemy.y - cy, enemy.x - cx);
+        const H = canvas.offsetHeight;
+        const cx = W / 2, cy = H * 0.55;
+        const originY = cy - 40; // ship nose (ship drawn at h:88)
+        const angle = Math.atan2(enemy.y - originY, enemy.x - cx);
         projectilesRef.current.push({
-          x: cx, y: cy - 20,
+          x: cx, y: originY,
           targetId: enemy.id,
           speed: 12,
           angle,

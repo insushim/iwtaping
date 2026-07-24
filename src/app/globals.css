@@ -292,6 +292,16 @@ body::before {
 }
 .float { animation: float 3s ease-in-out infinite; }
 
+/* 레이스 카 엔진 진동 + 미세 상하 바운스 (달리는 느낌) */
+@keyframes race-car-drive {
+  0%   { transform: translateY(0) rotate(-1.2deg); }
+  25%  { transform: translateY(-1.5px) rotate(0.8deg); }
+  50%  { transform: translateY(0.5px) rotate(-0.6deg); }
+  75%  { transform: translateY(-1px) rotate(1deg); }
+  100% { transform: translateY(0) rotate(-1.2deg); }
+}
+.race-car-drive { animation: race-car-drive 0.22s linear infinite; transform-origin: center bottom; }
+
 @keyframes shimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
