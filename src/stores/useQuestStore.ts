@@ -33,7 +33,11 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
   },
 
   recordEvent: (event) => {
-    const next = applyEvent(get().state, event);
+    // 반드시 저장된 진행도를 다시 읽어서 그 위에 더한다.
+    // load()는 DailyQuests 패널(홈)에서만 호출되므로, 게임·연습 페이지의 스토어 상태는
+    // emptyProgress(0)인 채다. 그 0을 기준으로 저장하면 이전 진행도를 통째로 덮어써
+    // 카운터가 1~2에서 영원히 멈춘다(브라우저 실측, 2026-07-25).
+    const next = applyEvent(loadProgress(), event);
     set({ state: next });
     saveProgress(next);
   },
@@ -41,7 +45,8 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
   claimQuest: (questId) => {
     const quest = get().quests.find((q) => q.id === questId);
     if (!quest) return null;
-    const current = get().state;
+    // 수령 판정도 저장본 기준 — 다른 탭에서 이미 받았는지까지 여기서 걸러진다.
+    const current = loadProgress();
     if (!isComplete(quest, current) || isClaimed(quest, current)) return null;
 
     const next = claim(current, quest);

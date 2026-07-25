@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useGameBgm } from '@/hooks/useGameBgm';
+import { useGameResult, hitAccuracy } from '@/hooks/useGameResult';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
@@ -74,6 +75,7 @@ export default function DefenseGamePage() {
   const goldRef = useRef(0);
   const castleHpRef = useRef(20);
   const killCountRef = useRef(0);
+  const attemptsRef = useRef(0); // 입력 시도 횟수 — 정확도 산출용(맞힌 수 = killCountRef)
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
   const isKorean = settings.language === 'ko';
@@ -119,6 +121,22 @@ export default function DefenseGamePage() {
     }
   }, [status, settings.language]);
 
+  // 일일 퀘스트·도전과제에 이 판을 반영한다(한 번도 입력하지 않은 판은 제외).
+  // 킹덤 디펜스는 콤보 시스템이 없어 maxCombo는 0으로 둔다.
+  useGameResult(status === 'gameover', () =>
+    attemptsRef.current === 0 && scoreRef.current === 0
+      ? null
+      : {
+          gameType: 'defense',
+          score: scoreRef.current,
+          level: waveRef.current,
+          maxCombo: 0,
+          accuracy: hitAccuracy(killCountRef.current, attemptsRef.current),
+          wordsTyped: killCountRef.current,
+          elapsedTime: Math.round((Date.now() - startedAtRef.current) / 1000),
+        }
+  );
+
   const startGame = () => {
     setStatus('countdown');
     startedAtRef.current = Date.now();
@@ -127,7 +145,7 @@ export default function DefenseGamePage() {
     enemiesRef.current = []; arrowsRef.current = [];
     nextIdRef.current = 0; lastSpawnRef.current = 0;
     scoreRef.current = 0; waveRef.current = 1; goldRef.current = 0;
-    castleHpRef.current = 20; killCountRef.current = 0;
+    castleHpRef.current = 20; killCountRef.current = 0; attemptsRef.current = 0;
     freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
@@ -593,6 +611,7 @@ export default function DefenseGamePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    attemptsRef.current += 1;
     const idx = enemiesRef.current.findIndex(e => !e.dying && e.text === input.trim());
     if (idx >= 0) {
       const enemy = enemiesRef.current[idx];

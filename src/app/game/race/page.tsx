@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { TypingArea } from '@/components/typing/TypingArea';
+import { TypingArea, TypingAreaHandle } from '@/components/typing/TypingArea';
 import { shuffleArray } from '@/lib/utils/helpers';
 import { TypingResult } from '@/types/typing';
 import { submitScore } from '@/lib/api/client';
@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { generateKoreanSentence, generateEnglishSentence } from '@/lib/content/word-generator';
 import { fetchRaceGhosts, fetchLeaderboard } from '@/lib/api/client';
 import { useGameBgm } from '@/hooks/useGameBgm';
+import { useGameResult } from '@/hooks/useGameResult';
 
 interface Car {
   name: string;
@@ -49,6 +50,11 @@ export default function RaceGamePage() {
   const [countdown, setCountdown] = useState(3);
   const [playerProgress, setPlayerProgress] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const areaRef = useRef<TypingAreaHandle>(null);
+  // 이 판의 타이핑 결과. 완주든 패배든 실제 타건에서 계산된 값만 담는다.
+  const resultRef = useRef<TypingResult | null>(null);
+  // 고스트가 먼저 골인해 강제 종료된 판인가 — 순위 제출·진행률 100% 처리를 건너뛴다.
+  const lostRef = useRef(false);
   const isKorean = settings.language === 'ko';
 
   const loadText = async (): Promise<string> => {
@@ -149,6 +155,8 @@ export default function RaceGamePage() {
       })),
     ]);
     setPlayerProgress(0);
+    resultRef.current = null;
+    lostRef.current = false;
     setStatus('countdown');
     setCountdown(3);
   };
@@ -181,7 +189,13 @@ export default function RaceGamePage() {
         const anyFinished = updated.some(c => !c.isPlayer && c.progress >= 100);
         if (anyFinished) {
           if (intervalRef.current) clearInterval(intervalRef.current);
-          setTimeout(() => setStatus('finished'), 0);
+          setTimeout(() => {
+            // 패배해도 여기까지 친 만큼은 실제 결과로 확정한다 — 그래야 일일 퀘스트
+            // "게임 한 판"이 다른 5개 게임과 같은 기준으로 인정된다(정확도를 지어내지 않음).
+            lostRef.current = true;
+            areaRef.current?.finish();
+            setStatus('finished');
+          }, 0);
         }
         return updated;
       });
@@ -199,8 +213,14 @@ export default function RaceGamePage() {
   };
 
   const handleComplete = (result: TypingResult) => {
-    setCars(prev => prev.map(car => car.isPlayer ? { ...car, progress: 100 } : car));
+    resultRef.current = result;
     if (intervalRef.current) clearInterval(intervalRef.current);
+    if (lostRef.current) {
+      // 강제 종료(패배) — 진행률을 100으로 올리지도, 미완주 기록을 순위에 올리지도 않는다.
+      setStatus('finished');
+      return;
+    }
+    setCars(prev => prev.map(car => car.isPlayer ? { ...car, progress: 100 } : car));
     setStatus('finished');
     // 레이스는 실제 타이핑 — WPM으로 game:race 순위 제출(실제 타건 로그로 검증).
     void submitScore({
@@ -219,6 +239,25 @@ export default function RaceGamePage() {
 
   const rank = [...cars].sort((a, b) => b.progress - a.progress);
   const playerRank = rank.findIndex(c => c.isPlayer) + 1;
+
+  // 일일 퀘스트·도전과제 반영. 완주하지 못한 판(고스트가 먼저 골인)은 타이핑 결과가
+  // 없으므로 기록하지 않는다 — 없는 정확도를 지어내지 않기 위해서다.
+  // level은 achievements의 race_win 규칙(level >= 1)이 읽는 값이라 우승 시에만 1을 준다.
+  useGameResult(status === 'finished', () => {
+    const r = resultRef.current;
+    if (!r || r.totalKeystrokes === 0) return null; // 한 글자도 안 친 판은 제외
+    return {
+      gameType: 'race' as const,
+      score: Math.round(r.wpm),
+      // lostRef를 함께 본다 — 고스트가 먼저 골인한 직후 플레이어가 100%에 도달하면
+      // 동률 정렬에서 플레이어가 앞서 1등으로 잡혀 우승 도전과제가 잘못 열린다.
+      level: playerRank === 1 && !lostRef.current ? 1 : 0,
+      maxCombo: 0,
+      accuracy: r.accuracy,
+      wordsTyped: text.trim().split(/\s+/).length,
+      elapsedTime: Math.round(r.elapsedTime),
+    };
+  });
 
   if (status === 'menu') {
     return (
@@ -318,7 +357,7 @@ export default function RaceGamePage() {
       </Card>
 
       {status === 'racing' && text && (
-        <TypingArea text={text} onComplete={handleComplete} onProgress={handleProgress} />
+        <TypingArea ref={areaRef} text={text} onComplete={handleComplete} onProgress={handleProgress} />
       )}
 
       {status === 'finished' && (

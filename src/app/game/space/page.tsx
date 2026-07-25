@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useGameBgm } from '@/hooks/useGameBgm';
+import { useGameResult, hitAccuracy } from '@/hooks/useGameResult';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
 import { submitGameScore } from '@/lib/api/client';
@@ -82,6 +83,7 @@ export default function SpaceGamePage() {
   const comboRef = useRef(0);
   const shieldRef = useRef(10);
   const killCountRef = useRef(0);
+  const attemptsRef = useRef(0); // 입력 시도 횟수 — 정확도 산출용(맞힌 수 = killCountRef)
   const starsRef = useRef<Star[]>([]);
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
@@ -144,6 +146,21 @@ export default function SpaceGamePage() {
     }
   }, [status, settings.language]);
 
+  // 일일 퀘스트·도전과제에 이 판을 반영한다(한 번도 입력하지 않은 판은 제외).
+  useGameResult(status === 'gameover', () =>
+    attemptsRef.current === 0 && scoreRef.current === 0
+      ? null
+      : {
+          gameType: 'space',
+          score: scoreRef.current,
+          level: levelRef.current,
+          maxCombo,
+          accuracy: hitAccuracy(killCountRef.current, attemptsRef.current),
+          wordsTyped: killCountRef.current,
+          elapsedTime: Math.round((Date.now() - startedAtRef.current) / 1000),
+        }
+  );
+
   const startGame = () => {
     setStatus('countdown');
     startedAtRef.current = Date.now();
@@ -153,7 +170,7 @@ export default function SpaceGamePage() {
     nextIdRef.current = 0; lastSpawnRef.current = 0;
     targetRef.current = null;
     scoreRef.current = 0; levelRef.current = 1; comboRef.current = 0;
-    shieldRef.current = 10; killCountRef.current = 0;
+    shieldRef.current = 10; killCountRef.current = 0; attemptsRef.current = 0;
     freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
@@ -459,6 +476,7 @@ export default function SpaceGamePage() {
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    attemptsRef.current += 1;
 
     const trimmed = input.trim();
     const idx = enemiesRef.current.findIndex(e => !e.dying && e.text === trimmed);

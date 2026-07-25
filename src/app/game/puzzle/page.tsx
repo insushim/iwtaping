@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useGameBgm } from '@/hooks/useGameBgm';
+import { useGameResult, hitAccuracy } from '@/hooks/useGameResult';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
 import { submitGameScore } from '@/lib/api/client';
@@ -63,6 +64,7 @@ export default function PuzzleGamePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const chainEndRef = useRef<HTMLDivElement>(null);
   const startedAtRef = useRef(0);
+  const attemptsRef = useRef(0); // 입력 시도 횟수 — 정확도 산출용(맞힌 수 = totalWords)
   /** 사전 단어들의 첫 글자 집합 — 어떤 끝글자가 이어갈 수 있는지(막다른지) 판정용 */
   const dictFirstCharsRef = useRef<Set<string>>(new Set());
   const isKorean = settings.language === 'ko';
@@ -73,6 +75,21 @@ export default function PuzzleGamePage() {
       void submitGameScore('puzzle', score, Date.now() - startedAtRef.current, settings.language);
     }
   }, [status, score, settings.language]);
+
+  // 일일 퀘스트·도전과제에 이 판을 반영한다(한 번도 입력하지 않은 판은 제외).
+  useGameResult(status === 'gameover', () =>
+    attemptsRef.current === 0 && score === 0
+      ? null
+      : {
+          gameType: 'puzzle',
+          score,
+          level: 1, // 끝말잇기는 레벨 개념이 없다
+          maxCombo,
+          accuracy: hitAccuracy(totalWords, attemptsRef.current),
+          wordsTyped: totalWords,
+          elapsedTime: Math.round((Date.now() - startedAtRef.current) / 1000),
+        }
+  );
 
   // Load word pool with massive expansion
   useEffect(() => {
@@ -166,6 +183,7 @@ export default function PuzzleGamePage() {
 
     setStatus('playing');
     startedAtRef.current = Date.now();
+    attemptsRef.current = 0;
     setScore(0);
     setCombo(0);
     setMaxCombo(0);
@@ -200,6 +218,7 @@ export default function PuzzleGamePage() {
     e.preventDefault();
     const word = input.trim();
     if (!word) return;
+    attemptsRef.current += 1;
 
     const lastChar = getLastChar(currentWord);
     const firstChar = getFirstChar(word);

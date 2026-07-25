@@ -3,13 +3,11 @@
 import { useState, useEffect } from 'react';
 import { TypingArea } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
-import { useStatsStore } from '@/stores/useStatsStore';
 import { pickRandom } from '@/lib/utils/helpers';
 
 export default function AccuracyTestPage() {
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [text, setText] = useState('');
-  const recordSession = useStatsStore((s) => s.recordSession);
 
   useEffect(() => {
     (async () => {
@@ -44,7 +42,8 @@ export default function AccuracyTestPage() {
         ))}
       </div>
 
-      {text && <TypingArea text={text} onComplete={(r) => recordSession(r)} />}
+      {/* 세션 기록은 TypingArea가 단독으로 한다 — 여기서 또 부르면 2배로 쌓인다. */}
+      {text && <TypingArea text={text} />}
     </div>
   );
 }
