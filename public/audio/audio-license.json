@@ -1,0 +1,108 @@
+{
+ "entries": [
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/error.mp3",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/countdown.mp3",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/confirm.mp3",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/click.mp3",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/explosion.mp3",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/levelup.mp3",
+   "url": "https://kenney.nl/assets/digital-audio"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/combo.mp3",
+   "url": "https://kenney.nl/assets/digital-audio"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/achievement.mp3",
+   "url": "https://kenney.nl/assets/music-jingles"
+  },
+  {
+   "source": "Kenney",
+   "license": "CC0",
+   "author": "Kenney",
+   "fetched": "2026-07-25",
+   "file": "sfx/gameover.mp3",
+   "url": "https://kenney.nl/assets/music-jingles"
+  },
+  {
+   "source": "OpenGameArt",
+   "license": "CC0",
+   "author": "Alexandr Zhelanov — 5 Chiptunes (Action)",
+   "url": "https://opengameart.org/content/5-chiptunes-action",
+   "fetched": "2026-07-25",
+   "file": "bgm/action.mp3"
+  },
+  {
+   "source": "OpenGameArt",
+   "license": "CC0",
+   "author": "Alexandr Zhelanov — 5 Chiptunes (Action)",
+   "url": "https://opengameart.org/content/5-chiptunes-action",
+   "fetched": "2026-07-25",
+   "file": "bgm/focus.mp3"
+  },
+  {
+   "source": "OpenGameArt",
+   "license": "CC0",
+   "author": "Alexandr Zhelanov — 5 Chiptunes (Action)",
+   "url": "https://opengameart.org/content/5-chiptunes-action",
+   "fetched": "2026-07-25",
+   "file": "bgm/boss.mp3"
+  },
+  {
+   "source": "OpenGameArt",
+   "license": "CC0",
+   "author": "Alexandr Zhelanov — 5 Chiptunes (Action)",
+   "url": "https://opengameart.org/content/5-chiptunes-action",
+   "fetched": "2026-07-25",
+   "file": "bgm/title.mp3"
+  }
+ ]
+}

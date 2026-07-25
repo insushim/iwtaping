@@ -6,6 +6,7 @@ import { CelebrationOverlay } from './CelebrationOverlay';
 import { AchievementToast } from './AchievementToast';
 import { AccountOnboarding } from '@/components/account/AccountOnboarding';
 import { ShopApplier } from '@/components/shop/ShopApplier';
+import { AudioSettingsSync } from './AudioSettingsSync';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useMascotStore } from '@/stores/useMascotStore';
 import { useAccountStore } from '@/stores/useAccountStore';
@@ -31,6 +32,7 @@ export function GlobalOverlays() {
       <AchievementToast />
       <AccountOnboarding />
       <ShopApplier />
+      <AudioSettingsSync />
     </>
   );
 }
