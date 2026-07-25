@@ -61,9 +61,13 @@ export function getDailyChallenge(dateStr?: string): DailyChallenge {
   const templateIdx = hash % CHALLENGE_TEMPLATES.length;
   const template = CHALLENGE_TEMPLATES[templateIdx];
 
-  // Adjust target based on difficulty
-  const diffMultiplier = difficulty === 1 ? 0.7 : difficulty === 3 ? 1.3 : 1;
-  const adjustedTarget = Math.round(template.target * diffMultiplier);
+  // Adjust target based on difficulty.
+  // 정확도(%)에는 배수를 쓰면 안 된다 — 98 × 1.3 = 127%로 달성 불가능한 목표가 나오고,
+  // 쉬운 요일엔 69%가 되어 아무 의미가 없어진다. 퍼센트는 ±가감으로 좁게 조정하고 99%로 막는다.
+  const adjustedTarget =
+    template.unit === '%'
+      ? Math.min(99, template.target + (difficulty === 1 ? -3 : difficulty === 3 ? 1 : 0))
+      : Math.round(template.target * (difficulty === 1 ? 0.7 : difficulty === 3 ? 1.3 : 1));
 
   // Rewards scale with difficulty
   const xpReward = difficulty === 1 ? 50 : difficulty === 2 ? 80 : 120;
