@@ -14,7 +14,8 @@ import {
   ParticleSystem, ScreenShake,
   createStarfield, drawStarfield,
   drawRainEffect, drawWordBubble, drawShieldBar,
-  type Star,
+  wordBubbleWidth, wordBubbleHeight, resolveLabels, easeLabelShift,
+  type Star, type LabelRequest,
 } from '@/lib/game/renderer';
 
 /**
@@ -47,6 +48,8 @@ interface FallingWord {
   glowPhase: number;
   special?: boolean;
   ability?: Ability;
+  /** 겹침을 피해 가로로 비켜 놓은 거리(px). 낙하 높이(y)는 건드리지 않는다. */
+  labelShift?: number;
 }
 
 const COLORS = ['#6C5CE7', '#00D2D3', '#FF6B6B', '#FECA57', '#00B894', '#FD79A8', '#48DBFB', '#A29BFE'];
@@ -322,9 +325,10 @@ export default function RainGamePage() {
         });
       }
 
-      // Update & draw words
+      // Update & draw words — 그리기는 겹침 해소(resolveLabels) 뒤에 한다.
       const frozen = time < freezeUntilRef.current;
       const alive: FallingWord[] = [];
+      const labels: (LabelRequest & { word: FallingWord; fs: number })[] = [];
       for (const word of wordsRef.current) {
         if (!frozen) word.y += word.speed;
 
@@ -333,8 +337,9 @@ export default function RainGamePage() {
           phRef.current -= PH_DAMAGE_PER_MISS;
           setPh(phRef.current);
           shake.shake(3);
-          // Splash effect
-          particles.emit(word.x, H - 40, 10, {
+          // Splash effect — 겹침을 피해 옆으로 비켜 놓은 자리에서 터져야 한다
+          // (원본 word.x를 쓰면 눈에 보이던 물방울과 최대 120px 어긋난다).
+          particles.emit(word.x + (word.labelShift ?? 0), H - 40, 10, {
             speed: 2, life: 20, size: 3,
             colors: [word.color, '#FF6B6B'],
             spread: Math.PI, angle: -Math.PI / 2,
@@ -350,10 +355,34 @@ export default function RainGamePage() {
           continue;
         }
 
+        labels.push({
+          word,
+          fs: word.special ? 17 : 15,
+          x: word.x,
+          w: wordBubbleWidth(ctx, word.text, word.special ? 17 : 15),
+          h: wordBubbleHeight(word.special ? 17 : 15),
+          homeY: word.y,
+          // 화면 안쪽으로 비켜야 잘리지 않는다.
+          dir: word.x > W / 2 ? -1 : 1,
+          y: 0, offset: 0, prefer: word.labelShift,
+        });
+        alive.push(word);
+      }
+      wordsRef.current = alive;
+
+      // 겹친 단어는 둘 다 못 읽어서 칠 수가 없다(실측: 두 단어가 77% 겹침).
+      // y는 낙하 높이 = 게임 상태라 건드리면 안 되므로 가로로만 비켜 놓는다.
+      resolveLabels(labels, [], { canvasH: H, canvasW: W, axis: 'x', maxShift: 120, pad: 4 });
+
+      for (const L of labels) {
+        const word = L.word;
+        word.labelShift = easeLabelShift(word.labelShift, L.offset);
+        const wx = word.x + word.labelShift;
+
         // Draw word with glowing droplet style
         const glow = 0.5 + Math.sin(time * 0.003 + word.glowPhase) * 0.3;
         ctx.save();
-        ctx.translate(word.x, word.y);
+        ctx.translate(wx, word.y);
         ctx.rotate(Math.sin(time * 0.001 + word.id) * word.rotation);
 
         // Neon droplet shape
@@ -390,20 +419,18 @@ export default function RainGamePage() {
           ctx.shadowColor = '#FECA57';
           ctx.shadowBlur = 12;
           ctx.beginPath();
-          ctx.ellipse(word.x, word.y, 44, 20, 0, 0, Math.PI * 2);
+          ctx.ellipse(wx, word.y, 44, 20, 0, 0, Math.PI * 2);
           ctx.stroke();
           ctx.shadowBlur = 0;
           ctx.font = "bold 10px 'Noto Sans KR', sans-serif";
           ctx.fillStyle = meta.color;
           ctx.textAlign = 'center';
-          ctx.fillText(`${meta.icon} ${meta.label}`, word.x, word.y - 26);
+          ctx.fillText(`${meta.icon} ${meta.label}`, wx, word.y - 26);
           ctx.restore();
         }
 
-        drawWordBubble(ctx, word.x, word.y, word.text, word.color, { fontSize: word.special ? 17 : 15 });
-        alive.push(word);
+        drawWordBubble(ctx, wx, word.y, word.text, word.color, { fontSize: L.fs });
       }
-      wordsRef.current = alive;
 
       // 일시정지(freeze) 발동 중 화면 얼음 오버레이
       if (frozen) {
@@ -524,7 +551,7 @@ export default function RainGamePage() {
     } else if (ability === 'clear') {
       // 화면의 모든 단어를 정화 — 각 단어 폭발 + 보너스 점수
       for (const w of wordsRef.current) {
-        particlesRef.current.explode(w.x, w.y, 0.5);
+        particlesRef.current.explode(w.x + (w.labelShift ?? 0), w.y, 0.5);
         scoreRef.current += 20;
       }
       wordsRef.current = [];
@@ -545,7 +572,8 @@ export default function RainGamePage() {
     const idx = wordsRef.current.findIndex(w => w.text === input.trim());
     if (idx >= 0) {
       const word = wordsRef.current[idx];
-      particlesRef.current.explode(word.x, word.y, word.special ? 1.0 : 0.6);
+      // 화면에 보이던 자리(가로 비켜남 반영)에서 터뜨린다.
+      particlesRef.current.explode(word.x + (word.labelShift ?? 0), word.y, word.special ? 1.0 : 0.6);
       wordsRef.current.splice(idx, 1);
       // 특수단어는 2배 점수 + 능력 발동
       const points = input.length * 10 * (word.special ? 2 : 1);

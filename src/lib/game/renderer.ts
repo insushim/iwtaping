@@ -91,6 +91,16 @@ export function drawSprite(
 }
 
 /**
+ * 주어진 높이로 그렸을 때 스프라이트가 차지하는 너비. 라벨 배치에서 몸통 상자를
+ * 잡을 때 쓴다. 이미지가 아직 안 왔으면 fallback(절차적 그림 기준 너비)을 준다.
+ */
+export function spriteWidthFor(key: string, h: number, fallback: number): number {
+  const img = getSprite(key);
+  if (!img || !img.width || !img.height) return fallback;
+  return h * (img.width / img.height);
+}
+
+/**
  * Cover-fit a full-scene background image + optional darkening overlay for text
  * readability. Returns false if not ready (→ caller draws procedural background).
  */
@@ -1284,6 +1294,184 @@ export function drawRainEffect(ctx: CanvasRenderingContext2D, W: number, H: numb
 }
 
 // ===== WORD BUBBLE =====
+
+/** 말풍선 배경 상자의 높이 — drawWordBubble의 계산식과 반드시 같아야 한다. */
+export function wordBubbleHeight(fontSize: number): number {
+  return fontSize + 14;
+}
+
+/**
+ * 스프라이트를 가리지 않는 말풍선 중심 y를 구한다.
+ * 라벨이 몬스터 위에 겹치면 무엇을 쳐야 하는지 알아볼 수 없다
+ * (실측: 디펜스 병사 최대 97%, 우주 적기 38%, 좀비 26%가 글자에 가려졌다).
+ * 기본은 스프라이트 위쪽이고, 위로 올리면 캔버스 밖으로 나갈 때만 아래로 뒤집는다.
+ */
+export function wordBubbleY(o: {
+  /** 스프라이트 중심 y */
+  spriteY: number;
+  /** 스프라이트 높이 — 상하 애니메이션(홉·맥동) 진폭까지 포함해서 넘길 것 */
+  spriteH: number;
+  fontSize: number;
+  /** 스프라이트와 말풍선 사이 여백 */
+  gap?: number;
+  /** 주면 화면 밖으로 나가는지 판정해 반대쪽으로 뒤집는다 */
+  canvasH?: number;
+  /** 기본 배치를 스프라이트 아래쪽으로 (위에서 내려오는 적 등) */
+  below?: boolean;
+}): number {
+  const { spriteY, spriteH, fontSize, gap = 8, canvasH, below = false } = o;
+  const half = wordBubbleHeight(fontSize) / 2;
+  const above = spriteY - spriteH / 2 - gap - half;
+  const under = spriteY + spriteH / 2 + gap + half;
+  if (below) return canvasH != null && under + half > canvasH - 4 ? above : under;
+  return above - half < 4 ? under : above;
+}
+
+/** 말풍선 배경 상자의 너비 — drawWordBubble의 계산식과 반드시 같아야 한다. */
+export function wordBubbleWidth(ctx: CanvasRenderingContext2D, text: string, fontSize: number): number {
+  ctx.save();
+  ctx.font = `bold ${fontSize}px 'JetBrains Mono', 'Noto Sans KR', monospace`;
+  const w = ctx.measureText(text).width + 20;
+  ctx.restore();
+  return w;
+}
+
+export interface LabelBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /**
+   * 이 상자를 가렸을 때의 벌점 배수(기본 3 = 몬스터). 라벨끼리 겹치는 벌점이 1이므로,
+   * 1보다 작게 주면 "라벨끼리 겹치느니 차라리 이걸 덮는다"가 된다 — HUD 배경 등.
+   */
+  weight?: number;
+}
+
+export interface LabelRequest extends LabelBox {
+  /** 스프라이트 밖으로 비켜 놓은 기본 y (겹침이 없으면 이 자리에 그린다) */
+  homeY: number;
+  /** 더 밀어낼 기본 방향: -1 위 / +1 아래 */
+  dir: -1 | 1;
+  /**
+   * 직전 프레임에 쓰던 이동량. 점수가 비슷하면 이 자리를 유지해
+   * 두 후보 사이를 매 프레임 오가는 떨림을 막는다.
+   */
+  prefer?: number;
+  /** resolveLabels가 채우는 결과 — homeY로부터의 부호 있는 이동량(px) */
+  offset: number;
+}
+
+const overlapArea = (a: LabelBox, b: LabelBox) =>
+  Math.max(0, Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2)) *
+  Math.max(0, Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2));
+
+/**
+ * 말풍선이 스프라이트나 다른 말풍선을 덮지 않는 자리를 찾아 y를 밀어낸다.
+ * 자기 몸통만 피하게 하면(wordBubbleY) 적이 몰려 있을 때 라벨이 **뒤에 선 적**을
+ * 가린다 — 디펜스는 병사들이 줄지어 행진해서 특히 심했다(실측 7마리 중 4마리 가림).
+ *
+ * requests는 프레임마다 같은 순서로(엔티티 id 순 등) 넘길 것 — 순서가 흔들리면
+ * 배치가 프레임마다 뒤바뀌어 라벨이 떨린다.
+ */
+export function resolveLabels(
+  requests: LabelRequest[],
+  sprites: LabelBox[],
+  opts: {
+    canvasH: number;
+    canvasW?: number;
+    /** 밀어낼 축. 'x'는 산성비처럼 y가 곧 게임 상태(낙하 높이)라 건드리면 안 될 때 쓴다. */
+    axis?: 'x' | 'y';
+    step?: number;
+    maxShift?: number;
+    pad?: number;
+  } = { canvasH: Infinity }
+): void {
+  const { canvasH, canvasW = Infinity, axis = 'y', step = 6, maxShift = 96, pad = 8 } = opts;
+  // 몸통 상자에 여유를 준다. 적이 움직이면 최적 자리가 계속 바뀌는데 라벨은 부드럽게
+  // 따라가므로(easeLabelShift) 늘 몇 프레임 뒤처진다 — 그 지연분을 여유로 흡수한다.
+  const padded = sprites.map((s) => ({ ...s, w: s.w + pad * 2, h: s.h + pad * 2 }));
+  const placed: LabelBox[] = [];
+  for (const req of requests) {
+    let bestOffset = 0;
+    let bestScore = Infinity;
+    let clean = false;
+    for (let dist = 0; dist <= maxShift && !clean; dist += step) {
+      // 기본 방향을 먼저 보고, 그래도 자리가 없으면 반대쪽까지 본다.
+      for (const dir of dist === 0 ? [req.dir] : [req.dir, -req.dir as -1 | 1]) {
+        const moved = (axis === 'y' ? req.homeY : req.x) + dir * dist;
+        const halfAlong = axis === 'y' ? req.h / 2 : req.w / 2;
+        const limit = axis === 'y' ? canvasH : canvasW;
+        if (moved - halfAlong < 2 || moved + halfAlong > limit - 2) continue;
+        const probe: LabelBox =
+          axis === 'y'
+            ? { x: req.x, y: moved, w: req.w, h: req.h }
+            : { x: moved, y: req.homeY, w: req.w, h: req.h };
+        // 몬스터를 가리는 쪽이 라벨끼리 겹치는 것보다 훨씬 나쁘다.
+        let overlap = 0;
+        for (const s of padded) overlap += overlapArea(probe, s) * (s.weight ?? 3);
+        for (const p of placed) overlap += overlapArea(probe, p);
+        // 가깝고 기본 방향인 자리를 선호 — 완전히 빈 자리를 찾으면 더 안 본다.
+        // 직전 자리에는 이력 보너스를 줘서 후보 사이를 오가는 떨림을 없앤다.
+        const held = req.prefer != null && Math.abs(dir * dist - req.prefer) <= step / 2;
+        const score = overlap + dist * 0.5 + (dir === req.dir ? 0 : 40) - (held ? 12 : 0);
+        if (score < bestScore) {
+          bestScore = score;
+          bestOffset = dir * dist;
+          clean = overlap === 0;
+        }
+      }
+    }
+    req.offset = bestOffset;
+    req.y = axis === 'y' ? req.homeY + bestOffset : req.homeY;
+    // 이미 놓은 라벨도 같은 이유로 여유를 준다(라벨끼리 겹치면 글자를 못 읽는다).
+    placed.push({
+      x: axis === 'x' ? req.x + bestOffset : req.x,
+      y: req.y,
+      w: req.w + pad,
+      h: req.h + pad,
+    });
+  }
+}
+
+/**
+ * 목표 위치로 부드럽게 따라가게 한다. 적이 움직이면 겹침 판정이 켜졌다 꺼졌다 하는데,
+ * 그때마다 라벨이 순간이동하면 눈이 아프다.
+ */
+export function easeLabelShift(prev: number | undefined, target: number, rate = 0.4): number {
+  if (prev == null) return target;
+  return Math.abs(target - prev) < 0.5 ? target : prev + (target - prev) * rate;
+}
+
+/**
+ * 말풍선과 스프라이트를 잇는 가는 선. 말풍선을 몸통 밖으로 밀어냈으므로
+ * 어떤 적의 단어인지 선으로 묶어 준다(적이 몰려 있을 때 오인 입력 방지).
+ */
+export function drawBubbleLeader(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  spriteY: number,
+  spriteH: number,
+  bubbleY: number,
+  fontSize: number,
+  color: string = 'rgba(255,255,255,0.25)'
+) {
+  const half = wordBubbleHeight(fontSize) / 2;
+  const [y1, y2] =
+    bubbleY < spriteY
+      ? [bubbleY + half, spriteY - spriteH / 2]
+      : [spriteY + spriteH / 2, bubbleY - half];
+  if (y2 - y1 < 2) return;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y1);
+  ctx.lineTo(x, y2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawWordBubble(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, color: string, options: {
   targeted?: boolean;
   progress?: number;
@@ -1292,9 +1480,9 @@ export function drawWordBubble(ctx: CanvasRenderingContext2D, x: number, y: numb
   const { targeted = false, progress = 0, fontSize = 14 } = options;
   ctx.save();
   ctx.font = `bold ${fontSize}px 'JetBrains Mono', 'Noto Sans KR', monospace`;
-  const metrics = ctx.measureText(text);
-  const bw = metrics.width + 20;
-  const bh = fontSize + 14;
+  // 크기는 배치 계산과 같은 함수에서 받는다 — 여기서 따로 계산하면 언젠가 어긋난다.
+  const bw = wordBubbleWidth(ctx, text, fontSize);
+  const bh = wordBubbleHeight(fontSize);
 
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.3)';

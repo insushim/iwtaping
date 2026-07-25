@@ -13,7 +13,9 @@ import { submitGameScore } from '@/lib/api/client';
 import {
   ParticleSystem, ScreenShake,
   drawCastle, drawCastleDetailed, drawSoldierEnemy, drawWordBubble, drawShieldBar,
-  preloadSprites, drawSprite, drawBackgroundImage,
+  preloadSprites, drawSprite, drawBackgroundImage, wordBubbleY, wordBubbleHeight, wordBubbleWidth,
+  drawBubbleLeader, resolveLabels, easeLabelShift, spriteWidthFor,
+  type LabelBox, type LabelRequest,
 } from '@/lib/game/renderer';
 import { Ability, ABILITY_META, FREEZE_MS, rollSpecial, pickAbility, drawSpecialMarker } from '@/lib/game/special-words';
 
@@ -37,6 +39,8 @@ interface Enemy {
   dying?: boolean;
   special?: boolean;
   ability?: Ability;
+  /** 말풍선을 머리 위에서 추가로 밀어 올린 거리(px) — 프레임 간 부드럽게 따라간다 */
+  labelShift?: number;
 }
 
 interface Arrow {
@@ -359,6 +363,14 @@ export default function DefenseGamePage() {
       // Update & draw enemies
       const frozen = time < freezeUntilRef.current;
       const alive: Enemy[] = [];
+      // 말풍선은 병사를 다 그린 뒤 한꺼번에 배치한다 — 자기 몸통뿐 아니라
+      // 뒤에 선 병사·성·다른 말풍선까지 피해야 해서 전체 상자를 알아야 한다.
+      const spriteBoxes: LabelBox[] = [
+        { x: W - 100, y: H * 0.75 - 72, w: spriteWidthFor('defense-castle', 150, 120), h: 150 },
+        // 상단 HUD(점수·웨이브·골드)도 라벨이 덮으면 안 된다.
+        { x: W / 2, y: 28, w: W, h: 56, weight: 0.8 },
+      ];
+      const labels: (LabelRequest & { e: Enemy; fs: number })[] = [];
       for (const e of enemiesRef.current) {
         if (!e.dying && !frozen) {
           e.x += e.speed; // 오른쪽(성)으로 행군
@@ -395,7 +407,8 @@ export default function DefenseGamePage() {
         // 절차적 행진: 발걸음 상하 홉(bob) + 몸통 좌우 흔들림(sway) — 전진하는 병사 느낌
         const bob = Math.abs(Math.sin(walkPhase)) * 3;
         const sway = Math.sin(walkPhase) * 0.09;
-        if (!drawSprite(ctx, 'defense-enemy', e.x, e.y - 8 - bob, { h: e.type === 2 ? 56 : 44, rotate: sway })) {
+        const spriteH = e.type === 2 ? 56 : 44;
+        if (!drawSprite(ctx, 'defense-enemy', e.x, e.y - 8 - bob, { h: spriteH, rotate: sway })) {
           drawSoldierEnemy(ctx, e.x, e.y, e.type, walkPhase, time);
         }
 
@@ -403,14 +416,40 @@ export default function DefenseGamePage() {
 
         // Word bubble — keep visible until the arrow hits (dying enemies too),
         // so the word and the soldier explode together on impact.
-        // 특수 병사: 금빛 후광 링 + 능력 라벨
-        if (e.special && e.ability) {
-          drawSpecialMarker(ctx, e.x, e.y - 8, e.ability, time, e.id);
-        }
-        drawWordBubble(ctx, e.x, e.y - 30, e.text, e.color, { fontSize: e.special ? 15 : 13 });
+        // 말풍선은 병사 머리 위로 완전히 비켜 놓는다 — 예전엔 몸통 위에 겹쳐 그려서
+        // 병사가 거의 안 보였다(실측 최대 97% 가림). bob 진폭(3)까지 높이에 더해
+        // 라벨은 흔들리지 않으면서도 항상 스프라이트 밖에 뜬다.
+        const fs = e.special ? 15 : 13;
+        const boxH = spriteH + 6;
+        const bh = wordBubbleHeight(fs);
+        const home = wordBubbleY({ spriteY: e.y - 8, spriteH: boxH, fontSize: fs, canvasH: H });
+        // +6은 sway(좌우 기울임)로 넓어지는 몫 — 상자를 넉넉히 잡아야 라벨이 안 걸친다.
+        spriteBoxes.push({ x: e.x, y: e.y - 8, w: spriteWidthFor('defense-enemy', spriteH, 32) + 6, h: boxH });
+        labels.push({
+          e, fs,
+          x: e.x,
+          w: wordBubbleWidth(ctx, e.text, fs),
+          h: bh,
+          homeY: home,
+          // 화면 위쪽이 좁아 아래로 뒤집힌 경우엔 밀어내는 방향도 같이 뒤집는다.
+          y: 0, dir: home < e.y - 8 ? -1 : 1, offset: 0, prefer: e.labelShift,
+        });
         alive.push(e);
       }
       enemiesRef.current = alive;
+
+      // 라벨 배치 — 병사·다른 라벨을 피해 위로 밀어 올린다.
+      resolveLabels(labels, spriteBoxes, { canvasH: H, maxShift: 150 });
+      for (const L of labels) {
+        L.e.labelShift = easeLabelShift(L.e.labelShift, L.offset);
+        const y = L.homeY + L.e.labelShift;
+        drawBubbleLeader(ctx, L.x, L.e.y - 8, L.e.type === 2 ? 62 : 50, y, L.fs);
+        // 특수 병사: 금빛 후광 링 + 능력 라벨(말풍선 위로)
+        if (L.e.special && L.e.ability) {
+          drawSpecialMarker(ctx, L.e.x, L.e.y - 8, L.e.ability, time, L.e.id, y - L.h / 2 - 7);
+        }
+        drawWordBubble(ctx, L.x, y, L.e.text, L.e.color, { fontSize: L.fs });
+      }
 
       // Update & draw arrows (arrows hit dying enemies)
       const aliveArrows: Arrow[] = [];

@@ -39,6 +39,8 @@ export function drawSpecialMarker(
   ability: Ability,
   time: number,
   seed: number,
+  /** 능력 라벨의 절대 y. 말풍선을 몸통 밖으로 옮긴 게임은 그 위쪽 좌표를 넘긴다. */
+  labelY?: number,
 ): void {
   const meta = ABILITY_META[ability];
   ctx.save();
@@ -54,6 +56,6 @@ export function drawSpecialMarker(
   ctx.font = "bold 10px 'Noto Sans KR', sans-serif";
   ctx.fillStyle = meta.color;
   ctx.textAlign = 'center';
-  ctx.fillText(`${meta.icon} ${meta.label}`, x, y - 30);
+  ctx.fillText(`${meta.icon} ${meta.label}`, x, labelY ?? y - 30);
   ctx.restore();
 }

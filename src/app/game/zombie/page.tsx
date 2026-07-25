@@ -14,7 +14,9 @@ import {
   ParticleSystem, ScreenShake,
   drawWordBubble, drawShieldBar, drawHUD,
   drawZombieSprite, drawPlayerCharacter, drawMoonlight, drawCityscape,
-  preloadSprites, drawSprite, drawBackgroundImage,
+  preloadSprites, drawSprite, drawBackgroundImage, wordBubbleY, wordBubbleHeight, wordBubbleWidth,
+  drawBubbleLeader, resolveLabels, easeLabelShift, spriteWidthFor,
+  type LabelBox, type LabelRequest,
 } from '@/lib/game/renderer';
 import { Ability, ABILITY_META, FREEZE_MS, rollSpecial, pickAbility, drawSpecialMarker } from '@/lib/game/special-words';
 
@@ -37,6 +39,8 @@ interface Zombie {
   spawnTime: number;
   special?: boolean;
   ability?: Ability;
+  /** 말풍선을 기본 위치에서 추가로 밀어낸 거리(px) — 프레임 간 부드럽게 따라간다 */
+  labelShift?: number;
 }
 
 export default function ZombieGamePage() {
@@ -349,6 +353,14 @@ export default function ZombieGamePage() {
       // Update & draw zombies
       const frozen = time < freezeUntilRef.current;
       const alive: Zombie[] = [];
+      // 주인공도 가리면 안 된다 — 좀비가 중앙으로 몰리면 라벨이 주인공 위에 쌓인다.
+      // 상단 HUD(점수·웨이브·킬)와 하단 정보줄도 같은 이유로 비켜야 할 영역이다.
+      const spriteBoxes: LabelBox[] = [
+        { x: cx, y: playerY, w: spriteWidthFor('zombie-hero', 72, 44), h: 72 },
+        { x: W / 2, y: 26, w: W, h: 52, weight: 0.8 },
+        { x: W / 2, y: H - 30, w: W, h: 44, weight: 0.8 },
+      ];
+      const labels: (LabelRequest & { z: Zombie; fs: number; spriteH: number; fade: number })[] = [];
       for (const z of zombiesRef.current) {
         const a = Math.atan2(playerY - z.y, cx - z.x);
         if (!frozen) {
@@ -402,35 +414,53 @@ export default function ZombieGamePage() {
           ctx.fill();
         }
 
-        // Word bubble with connection line
-        const bubbleY = z.y - (size + 15);
-
-        // Thin line connecting bubble to zombie
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(z.x, z.y - size/2);
-        ctx.lineTo(z.x, bubbleY + 8);
-        ctx.stroke();
-
-        // 특수 좀비: 금빛 후광 링 + 능력 라벨
-        if (z.special && z.ability) {
-          drawSpecialMarker(ctx, z.x, z.y, z.ability, time, z.id);
-        }
-
-        // Enhanced word bubble for targeted zombie
-        const isTargeted = input.trim().length > 0 && z.text.startsWith(input.trim());
-        if (isTargeted) {
-          ctx.shadowColor = z.color;
-          ctx.shadowBlur = 10;
-        }
-
-        drawWordBubble(ctx, z.x, bubbleY, z.text, z.color, { fontSize: z.special ? 15 : 13 });
-        ctx.shadowBlur = 0;
+        // 말풍선은 좀비를 다 그린 뒤 한꺼번에 배치한다(아래 resolveLabels).
+        // 스프라이트 높이는 size*3, 여기에 hop 진폭(size*0.16)까지 더해 비켜 놓는다 —
+        // 예전 위치(z.y - size - 15)는 좀비 머리 위에 걸쳐 그려졌다(실측 26% 가림).
+        const fs = z.special ? 15 : 13;
+        const spriteH = size * 3.32;
+        const home = wordBubbleY({ spriteY: z.y, spriteH, fontSize: fs, canvasH: H });
+        spriteBoxes.push({
+          x: z.x, y: z.y,
+          w: spriteWidthFor('zombie-mob', size * 3, size * 2) + 6, // +6 = lurch로 넓어지는 몫
+          h: spriteH,
+        });
+        labels.push({
+          z, fs, spriteH, fade: fadeIn,
+          x: z.x,
+          w: wordBubbleWidth(ctx, z.text, fs),
+          h: wordBubbleHeight(fs),
+          homeY: home,
+          // 화면 위쪽이 좁아 아래로 뒤집힌 경우엔 밀어내는 방향도 같이 뒤집는다.
+          y: 0, dir: home < z.y ? -1 : 1, offset: 0, prefer: z.labelShift,
+        });
         ctx.globalAlpha = 1;
         alive.push(z);
       }
       zombiesRef.current = alive;
+
+      // 라벨 배치 — 좀비·다른 라벨을 피해 밀어낸다.
+      // 좀비는 주인공 한 점으로 몰려들어 같은 세로줄에 라벨이 쌓인다 —
+      // 다른 게임보다 더 멀리까지 자리를 찾게 둔다(연결선이 있어 추적 가능).
+      resolveLabels(labels, spriteBoxes, { canvasH: H, maxShift: 230 });
+      for (const L of labels) {
+        L.z.labelShift = easeLabelShift(L.z.labelShift, L.offset);
+        const y = L.homeY + L.z.labelShift;
+        ctx.globalAlpha = L.fade;
+        drawBubbleLeader(ctx, L.x, L.z.y, L.spriteH, y, L.fs, 'rgba(255,255,255,0.2)');
+        // 특수 좀비: 금빛 후광 링 + 능력 라벨(말풍선 바깥쪽)
+        if (L.z.special && L.z.ability) {
+          drawSpecialMarker(ctx, L.z.x, L.z.y, L.z.ability, time, L.z.id, y - L.h / 2 - 7);
+        }
+        // Enhanced word bubble for targeted zombie
+        if (input.trim().length > 0 && L.z.text.startsWith(input.trim())) {
+          ctx.shadowColor = L.z.color;
+          ctx.shadowBlur = 10;
+        }
+        drawWordBubble(ctx, L.x, y, L.z.text, L.z.color, { fontSize: L.fs });
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
 
       // Particles
       particles.update();
