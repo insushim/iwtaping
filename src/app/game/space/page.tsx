@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
+import { useGameBgm } from '@/hooks/useGameBgm';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
 import { submitGameScore } from '@/lib/api/client';
@@ -56,6 +57,7 @@ export default function SpaceGamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover'>('menu');
+  useGameBgm('boss', status === 'countdown' || status === 'playing');
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);

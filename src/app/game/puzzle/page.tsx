@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
+import { useGameBgm } from '@/hooks/useGameBgm';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
 import { submitGameScore } from '@/lib/api/client';
@@ -45,6 +46,7 @@ const ENGLISH_WORD = /^[a-zA-Z]+$/;
 export default function PuzzleGamePage() {
   const { settings } = useSettingsStore();
   const [status, setStatus] = useState<'menu' | 'playing' | 'gameover'>('menu');
+  useGameBgm('focus', status === 'playing');
   const [score, setScore] = useState(0);
   const [chain, setChain] = useState<WordEntry[]>([]);
   const [currentWord, setCurrentWord] = useState('');

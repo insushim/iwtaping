@@ -10,6 +10,7 @@ import { submitScore } from '@/lib/api/client';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { generateKoreanSentence, generateEnglishSentence } from '@/lib/content/word-generator';
 import { fetchRaceGhosts, fetchLeaderboard } from '@/lib/api/client';
+import { useGameBgm } from '@/hooks/useGameBgm';
 
 interface Car {
   name: string;
@@ -42,6 +43,7 @@ const ghostFinishMs = (wpm: number, textLen: number): number =>
 export default function RaceGamePage() {
   const { settings } = useSettingsStore();
   const [status, setStatus] = useState<'menu' | 'countdown' | 'racing' | 'finished'>('menu');
+  useGameBgm('action', status === 'countdown' || status === 'racing');
   const [text, setText] = useState('');
   const [cars, setCars] = useState<Car[]>([]);
   const [countdown, setCountdown] = useState(3);

@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
+import { useGameBgm } from '@/hooks/useGameBgm';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
@@ -50,6 +51,7 @@ export default function DefenseGamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'menu' | 'countdown' | 'playing' | 'gameover'>('menu');
+  useGameBgm('action', status === 'countdown' || status === 'playing');
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
   const [gold, setGold] = useState(0);
