@@ -14,8 +14,9 @@ import {
   createStarfield, drawStarfield, drawNebula, drawSpaceBackground,
   drawPlayerShip, drawEnemyShip, drawLaser, drawMissile,
   drawShieldBar, drawHUD, drawWordBubble,
-  preloadSprites, drawSprite, drawBackgroundImage,
-  type Star,
+  preloadSprites, drawSprite, drawBackgroundImage, wordBubbleY, wordBubbleHeight, wordBubbleWidth,
+  drawBubbleLeader, resolveLabels, easeLabelShift, spriteWidthFor,
+  type Star, type LabelBox, type LabelRequest,
 } from '@/lib/game/renderer';
 import { Ability, ABILITY_META, FREEZE_MS, rollSpecial, pickAbility, drawSpecialMarker } from '@/lib/game/special-words';
 
@@ -42,6 +43,8 @@ interface Enemy {
   dying?: boolean;
   special?: boolean;
   ability?: Ability;
+  /** 말풍선을 기본 위치에서 추가로 밀어낸 거리(px) — 프레임 간 부드럽게 따라간다 */
+  labelShift?: number;
 }
 
 interface Projectile {
@@ -297,6 +300,14 @@ export default function SpaceGamePage() {
       // === UPDATE & DRAW ENEMIES ===
       const frozen = time < freezeUntilRef.current;
       const alive: Enemy[] = [];
+      // 내 기체도 가리면 안 된다 — 적이 중앙으로 몰리면 라벨이 그 위에 쌓인다.
+      const spriteBoxes: LabelBox[] = [
+        { x: cx, y: hoverY, w: spriteWidthFor('space-player', 88, 50), h: 88 },
+        // 상단 HUD(점수·레벨)·하단 정보줄(방어막·격파)도 라벨이 덮으면 안 된다.
+        { x: cx, y: 26, w: W, h: 52, weight: 0.8 },
+        { x: cx, y: H - 26, w: W, h: 48, weight: 0.8 },
+      ];
+      const labels: (LabelRequest & { e: Enemy; fs: number; spriteH: number; alpha: number })[] = [];
       for (const e of enemiesRef.current) {
         if (!e.dying && !frozen) {
           e.x += Math.cos(e.angle) * e.speed;
@@ -341,16 +352,27 @@ export default function SpaceGamePage() {
           ctx.restore();
         }
 
-        // Draw word bubble — keep visible (dying enemies too) until the missile
-        // hits and removes the enemy, so the word and the ship explode together.
-        const isTargeted = targetRef.current === e.id;
-        // 특수 적기: 금빛 후광 링 + 능력 라벨
-        if (e.special && e.ability) {
-          drawSpecialMarker(ctx, e.x, e.y, e.ability, time, e.id);
-        }
-        drawWordBubble(ctx, e.x, e.y + (e.isBoss ? 30 : 20) * scale, e.text, e.color, {
-          targeted: isTargeted,
-          fontSize: e.isBoss ? 16 : e.special ? 16 : 14,
+        // Word bubble — 배치는 적기를 다 그린 뒤 한꺼번에(아래 resolveLabels).
+        // 예전 위치는 기체 하단에 겹쳐 적기를 알아보기 어려웠다(실측 38% 가림).
+        // 보스는 체력바(기체 아래 40~52)까지 피하도록 여백을 더 준다.
+        const fs = e.isBoss ? 16 : e.special ? 16 : 14;
+        const spriteH = 40 * scale;
+        const home = wordBubbleY({
+          spriteY: e.y, spriteH, fontSize: fs, gap: e.isBoss ? 26 : 9, canvasH: H, below: true,
+        });
+        spriteBoxes.push({
+          x: e.x, y: e.y,
+          w: spriteWidthFor('space-enemy', spriteH, 40 * scale) + 6, // +6 = wobble로 넓어지는 몫
+          h: e.isBoss ? spriteH + 24 : spriteH, // 보스는 체력바까지 몸통으로 친다
+        });
+        labels.push({
+          e, fs, spriteH, alpha: ctx.globalAlpha,
+          x: e.x,
+          w: wordBubbleWidth(ctx, e.text, fs),
+          h: wordBubbleHeight(fs),
+          homeY: home,
+          // 화면 아래쪽이 좁아 위로 뒤집힌 경우엔 밀어내는 방향도 같이 뒤집는다.
+          y: 0, dir: home > e.y ? 1 : -1, offset: 0, prefer: e.labelShift,
         });
 
         // Boss health bar
@@ -359,7 +381,7 @@ export default function SpaceGamePage() {
         }
 
         // Aiming laser — only while the enemy is still typeable (not yet hit)
-        if (!e.dying && isTargeted && e.typed.length > 0) {
+        if (!e.dying && targetRef.current === e.id && e.typed.length > 0) {
           drawLaser(ctx, cx, cy - 20, e.x, e.y, time, '#00D2D3');
           particles.laserHit(e.x, e.y);
         }
@@ -368,6 +390,24 @@ export default function SpaceGamePage() {
         alive.push(e);
       }
       enemiesRef.current = alive;
+
+      // 라벨 배치 — 적기·다른 라벨을 피해 밀어낸다.
+      resolveLabels(labels, spriteBoxes, { canvasH: H, maxShift: 150 });
+      for (const L of labels) {
+        L.e.labelShift = easeLabelShift(L.e.labelShift, L.offset);
+        const y = L.homeY + L.e.labelShift;
+        ctx.globalAlpha = L.alpha;
+        drawBubbleLeader(ctx, L.x, L.e.y, L.spriteH, y, L.fs);
+        // 특수 적기: 금빛 후광 링 + 능력 라벨(말풍선 반대쪽)
+        if (L.e.special && L.e.ability) {
+          drawSpecialMarker(ctx, L.e.x, L.e.y, L.e.ability, time, L.e.id, L.e.y - L.spriteH / 2 - 8);
+        }
+        drawWordBubble(ctx, L.x, y, L.e.text, L.e.color, {
+          targeted: targetRef.current === L.e.id,
+          fontSize: L.fs,
+        });
+        ctx.globalAlpha = 1;
+      }
 
       // === UPDATE PROJECTILES ===
       const aliveProjectiles: Projectile[] = [];

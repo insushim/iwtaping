@@ -3,6 +3,7 @@ import { render, cleanup } from '@testing-library/react';
 import { CrossTabSync } from '@/components/common/CrossTabSync';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useQuestStore } from '@/stores/useQuestStore';
+import { getToday } from '@/lib/utils/helpers';
 
 /**
  * 다른 탭의 진행도 변경을 이 탭이 따라오는지, 그리고 재하이드레이트가
@@ -92,7 +93,9 @@ describe('CrossTabSync', () => {
 
   it('퀘스트 진행도도 따라온다', () => {
     render(<CrossTabSync />);
-    const today = new Date().toISOString().slice(0, 10);
+    // 앱은 로컬 날짜(getToday)로 하루를 가른다. UTC ISO 날짜를 쓰면 한국 시간
+    // 00~09시 사이엔 "어제 기록"으로 취급돼 초기화되고 테스트가 깨진다(실측).
+    const today = getToday();
     const q = JSON.stringify({ date: today, progress: { games: 2 }, claimed: [] });
     localStorage.setItem('typingverse-quests', q);
     fireStorage('typingverse-quests', null, q);
