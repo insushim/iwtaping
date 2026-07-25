@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 game-assets-src/
+
+# wrangler pages dev 로컬 산출물
+.wrangler/
