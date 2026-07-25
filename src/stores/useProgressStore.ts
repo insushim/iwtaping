@@ -100,6 +100,31 @@ const defaultProgress: ProgressState = {
 };
 
 /**
+ * 저장본이 손상됐거나 조작된 경우를 막는다.
+ * `xp: 1e400`은 파싱되면 Infinity가 되어 addXP의 레벨업 루프가 끝나지 않고,
+ * pendingRewards가 배열이 아니면 오버레이 렌더가 매번 예외를 던진다.
+ */
+function sanitizeProgress(p: ProgressState): ProgressState {
+  const num = (v: unknown, fallback: number, min = 0) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(min, v) : fallback;
+  return {
+    ...p,
+    xp: num(p.xp, 0),
+    level: Math.max(1, Math.floor(num(p.level, 1, 1))),
+    coins: Math.floor(num(p.coins, 0)),
+    streakDays: Math.floor(num(p.streakDays, 0)),
+    totalXpEarned: num(p.totalXpEarned, 0),
+    freezes: Math.floor(num(p.freezes, 0)),
+    pendingLevelUp:
+      typeof p.pendingLevelUp === 'number' && Number.isFinite(p.pendingLevelUp)
+        ? p.pendingLevelUp
+        : null,
+    pendingRewards: Array.isArray(p.pendingRewards) ? p.pendingRewards : [],
+    lastActiveDate: typeof p.lastActiveDate === 'string' ? p.lastActiveDate : '',
+  };
+}
+
+/**
  * 구버전 저장값 보정.
  * 방문만으로 쌓인 스트릭은 근거가 없으므로, 마지막 활동일을 기준으로
  * "오늘/어제면 1일, 그 밖이면 0일"로 되돌린다(과대계상 승계 방지).
@@ -108,7 +133,7 @@ export function migrateProgress(saved: Partial<ProgressState>): ProgressState {
   // 버전은 반드시 "저장된 값"에서 읽어야 한다.
   // 병합 후에 읽으면 기본값의 최신 버전이 섞여 들어와 마이그레이션이 건너뛰어진다.
   const savedVersion = saved.schemaVersion ?? 1;
-  const merged = { ...defaultProgress, ...saved };
+  const merged = sanitizeProgress({ ...defaultProgress, ...saved });
   if (savedVersion >= PROGRESS_SCHEMA_VERSION) return merged;
 
   const today = getToday();
@@ -118,20 +143,46 @@ export function migrateProgress(saved: Partial<ProgressState>): ProgressState {
   return { ...merged, streakDays, schemaVersion: PROGRESS_SCHEMA_VERSION };
 }
 
+/**
+ * 저장된 진행도를 진실원으로 읽는다.
+ *
+ * 코인·XP는 여러 탭이 같은 localStorage를 공유한다. 메모리 상태만 보고 전체 객체를
+ * 저장하면, 다른 탭이 방금 올린 XP·코인을 낡은 값으로 되돌린다(lost update).
+ * 모든 변경 함수는 이 함수로 읽고 그 위에 더한다 — "절대값 덮어쓰기 금지" 원칙.
+ *
+ * ⚠️ 완전한 원자성은 아니다. localStorage에는 compare-and-set이 없어, 두 탭이
+ * 같은 순간에 쓰면 나중 쓰기가 이긴다. 다만 읽기와 쓰기 사이가 동기 코드 몇 줄로
+ * 좁아져 실제 충돌 확률이 크게 낮아진다.
+ */
+function readProgress(fallback: ProgressState): ProgressState {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return fallback;
+    return migrateProgress(JSON.parse(saved));
+  } catch {
+    return fallback;
+  }
+}
+
 export const useProgressStore = create<ProgressStore>((set, get) => ({
   progress: defaultProgress,
 
   addXP: (amount: number) => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     let { xp, level, coins } = prev;
 
-    const actualXP = Math.floor(amount * streakMultiplier(prev.streakDays));
+    const raw = Math.floor(amount * streakMultiplier(prev.streakDays));
+    // 유한하지 않거나 음수인 입력이 들어오면 XP가 Infinity/NaN이 되어 아래 루프가
+    // 끝나지 않는다. 한 번에 오를 수 있는 양도 상식선으로 묶는다.
+    const actualXP = Number.isFinite(raw) ? Math.min(Math.max(0, raw), 100_000) : 0;
     xp += actualXP;
 
-    // Check level up
+    // Check level up (레벨업은 한 번에 최대 100단계 — 손상된 값으로 인한 무한 루프 방지)
     let newLevel = level;
     const rewards: Reward[] = [];
-    while (xp >= xpForLevel(newLevel)) {
+    let guard = 0;
+    while (xp >= xpForLevel(newLevel) && guard++ < 100) {
       xp -= xpForLevel(newLevel);
       newLevel++;
       // Coin bonus on level up
@@ -167,7 +218,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
 
   addCoins: (amount: number) => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     const newProgress = { ...prev, coins: prev.coins + amount };
     set({ progress: newProgress });
     if (typeof window !== 'undefined') {
@@ -176,7 +227,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
 
   spendCoins: (amount: number) => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     if (prev.coins < amount) return false;
     const newProgress = { ...prev, coins: prev.coins - amount };
     set({ progress: newProgress });
@@ -188,7 +239,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
 
   // 진입 시 만료 확인 전용 — 방문만으로는 스트릭이 오르지 않는다.
   checkStreak: () => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     const today = getToday();
     const next = expireStreakIfLapsed(
       { streakDays: prev.streakDays, lastPracticeDate: prev.lastActiveDate, freezes: prev.freezes },
@@ -216,7 +267,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
 
   // 연습 세션 완료 시에만 스트릭 증가 (단일 원장)
   recordPracticeDay: () => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     const today = getToday();
     const next = advanceStreak(
       { streakDays: prev.streakDays, lastPracticeDate: prev.lastActiveDate },
@@ -232,7 +283,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
 
   clearLevelUp: () => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     const newProgress = { ...prev, pendingLevelUp: null };
     set({ progress: newProgress });
     if (typeof window !== 'undefined') {
@@ -241,7 +292,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
 
   clearRewards: () => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     const newProgress = { ...prev, pendingRewards: [] };
     set({ progress: newProgress });
     if (typeof window !== 'undefined') {
@@ -266,7 +317,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
 
   syncFromServer: (wallet) => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     if (
       !Number.isFinite(wallet.coins) ||
       !Number.isFinite(wallet.xp) ||
@@ -299,7 +350,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
 
   buyFreeze: () => {
-    const prev = get().progress;
+    const prev = readProgress(get().progress);
     if (prev.freezes >= MAX_FREEZES) return false;
     if (prev.coins < FREEZE_COST) return false;
 

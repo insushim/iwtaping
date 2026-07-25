@@ -38,16 +38,17 @@ describe('CrossTabSync', () => {
     spy.mockRestore();
   });
 
-  it('같은 값을 두 번 받으면 두 번째는 무시한다', () => {
+  it('저장본이 진실원 — 같은 값이 다시 와도 저장본 기준으로 맞춘다', () => {
     render(<CrossTabSync />);
     localStorage.setItem('typingverse-progress', progressJson(70));
     fireStorage('typingverse-progress', progressJson(0), progressJson(70));
     expect(useProgressStore.getState().progress.coins).toBe(70);
 
-    // 이 탭이 임의로 값을 바꾼 뒤 같은 newValue가 또 와도 되돌리지 않는다
+    // 메모리만 어긋난 상태에서 같은 이벤트가 또 오면 저장본으로 되맞춘다.
+    // (이전 구현은 "이미 반영한 값"이라며 건너뛰어 메모리와 저장본이 갈라졌다)
     useProgressStore.setState({ progress: { ...useProgressStore.getState().progress, coins: 999 } });
     fireStorage('typingverse-progress', progressJson(0), progressJson(70));
-    expect(useProgressStore.getState().progress.coins).toBe(999);
+    expect(useProgressStore.getState().progress.coins).toBe(70);
   });
 
   it('감시하지 않는 키는 무시한다', () => {
@@ -58,11 +59,27 @@ describe('CrossTabSync', () => {
     spy.mockRestore();
   });
 
-  it('clear()(key=null)면 전부 다시 읽는다', () => {
+  it('clear()(key=null)면 초기 상태로 되돌린다', () => {
     render(<CrossTabSync />);
-    localStorage.setItem('typingverse-progress', progressJson(42));
+    useProgressStore.setState({ progress: { ...useProgressStore.getState().progress, coins: 42 } });
     fireStorage(null as unknown as string, null, null);
-    expect(useProgressStore.getState().progress.coins).toBe(42);
+    expect(useProgressStore.getState().progress.coins).toBe(0);
+  });
+
+  it('다른 탭이 항목을 지우면(newValue=null) 초기화한다', () => {
+    render(<CrossTabSync />);
+    useProgressStore.setState({ progress: { ...useProgressStore.getState().progress, coins: 88 } });
+    fireStorage('typingverse-progress', progressJson(88), null);
+    expect(useProgressStore.getState().progress.coins).toBe(0);
+  });
+
+  it('상점 지출(spent)도 따라온다 — 빠지면 탭 간 이중 구매가 된다', async () => {
+    const { useShopStore } = await import('@/stores/useShopStore');
+    render(<CrossTabSync />);
+    const shop = JSON.stringify({ owned: ['default', 'skin-default'], equippedSound: 'default', equippedSkin: 'skin-default', spent: 150 });
+    localStorage.setItem('typingverse-shop', shop);
+    fireStorage('typingverse-shop', null, shop);
+    expect(useShopStore.getState().shop.spent).toBe(150);
   });
 
   it('언마운트하면 리스너가 제거된다', () => {

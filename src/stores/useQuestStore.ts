@@ -53,6 +53,12 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
     set({ state: next });
     saveProgress(next);
 
+    // 저장 직후 다시 읽어 우리 수령 기록이 실제로 남았는지 확인한다.
+    // 다른 탭이 같은 순간에 저장해 우리 기록을 덮었다면 지급하지 않는다
+    // (localStorage에는 compare-and-set이 없어 이 재확인이 최선의 방어다).
+    const confirmed = loadProgress();
+    if (!isClaimed(quest, confirmed)) return null;
+
     // 보상 지급은 진행도 저장 이후에 — 중복 지급을 막기 위해 claimed가 먼저 확정돼야 한다
     useProgressStore.getState().addXP(quest.xpReward);
     useProgressStore.getState().addCoins(quest.coinReward);
