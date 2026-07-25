@@ -70,6 +70,9 @@ export const useShopStore = create<ShopStore>((set, get) => ({
   buy: (id: string) => {
     const def = findItem(id);
     if (!def) return 'invalid';
+    // 저장본을 다시 읽고 판정한다 — 다른 탭에서 이미 쓴 지출(spent)을 못 보면
+    // 같은 코인으로 양쪽에서 각각 구매하는 이중지출이 된다.
+    get().load();
     const { shop } = get();
     if (shop.owned.includes(id)) return 'owned';
     if (get().availableCoins() < def.price) return 'insufficient';
