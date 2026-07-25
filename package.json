@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && tsc -p functions/tsconfig.json"
+    "typecheck": "tsc --noEmit && tsc -p functions/tsconfig.json",
+    "dict:filter": "node scripts/filter-dictionary.mjs",
+    "dict:check": "node scripts/filter-dictionary.mjs --check"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
