@@ -1,4 +1,4 @@
-const CACHE_NAME = 'typingverse-v22';
+const CACHE_NAME = 'typingverse-v23';
 const STATIC_ASSETS = [
   '/',
   '/practice/',
@@ -30,8 +30,17 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests - Cache API does not support HEAD/POST
   if (event.request.method !== 'GET') return;
 
-  // Don't cache _next/static chunks - they change every build
   const url = new URL(event.request.url);
+
+  // 교차 출처 요청(웹폰트 CDN 등)은 SW가 절대 건드리지 않는다.
+  // <link rel=stylesheet>는 no-cors 요청이라 SW 안에서 fetch()하면 opaque 응답이 되고,
+  // opaque 응답은 MIME 타입을 읽을 수 없어 브라우저가 "Refused to apply style"로 거부한다.
+  // → 첫 페이지 이후 모든 페이지에서 Pretendard·Outfit·JetBrains Mono가 전부 사라졌다(실측).
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Don't cache _next/static chunks - they change every build
   if (url.pathname.startsWith('/_next/static/chunks/')) {
     return;
   }

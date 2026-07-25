@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useGameBgm } from '@/hooks/useGameBgm';
+import { useGameResult, hitAccuracy } from '@/hooks/useGameResult';
 import { pickRandom, randomBetween } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
@@ -15,6 +16,14 @@ import {
   drawRainEffect, drawWordBubble, drawShieldBar,
   type Star,
 } from '@/lib/game/renderer';
+
+/**
+ * 단어를 놓쳐 바닥에 닿을 때 깎이는 pH. 시작 pH가 10.0이므로 13번 놓치면 게임오버다.
+ * 형제 게임의 실수 허용치(좀비 10·우주 10·디펜스 20)에 맞춘 값 — 이전 0.3은 34회라
+ * 무입력 방치 시 게임오버까지 183초 걸렸다(0.8 적용 후 78초, 둘 다 실측).
+ * 오답 입력으로는 깎이지 않는다. 맞히면 손실이 없으므로 실제 체감은 더 관대하다.
+ */
+const PH_DAMAGE_PER_MISS = 0.8;
 
 /** 특수단어(어려운 단어)를 맞히면 발동하는 능력. */
 type Ability = 'freeze' | 'clear' | 'heal';
@@ -70,6 +79,7 @@ export default function RainGamePage() {
   const comboRef = useRef(0);
   const phRef = useRef(10.0);
   const killRef = useRef(0);
+  const attemptsRef = useRef(0); // 입력 시도 횟수 — 정확도 산출용(맞힌 수 = killRef)
   const starsRef = useRef<Star[]>([]);
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
@@ -127,6 +137,21 @@ export default function RainGamePage() {
     }
   }, [status, settings.language]);
 
+  // 일일 퀘스트·도전과제에 이 판을 반영한다(한 번도 입력하지 않은 판은 제외).
+  useGameResult(status === 'gameover', () =>
+    attemptsRef.current === 0 && scoreRef.current === 0
+      ? null
+      : {
+          gameType: 'rain',
+          score: scoreRef.current,
+          level: levelRef.current,
+          maxCombo,
+          accuracy: hitAccuracy(killRef.current, attemptsRef.current),
+          wordsTyped: killRef.current,
+          elapsedTime: Math.round((Date.now() - startedAtRef.current) / 1000),
+        }
+  );
+
   const startGame = () => {
     setStatus('countdown');
     startedAtRef.current = Date.now();
@@ -134,7 +159,7 @@ export default function RainGamePage() {
     setInput(''); setDestroyCount(0);
     wordsRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;
     scoreRef.current = 0; levelRef.current = 1; comboRef.current = 0; phRef.current = 10.0;
-    killRef.current = 0;
+    killRef.current = 0; attemptsRef.current = 0;
     freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
@@ -305,7 +330,7 @@ export default function RainGamePage() {
 
         // Ground hit
         if (word.y > H - 50) {
-          phRef.current -= 0.3;
+          phRef.current -= PH_DAMAGE_PER_MISS;
           setPh(phRef.current);
           shake.shake(3);
           // Splash effect
@@ -516,6 +541,7 @@ export default function RainGamePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    attemptsRef.current += 1;
     const idx = wordsRef.current.findIndex(w => w.text === input.trim());
     if (idx >= 0) {
       const word = wordsRef.current[idx];

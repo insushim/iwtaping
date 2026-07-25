@@ -3,12 +3,10 @@
 import { useState } from 'react';
 import { TypingArea } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
-import { useStatsStore } from '@/stores/useStatsStore';
 
 export default function CustomTestPage() {
   const [customText, setCustomText] = useState('');
   const [text, setText] = useState('');
-  const recordSession = useStatsStore((s) => s.recordSession);
 
   const startTest = () => {
     if (customText.trim()) setText(customText.trim());
@@ -41,7 +39,8 @@ export default function CustomTestPage() {
           <Button variant="ghost" size="sm" className="mb-4" onClick={() => setText('')}>
             &larr; 텍스트 변경
           </Button>
-          <TypingArea text={text} onComplete={(r) => recordSession(r)} onRestart={() => {}} />
+          {/* 세션 기록은 TypingArea가 단독으로 한다 — 여기서 또 부르면 2배로 쌓인다. */}
+          <TypingArea text={text} onRestart={() => {}} />
         </div>
       )}
     </div>

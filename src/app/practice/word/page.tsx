@@ -5,8 +5,6 @@ import { TypingArea } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { useStatsStore } from '@/stores/useStatsStore';
-import { TypingResult } from '@/types/typing';
 import { shuffleArray } from '@/lib/utils/helpers';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -18,7 +16,6 @@ export default function WordPracticePage() {
   const [words, setWords] = useState<string[]>([]);
   const [text, setText] = useState('');
   const settings = useSettingsStore((s) => s.settings);
-  const recordSession = useStatsStore((s) => s.recordSession);
 
   const loadWords = useCallback(async () => {
     let wordList: string[] = [];
@@ -47,10 +44,6 @@ export default function WordPracticePage() {
   useEffect(() => {
     loadWords();
   }, [loadWords]);
-
-  const handleComplete = (result: TypingResult) => {
-    recordSession(result);
-  };
 
   const handleRestart = () => {
     const selected = shuffleArray(words).slice(0, 20);
@@ -85,7 +78,7 @@ export default function WordPracticePage() {
       {text && (
         <TypingArea
           text={text}
-          onComplete={handleComplete}
+          // 세션 기록은 TypingArea가 단독으로 한다 — 여기서 또 부르면 2배로 쌓인다.
           onRestart={handleRestart}
         />
       )}

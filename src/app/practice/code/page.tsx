@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { TypingArea } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
-import { useStatsStore } from '@/stores/useStatsStore';
-import { TypingResult } from '@/types/typing';
 import { pickRandom } from '@/lib/utils/helpers';
 
 type CodeLang = 'python' | 'javascript' | 'html' | 'css';
@@ -13,7 +11,6 @@ export default function CodePracticePage() {
   const [codeLang, setCodeLang] = useState<CodeLang>('python');
   const [snippets, setSnippets] = useState<string[]>([]);
   const [text, setText] = useState('');
-  const recordSession = useStatsStore((s) => s.recordSession);
 
   useEffect(() => {
     (async () => {
@@ -32,10 +29,6 @@ export default function CodePracticePage() {
       }
     })();
   }, [codeLang]);
-
-  const handleComplete = (result: TypingResult) => {
-    recordSession(result);
-  };
 
   const handleRestart = () => {
     setText(pickRandom(snippets) || '');
@@ -58,7 +51,11 @@ export default function CodePracticePage() {
       </div>
 
       {text && (
-        <TypingArea text={text} onComplete={handleComplete} onRestart={handleRestart} />
+        <TypingArea
+          text={text}
+          // 세션 기록은 TypingArea가 단독으로 한다 — 여기서 또 부르면 2배로 쌓인다.
+          onRestart={handleRestart}
+        />
       )}
     </div>
   );

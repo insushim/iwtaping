@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -101,10 +102,11 @@ export default function GamePage() {
   const { stats, loadStats } = useStatsStore();
   const isKorean = settings.language === 'ko';
 
-  // Load stats on mount
-  if (typeof window !== 'undefined' && stats.totalSessions === 0) {
+  // 하이드레이션은 반드시 effect에서 — 렌더 중에 스토어를 갱신하면
+  // set → 리렌더 → 다시 호출로 무한 루프가 될 수 있다(React #185).
+  useEffect(() => {
     loadStats();
-  }
+  }, [loadStats]);
 
   const games = [
     { href: '/game/rain', icon: <RainIcon />, title: isKorean ? '산성비' : 'Acid Rain', desc: isKorean ? '떨어지는 단어를 입력해서 제거하세요' : 'Type falling words to clear them', difficulty: isKorean ? '쉬움~어려움' : 'Easy~Hard' },

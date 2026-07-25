@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { TypingArea, TypingAreaHandle } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { useStatsStore } from '@/stores/useStatsStore';
-import { TypingResult } from '@/types/typing';
 import { shuffleArray, pickRandom } from '@/lib/utils/helpers';
 
 const DURATIONS = [15, 30, 60, 120];
@@ -16,7 +14,6 @@ export default function SpeedTestPage() {
   const [text, setText] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
   const [isRunning, setIsRunning] = useState(false);
-  const recordSession = useStatsStore((s) => s.recordSession);
   const areaRef = useRef<TypingAreaHandle>(null);
 
   const loadText = useCallback(async () => {
@@ -90,10 +87,9 @@ export default function SpeedTestPage() {
           ref={areaRef}
           text={text}
           onStart={() => setIsRunning(true)}
-          onComplete={(result) => {
-            setIsRunning(false);
-            recordSession(result);
-          }}
+          // 세션 기록은 TypingArea가 단독으로 한다(콤보·언어까지 함께 넘긴다).
+          // 여기서 또 recordSession을 부르면 세션·타수·퀘스트가 2배로 쌓인다.
+          onComplete={() => setIsRunning(false)}
           onRestart={() => { setIsRunning(false); setTimeLeft(duration); loadText(); }}
         />
       )}

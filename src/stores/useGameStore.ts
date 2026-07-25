@@ -33,6 +33,17 @@ interface GameStore {
 
 const RESULTS_KEY = 'typingverse-game-results';
 
+/** 저장된 게임 기록. 파싱 실패·미저장은 빈 배열. */
+function readPersistedResults(): GameResult[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(RESULTS_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   gameType: null,
   status: 'menu',
@@ -61,12 +72,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   resetCombo: () => set({ combo: 0 }),
   setInput: (input) => set({ input }),
   addResult: (result) => {
-    const results = [...get().results, result];
+    // 저장본 위에 누적한다. loadResults()는 어디서도 호출되지 않아 게임 페이지의
+    // results는 항상 빈 배열이고, 그대로 저장하면 기록이 매번 1건으로 덮어써진다(실측).
+    const results = [...readPersistedResults(), result];
     set({ results });
     // 일일 퀘스트 진행도 (게임 판수·최대 콤보)
     useQuestStore.getState().recordEvent({ kind: 'game', maxCombo: result.maxCombo });
 
     // 게임 전용 도전과제 (퍼펙트게임·레벨 클리어·레이스 우승)
+    // 누적 통계를 보고 판정하므로, 스토어가 초기값인 게임 페이지에서는 먼저 하이드레이트한다.
+    useStatsStore.getState().loadStats();
     const stats = useStatsStore.getState().stats;
     const unlocked = evaluateAchievements({
       stats,

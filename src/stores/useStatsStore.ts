@@ -38,11 +38,40 @@ interface StatsStore {
 
 const STATS_KEY = 'typingverse-stats';
 
+/**
+ * 저장된 통계를 진실원으로 읽는다.
+ *
+ * loadStats()는 홈·통계·게임목록·적응형연습 페이지에서만 호출된다. 정작 세션이 기록되는
+ * 연습·테스트·게임 페이지에서는 스토어가 defaultUserStats(전부 0)인 채라, 그 0을 기준으로
+ * 저장하면 누적 통계가 매 세션 통째로 리셋된다 — 실측상 totalSessions가 영원히 1이었다.
+ * (useProgressStore는 Header·GlobalOverlays가 전역에서 load하므로 같은 문제가 없다.)
+ */
+function readStats(fallback: UserStats): UserStats {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = localStorage.getItem(STATS_KEY);
+    if (!saved) return fallback;
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    // 얕은 병합만 하면 저장본이 손상됐을 때(dailyStats: null 등) 이후 spread·includes가
+    // 매번 예외를 던져 세션 기록이 영구히 마비된다. 구조가 깨진 필드는 기본값으로 되돌린다.
+    const merged = { ...defaultUserStats, ...parsed } as UserStats;
+    if (!Array.isArray(merged.dailyStats)) merged.dailyStats = [];
+    if (!Array.isArray(merged.achievements)) merged.achievements = [];
+    if (!merged.keyStats || typeof merged.keyStats !== 'object') merged.keyStats = {};
+    if (!merged.fingerStats || typeof merged.fingerStats !== 'object') {
+      merged.fingerStats = {} as UserStats['fingerStats'];
+    }
+    return merged;
+  } catch { /* ignore */ }
+  return fallback;
+}
+
 export const useStatsStore = create<StatsStore>((set, get) => ({
   stats: defaultUserStats,
 
   recordSession: (result, meta) => {
-    const prev = get().stats;
+    const prev = readStats(get().stats);
     const today = getToday();
 
     let dailyStats = [...prev.dailyStats];
@@ -145,30 +174,35 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
 
     set({ stats: finalStats });
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STATS_KEY, JSON.stringify(finalStats));
+      // unlockAchievement와 동일하게 저장 실패(시크릿 모드·용량 초과)를 삼킨다.
+      try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(finalStats));
+      } catch { /* ignore */ }
     }
     if (newlyUnlocked.length) notifyAchievements(newlyUnlocked);
   },
 
   unlockAchievement: (key) => {
-    const prev = get().stats;
+    const prev = readStats(get().stats);
     if (prev.achievements.includes(key)) return;
     const newStats = { ...prev, achievements: [...prev.achievements, key] };
     set({ stats: newStats });
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STATS_KEY, JSON.stringify(newStats));
+      // 저장 실패(사파리 시크릿 모드·용량 초과)가 게임 종료 화면을 깨뜨리지 않도록 삼킨다.
+      // 이 경로는 게임 6종의 결과 기록에서 호출된다.
+      try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(newStats));
+      } catch { /* ignore */ }
     }
   },
 
   loadStats: () => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(STATS_KEY);
-        if (saved) {
-          set({ stats: { ...defaultUserStats, ...JSON.parse(saved) } });
-        }
-      } catch { /* ignore */ }
-    }
+    if (typeof window === 'undefined') return;
+    // 저장본이 없으면 set을 하지 않는다. 무조건 set하면 매번 새 객체가 들어가
+    // 스토어 전체 구독자가 리렌더되고, 렌더 중에 loadStats를 부르는 화면에서는
+    // 무한 렌더 루프(React #185)가 된다 — /game에서 실측으로 확인.
+    if (!localStorage.getItem(STATS_KEY)) return;
+    set({ stats: readStats(get().stats) });
   },
 
   resetStats: () => {

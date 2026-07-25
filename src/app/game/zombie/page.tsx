@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
 import { useGameBgm } from '@/hooks/useGameBgm';
+import { useGameResult, hitAccuracy } from '@/hooks/useGameResult';
 import { pickRandom } from '@/lib/utils/helpers';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { wordGenerator } from '@/lib/content/word-generator';
@@ -64,6 +65,7 @@ export default function ZombieGamePage() {
   const waveRef = useRef(1);
   const hpRef = useRef(10);
   const killCountRef = useRef(0);
+  const attemptsRef = useRef(0); // 입력 시도 횟수 — 정확도 산출용(맞힌 수 = killCountRef)
   const particlesRef = useRef(new ParticleSystem());
   const shakeRef = useRef(new ScreenShake());
   const recoilRef = useRef(0); // 마지막 사격 시각(ms) — 반동 애니메이션용
@@ -110,12 +112,29 @@ export default function ZombieGamePage() {
     }
   }, [status, settings.language]);
 
+  // 일일 퀘스트·도전과제에 이 판을 반영한다(한 번도 입력하지 않은 판은 제외).
+  // 좀비는 콤보 시스템이 없어 maxCombo는 0으로 둔다.
+  useGameResult(status === 'gameover', () =>
+    attemptsRef.current === 0 && scoreRef.current === 0
+      ? null
+      : {
+          gameType: 'zombie',
+          score: scoreRef.current,
+          level: waveRef.current,
+          maxCombo: 0,
+          accuracy: hitAccuracy(killCountRef.current, attemptsRef.current),
+          wordsTyped: killCountRef.current,
+          elapsedTime: Math.round((Date.now() - startedAtRef.current) / 1000),
+        }
+  );
+
   const startGame = () => {
     startedAtRef.current = Date.now();
     setStatus('countdown'); setScore(0); setWave(1); setHp(10); setInput('');
     setKillCount(0);
     zombiesRef.current = []; nextIdRef.current = 0; lastSpawnRef.current = 0;
     scoreRef.current = 0; waveRef.current = 1; hpRef.current = 10; killCountRef.current = 0;
+    attemptsRef.current = 0;
     freezeUntilRef.current = 0; setEffectMsg('');
     particlesRef.current = new ParticleSystem();
     shakeRef.current = new ScreenShake();
@@ -494,6 +513,7 @@ export default function ZombieGamePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    attemptsRef.current += 1;
     const idx = zombiesRef.current.findIndex(z => z.text === input.trim());
     if (idx >= 0) {
       const z = zombiesRef.current[idx];

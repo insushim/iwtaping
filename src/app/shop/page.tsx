@@ -11,6 +11,9 @@ import { soundManager, KeyTheme } from '@/lib/sound/sound-manager';
 export default function ShopPage() {
   const { shop, buy, equipSound, equipSkin, availableCoins, load } = useShopStore();
   const loadProgress = useProgressStore((s) => s.loadProgress);
+  // 잔액을 구독한다. 구독하지 않으면 다른 탭에서 코인이 바뀌어도 이 화면은 옛 숫자를
+  // 계속 보여주다가, 아무 버튼이나 눌러 리렌더되는 순간 갑자기 튄다.
+  useProgressStore((s) => s.progress.coins);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
@@ -52,7 +55,8 @@ export default function ShopPage() {
       </div>
 
       <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-        연습·게임으로 모은 코인으로 타이핑 음과 커서 스킨을 꾸며보세요. 모든 아이템은 이 기기에 저장돼요.
+        연습·테스트를 마치거나, 일일 퀘스트를 완료하고 보상을 받으면 코인이 쌓여요.
+        타이핑 소리와 커서 모양을 바꿔보세요. 모든 아이템은 이 기기에 저장돼요.
       </p>
 
       {/* 타이핑 음 팩 */}

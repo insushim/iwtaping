@@ -59,10 +59,13 @@ const RULES: Record<string, Rule> = {
   veteran: ({ stats }) => stats.totalSessions >= 100,
   marathon: ({ stats }) => stats.totalPracticeTime >= HOUR_MS * 50,
 
-  perfect_game: ({ game }) => !!game && game.accuracy >= 100,
+  // 최소 처리량을 요구한다 — 정확도는 "입력 제출 성공률"이라, 한 단어만 맞히고
+  // 끝내면 1/1 = 100%가 되어 퍼펙트게임이 공짜로 열린다.
+  perfect_game: ({ game }) => !!game && game.accuracy >= 100 && game.wordsTyped >= 10,
   game_master: ({ game }) => !!game && game.score >= 1000,
   rain_clear: ({ game }) => !!game && game.gameType === 'rain' && game.level >= 10,
   space_clear: ({ game }) => !!game && game.gameType === 'space' && game.level >= 10,
+  // 레이스는 level 필드를 "우승했는가"로 쓴다(1=1등, 0=그 외). game/race/page.tsx 참조.
   race_win: ({ game }) => !!game && game.gameType === 'race' && game.score > 0 && game.level >= 1,
 
   night_owl: ({ now = new Date() }) => now.getHours() >= 0 && now.getHours() < 4,

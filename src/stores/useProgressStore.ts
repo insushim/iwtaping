@@ -256,7 +256,10 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
         if (saved) {
           const migrated = migrateProgress(JSON.parse(saved));
           set({ progress: migrated });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          // 값이 실제로 바뀐 경우에만 되쓴다. 무조건 쓰면 다른 탭의 storage 이벤트를
+          // 깨워 탭끼리 하이드레이트를 주고받게 된다(CrossTabSync 참고).
+          const next = JSON.stringify(migrated);
+          if (next !== saved) localStorage.setItem(STORAGE_KEY, next);
         }
       } catch { /* ignore */ }
     }

@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { TypingArea } from '@/components/typing/TypingArea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { useStatsStore } from '@/stores/useStatsStore';
-import { TypingResult } from '@/types/typing';
 
 type Lang = 'ko' | 'en';
 
@@ -19,7 +17,6 @@ export default function LongPracticePage() {
   const [lang, setLang] = useState<Lang>('ko');
   const [texts, setTexts] = useState<LongText[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const recordSession = useStatsStore((s) => s.recordSession);
 
   useEffect(() => {
     (async () => {
@@ -37,10 +34,6 @@ export default function LongPracticePage() {
       setSelectedIdx(0);
     })();
   }, [lang]);
-
-  const handleComplete = (result: TypingResult) => {
-    recordSession(result);
-  };
 
   const currentText = texts[selectedIdx];
 
@@ -83,7 +76,8 @@ export default function LongPracticePage() {
               {currentText.author && <span> - {currentText.author}</span>}
             </div>
           </Card>
-          <TypingArea text={currentText.text} onComplete={handleComplete} />
+          {/* 세션 기록은 TypingArea가 단독으로 한다 — 여기서 또 부르면 2배로 쌓인다. */}
+          <TypingArea text={currentText.text} />
         </>
       )}
     </div>
