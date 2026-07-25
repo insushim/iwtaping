@@ -228,12 +228,22 @@ export default function PuzzleGamePage() {
     }
 
     // 형태 검증 — 자모 낙서("리아ㅓㅣㅏ")·기호는 거부.
-    // 내장 사전이 작아(약 900단어) 궁사·궁예 같은 실제 단어까지 막히던 문제가 있어,
-    // 사전에 없어도 "완성된 한글 2글자 이상"이면 인정한다(사전 단어는 당연히 통과).
     const lookup = isKorean ? word : word.toLowerCase();
     const wellFormed = isKorean ? HANGUL_WORD.test(word) : ENGLISH_WORD.test(word);
-    if (!wellFormed && !validWords.has(lookup)) {
+    if (!wellFormed) {
       setMessage(isKorean ? '완성된 한글 단어만 입력하세요!' : 'Letters only!');
+      setCombo(0);
+      soundManager?.play('keyError');
+      setInput('');
+      return;
+    }
+
+    // 사전 검증 — 29k 실단어 사전에 있는 단어만 인정한다.
+    // (과거엔 내장 사전이 900단어뿐이라 "완성된 한글이면 통과"로 우회했는데,
+    //  그 우회가 남아 '련수' 같은 비단어까지 정답 처리되고 있었다.)
+    // 사전이 아직 로드되지 않았을 때만 형태 검증으로 폴백한다.
+    if (validWords.size > 0 && !validWords.has(lookup)) {
+      setMessage(isKorean ? '사전에 없는 단어입니다!' : 'Not in the dictionary!');
       setCombo(0);
       soundManager?.play('keyError');
       setInput('');
