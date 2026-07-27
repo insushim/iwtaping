@@ -1,4 +1,4 @@
-import { Env, json, badRequest, requireUser } from '../../lib/common';
+import { Env, json, badRequest, requireUser, maskNickname } from '../../lib/common';
 import { kstWeekKey } from '../../lib/verify';
 import {
   BUCKET_SIZE,
@@ -99,7 +99,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, waitUntil
 
     members = (board.results ?? []).map((row, index) => ({
       rank: index + 1,
-      nickname: row.nickname,
+      nickname: maskNickname(row.nickname),
       avatar: row.avatar,
       xp: row.xp_earned,
       isMe: row.user_id === user.uid,

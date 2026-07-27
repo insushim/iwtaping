@@ -5,10 +5,9 @@ import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/ui/Button';
 import { Mascot } from '@/components/mascot/Mascot';
 import { useAccountStore } from '@/stores/useAccountStore';
+import { looksLikeRealName, NICKNAME_RE } from '@/lib/moderation/nickname';
 
 const DISMISS_KEY = 'typingverse-onboard-seen';
-// 서버 validateNickname과 동일 규칙 (2~12자, 한글/영문/숫자/_)
-const NICKNAME_RE = /^[가-힣a-zA-Z0-9_]{2,12}$/;
 
 const GRADES: { id: string; label: string }[] = [
   { id: 'elem', label: '초등' },
@@ -32,6 +31,8 @@ export function AccountOnboarding() {
   const [grade, setGrade] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 실명 경고를 한 번 본 뒤에도 그대로 쓰겠다고 했는지
+  const [nameConfirmed, setNameConfirmed] = useState(false);
 
   // 계정이 없고 아직 안 닫았으면 자동으로 연다
   useEffect(() => {
@@ -53,13 +54,24 @@ export function AccountOnboarding() {
       setError('닉네임은 한글·영문·숫자 2~12자로 입력해주세요.');
       return;
     }
+    // 실명은 막지 않고 한 번만 되묻는다 — 3글자 한글에는 멀쩡한 별명도 많다.
+    if (looksLikeRealName(name) && !nameConfirmed) {
+      setNameConfirmed(true);
+      setError('혹시 실명인가요? 순위표에 그대로 보여요. 별명을 쓰는 편이 안전해요. 그대로 쓰려면 한 번 더 눌러 주세요.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const user = await createAccount(name, 'cat', grade);
+      const { user, error: reason } = await createAccount(name, 'cat', grade);
       if (user) {
         try { localStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
         setOpen(false);
+      } else if (reason === 'nickname_banned') {
+        // 금칙어 목록은 서버에만 있다(번들에 욕설 목록을 싣지 않으려고).
+        setError('쓸 수 없는 낱말이 들어 있어요. 다른 닉네임을 지어 주세요.');
+      } else if (reason === 'nickname_format') {
+        setError('닉네임은 한글·영문·숫자 2~12자로 입력해주세요.');
       } else {
         setError('계정을 만들지 못했어요. 닉네임이 이미 있거나 네트워크 문제일 수 있어요.');
       }
@@ -86,7 +98,7 @@ export function AccountOnboarding() {
       <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>닉네임</label>
       <input
         value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
+        onChange={(e) => { setNickname(e.target.value); setNameConfirmed(false); }}
         onKeyDown={(e) => { if (e.key === 'Enter' && !busy) submit(); }}
         maxLength={12}
         autoFocus

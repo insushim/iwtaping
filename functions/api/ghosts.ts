@@ -1,4 +1,4 @@
-import { Env, json, badRequest } from '../lib/common';
+import { Env, json, badRequest, maskNickname } from '../lib/common';
 
 /**
  * 고스트 레이스 상대 목록.
@@ -59,7 +59,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const ghosts = (results ?? [])
     .filter((r) => r.nickname && r.wpm > 0)
-    .map((r) => ({ nickname: r.nickname, wpm: Math.round(r.wpm) }));
+    // 옛 닉네임도 아이들 화면에 그대로 뜨지 않게 내보낼 때 한 번 더 거른다.
+    .map((r) => ({ nickname: maskNickname(r.nickname), wpm: Math.round(r.wpm) }));
 
   const response = json(
     { ok: true, mode, ghosts, updatedAt: Date.now() },

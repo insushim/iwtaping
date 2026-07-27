@@ -94,18 +94,33 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T | nul
   }
 }
 
+export type RegisterResult = { user: ApiUser | null; error?: string };
+
+/**
+ * 계정 만들기. 실패 사유를 함께 돌려준다 — 금칙어 판정은 서버에만 있어서
+ * (목록을 번들에 싣지 않으려고) 사용자에게 이유를 알리려면 응답을 봐야 한다.
+ */
 export async function register(
   nickname: string,
   avatar = 'cat',
   gradeBand?: string
-): Promise<ApiUser | null> {
-  const res = await request<{ ok: boolean; token: string; user: ApiUser }>('/api/register', {
-    method: 'POST',
-    body: JSON.stringify({ deviceId: getDeviceId(), nickname, avatar, gradeBand }),
-  });
-  if (!res?.ok) return null;
-  persistAuth(res.token, res.user);
-  return res.user;
+): Promise<RegisterResult> {
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceId: getDeviceId(), nickname, avatar, gradeBand }),
+    });
+    const body = (await res.json().catch(() => null)) as
+      | { ok: boolean; token: string; user: ApiUser; error?: string }
+      | null;
+    if (!res.ok || !body?.ok) return { user: null, error: body?.error };
+    persistAuth(body.token, body.user);
+    return { user: body.user };
+  } catch {
+    // 백엔드 미배포·오프라인 — 로컬 전용 모드로 계속 동작한다
+    return { user: null };
+  }
 }
 
 /** 이미 등록된 기기라면 조용히 세션을 복구한다. */

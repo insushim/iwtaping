@@ -15,7 +15,7 @@ interface AccountStore {
   status: AccountStatus;
   /** 앱 진입 시 1회 — 이미 등록된 기기면 조용히 세션을 복구한다. */
   init: () => Promise<void>;
-  createAccount: (nickname: string, avatar?: string, gradeBand?: string) => Promise<ApiUser | null>;
+  createAccount: (nickname: string, avatar?: string, gradeBand?: string) => Promise<{ user: ApiUser | null; error?: string }>;
   signOut: () => void;
 }
 
@@ -51,9 +51,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   },
 
   createAccount: async (nickname, avatar = 'cat', gradeBand) => {
-    const user = await register(nickname, avatar, gradeBand);
+    const { user, error } = await register(nickname, avatar, gradeBand);
     set(user ? { user, status: 'online' } : { status: 'offline' });
-    return user;
+    return { user, error };
   },
 
   signOut: () => {

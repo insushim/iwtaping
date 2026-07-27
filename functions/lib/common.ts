@@ -1,4 +1,5 @@
 import { verifyToken } from './auth';
+import { checkNickname } from './nickname';
 
 export interface Env {
   DB: D1Database;
@@ -106,16 +107,20 @@ export async function isRateLimited(
   return (row?.n ?? 0) >= maxPerWindow;
 }
 
-const NICKNAME_RE = /^[가-힣a-zA-Z0-9_]{2,12}$/;
-
-// 최소 금칙어 셋 — 운영 시 사전 확장 (P6 운영 항목)
-const BANNED_WORDS = ['시발', '씨발', '병신', '좆', '섹스', 'fuck', 'shit', 'bitch', '관리자', 'admin'];
-
+// 금칙어 목록·정규화는 nickname.ts에 모여 있다(클라이언트 사본과 테스트로 동기화).
 export function validateNickname(nickname: unknown): { ok: true; value: string } | { ok: false; error: string } {
-  if (typeof nickname !== 'string') return { ok: false, error: 'nickname_required' };
-  const value = nickname.trim();
-  if (!NICKNAME_RE.test(value)) return { ok: false, error: 'nickname_format' };
-  const lowered = value.toLowerCase();
-  if (BANNED_WORDS.some((w) => lowered.includes(w))) return { ok: false, error: 'nickname_banned' };
-  return { ok: true, value };
+  return checkNickname(nickname);
+}
+
+/**
+ * 공개 목록(순위표·리그·고스트)에 내보낼 닉네임.
+ *
+ * 금칙어 필터를 강화하기 전에 만들어진 계정은 DB에 그대로 남아 있다.
+ * 저장본을 건드리지 않고 내보낼 때 한 번 더 걸러, 옛 닉네임이 아이들 화면에
+ * 노출되지 않게 한다(계정 자체는 살아 있고 본인 화면에서는 원래대로 보인다).
+ */
+export function maskNickname(nickname: string): string {
+  if (checkNickname(nickname).ok) return nickname;
+  // 첫 글자를 남기면 '좆*'·'씹**'처럼 핵심 글자가 그대로 보인다 — 통째로 가린다.
+  return '이름숨김';
 }

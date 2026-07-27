@@ -1,4 +1,4 @@
-import { Env, json, badRequest } from '../lib/common';
+import { Env, json, badRequest, maskNickname } from '../lib/common';
 import { kstDayKey, kstWeekKey, kstMonthStartMs } from '../lib/verify';
 
 /**
@@ -97,7 +97,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const entries = (results ?? []).map((r, i) => ({
     rank: i + 1,
-    nickname: r.nickname,
+    // 금칙어 필터를 강화하기 전에 등록된 닉네임은 DB에 그대로 남아 있다.
+    // 저장본을 고치지 않고, 내보낼 때 한 번 더 걸러 순위표에 노출되지 않게 한다.
+    nickname: maskNickname(r.nickname),
     avatar: r.avatar,
     value: Math.round(r.best),
     accuracy: Math.round(r.accuracy * 10) / 10,
@@ -121,3 +123,4 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   return response;
 };
+

@@ -1,5 +1,11 @@
 /**
  * Famous English quotes for typing practice.
+ *
+ * 저작권 정책:
+ *  - 저작권이 만료된 저자(사후 70년 경과)의 문장만 싣는다. 생존 저자·보호기간이
+ *    남은 저자의 문장은 짧아도 넣지 않는다(README 규칙).
+ *  - 되도록 **영어로 직접 쓰인** 문장을 쓴다. 원저자가 퍼블릭 도메인이어도
+ *    현대 번역문은 번역자에게 별도 저작권이 있을 수 있다(고대 그리스·라틴·한문 저자 주의).
  */
 export const englishQuotes: { text: string; author: string }[] = [
   { text: 'In the middle of difficulty lies opportunity.', author: 'Albert Einstein' },
@@ -9,19 +15,19 @@ export const englishQuotes: { text: string; author: string }[] = [
   { text: 'To be or not to be, that is the question.', author: 'William Shakespeare' },
   { text: 'Two things are infinite: the universe and human stupidity; and I am not sure about the universe.', author: 'Albert Einstein' },
   { text: 'Be the change that you wish to see in the world.', author: 'Mahatma Gandhi' },
-  { text: 'In three words I can sum up everything I learned about life: it goes on.', author: 'Robert Frost' },
+  { text: 'Well done is better than well said.', author: 'Benjamin Franklin' },
   { text: 'If you tell the truth, you do not have to remember anything.', author: 'Mark Twain' },
   { text: 'A room without books is like a body without a soul.', author: 'Marcus Tullius Cicero' },
-  { text: 'You miss one hundred percent of the shots you do not take.', author: 'Wayne Gretzky' },
+  { text: 'I am not afraid of storms, for I am learning how to sail my ship.', author: 'Louisa May Alcott' },
   { text: 'Do not judge each day by the harvest you reap but by the seeds that you plant.', author: 'Robert Louis Stevenson' },
   { text: 'It is during our darkest moments that we must focus to see the light.', author: 'Aristotle' },
   { text: 'Do not go where the path may lead, go instead where there is no path and leave a trail.', author: 'Ralph Waldo Emerson' },
-  { text: 'The only impossible journey is the one you never begin.', author: 'Tony Robbins' },
+  { text: 'Nothing great was ever achieved without enthusiasm.', author: 'Ralph Waldo Emerson' },
   { text: 'Many of life\'s failures are people who did not realize how close they were to success when they gave up.', author: 'Thomas Edison' },
   { text: 'Believe you can and you are halfway there.', author: 'Theodore Roosevelt' },
   { text: 'It is never too late to be what you might have been.', author: 'George Eliot' },
   { text: 'Act as if what you do makes a difference. It does.', author: 'William James' },
-  { text: 'What you get by achieving your goals is not as important as what you become by achieving your goals.', author: 'Zig Ziglar' },
+  { text: 'Lost time is never found again.', author: 'Benjamin Franklin' },
   { text: 'The best time to plant a tree was twenty years ago. The second best time is now.', author: 'Chinese Proverb' },
   { text: 'The mind is everything. What you think you become.', author: 'Buddha' },
   { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
