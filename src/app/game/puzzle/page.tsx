@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { soundManager } from '@/lib/sound/sound-manager';
+import { allowedStarts } from '@/lib/game/hangul';
 import { useGameBgm } from '@/hooks/useGameBgm';
 import { useGameResult, hitAccuracy } from '@/hooks/useGameResult';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -16,31 +17,6 @@ interface WordEntry {
   isCorrect: boolean;
 }
 
-// ── 한글 두음법칙(끝말잇기에서 허용되는 시작 글자) ──
-function hangulParts(ch: string): { cho: number; jung: number; jong: number } | null {
-  const code = ch.charCodeAt(0) - 0xac00;
-  if (code < 0 || code > 11171) return null;
-  return { cho: Math.floor(code / 588), jung: Math.floor((code % 588) / 28), jong: code % 28 };
-}
-function composeHangul(cho: number, jung: number, jong: number): string {
-  return String.fromCharCode(0xac00 + cho * 588 + jung * 28 + jong);
-}
-const YA_GROUP = [2, 3, 6, 7, 12, 17, 20]; // ㅑㅒㅕㅖㅛㅠㅣ
-const A_GROUP = [0, 1, 8, 11, 13, 18]; //     ㅏㅐㅗㅚㅜㅡ
-/** 끝글자로 이을 수 있는 시작 글자 집합(두음법칙 포함, 관대하게 양방향). 영문/비한글은 자기 자신만. */
-function allowedStarts(ch: string): Set<string> {
-  const set = new Set<string>([ch]);
-  const p = hangulParts(ch);
-  if (!p) return set;
-  const { cho, jung, jong } = p;
-  if (cho === 5 && YA_GROUP.includes(jung)) set.add(composeHangul(11, jung, jong)); // 려→여·료→요·리→이
-  if (cho === 5 && A_GROUP.includes(jung)) set.add(composeHangul(2, jung, jong)); //   라→나·로→노
-  if (cho === 2 && YA_GROUP.includes(jung)) set.add(composeHangul(11, jung, jong)); // 녀→여·뇨→요
-  // 역방향도 허용(여→려/녀, 나→라)
-  if (cho === 11 && YA_GROUP.includes(jung)) { set.add(composeHangul(5, jung, jong)); set.add(composeHangul(2, jung, jong)); }
-  if (cho === 2 && A_GROUP.includes(jung)) set.add(composeHangul(5, jung, jong));
-  return set;
-}
 const HANGUL_WORD = /^[가-힣]+$/;
 const ENGLISH_WORD = /^[a-zA-Z]+$/;
 

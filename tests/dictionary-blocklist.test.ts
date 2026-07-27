@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { koreanDictionary } from '@/data/korean/words-dictionary';
+import { deadEndWords } from '@/lib/game/hangul';
 
 /**
  * 사전을 재생성하면 원본(표준국어대사전 표제어)의 부적절어가 되돌아온다.
@@ -34,9 +35,10 @@ describe('끝말잇기 사전 부적절어 차단', () => {
     }
   });
 
-  it('막다른 단어 비율이 1% 미만이다', () => {
-    const firsts = new Set(koreanDictionary.map((w) => w[0]));
-    const dead = koreanDictionary.filter((w) => !firsts.has(w[w.length - 1]));
-    expect(dead.length / koreanDictionary.length).toBeLessThan(0.01);
+  it('막다른 단어 비율이 3% 미만이다(두음법칙 반영 — 게임과 같은 판정)', () => {
+    // 게임은 두음법칙으로 이어간다('소년'→'연구'). 그걸 빼고 세면 실제보다 두 배 넘게
+    // 부풀려져('가랏' 같은 조각을 걷어냈다는 이유로) 멀쩡한 사전이 실패한다.
+    const dead = deadEndWords(koreanDictionary);
+    expect(dead.length / koreanDictionary.length).toBeLessThan(0.03);
   });
 });
