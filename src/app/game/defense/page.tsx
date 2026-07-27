@@ -439,11 +439,11 @@ export default function DefenseGamePage() {
       enemiesRef.current = alive;
 
       // 라벨 배치 — 병사·다른 라벨을 피해 위로 밀어 올린다.
-      resolveLabels(labels, spriteBoxes, { canvasH: H, maxShift: 150 });
+      resolveLabels(labels, spriteBoxes, { canvasH: H });
       for (const L of labels) {
         L.e.labelShift = easeLabelShift(L.e.labelShift, L.offset);
         const y = L.homeY + L.e.labelShift;
-        drawBubbleLeader(ctx, L.x, L.e.y - 8, L.e.type === 2 ? 62 : 50, y, L.fs);
+        drawBubbleLeader(ctx, L.x, L.e.y - 8, L.e.type === 2 ? 62 : 50, y, L.fs, undefined, H);
         // 특수 병사: 금빛 후광 링 + 능력 라벨(말풍선 위로)
         if (L.e.special && L.e.ability) {
           drawSpecialMarker(ctx, L.e.x, L.e.y - 8, L.e.ability, time, L.e.id, y - L.h / 2 - 7);

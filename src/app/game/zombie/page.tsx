@@ -440,14 +440,15 @@ export default function ZombieGamePage() {
       zombiesRef.current = alive;
 
       // 라벨 배치 — 좀비·다른 라벨을 피해 밀어낸다.
-      // 좀비는 주인공 한 점으로 몰려들어 같은 세로줄에 라벨이 쌓인다 —
-      // 다른 게임보다 더 멀리까지 자리를 찾게 둔다(연결선이 있어 추적 가능).
-      resolveLabels(labels, spriteBoxes, { canvasH: H, maxShift: 230 });
+      // 좀비는 주인공 한 점으로 몰려들어 같은 세로줄에 라벨이 쌓인다. 예전엔 그래서
+      // 230px까지 밀어냈는데, 그러면 라벨이 자기 좀비와 반 화면 떨어져 연결선이
+      // 풍선끈처럼 보인다(실측). 겹치더라도 몸통 가까이 두는 쪽이 읽기 쉽다 — 기본값(72) 사용.
+      resolveLabels(labels, spriteBoxes, { canvasH: H });
       for (const L of labels) {
         L.z.labelShift = easeLabelShift(L.z.labelShift, L.offset);
         const y = L.homeY + L.z.labelShift;
         ctx.globalAlpha = L.fade;
-        drawBubbleLeader(ctx, L.x, L.z.y, L.spriteH, y, L.fs, 'rgba(255,255,255,0.2)');
+        drawBubbleLeader(ctx, L.x, L.z.y, L.spriteH, y, L.fs, 'rgba(255,255,255,0.2)', H);
         // 특수 좀비: 금빛 후광 링 + 능력 라벨(말풍선 바깥쪽)
         if (L.z.special && L.z.ability) {
           drawSpecialMarker(ctx, L.z.x, L.z.y, L.z.ability, time, L.z.id, y - L.h / 2 - 7);

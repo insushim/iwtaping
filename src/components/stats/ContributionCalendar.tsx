@@ -71,16 +71,40 @@ export function ContributionCalendar({ dailyStats, className = '' }: Contributio
 
   const cellSize = 11;
   const gap = 2;
+  const gridLeft = 26; // 요일 라벨 칸(24) + flex gap(2)
+  const gridWidth = weeks.length * (cellSize + gap);
+
+  // 한 달 이름의 폭은 최대 3글자(≈26px) = 두 칸 남짓이다. 달이 바뀐 열이
+  // 직전 라벨과 그보다 가까우면 글자가 겹치므로 그 달은 표시하지 않는다.
+  const minCols = Math.ceil(28 / (cellSize + gap));
+  const monthTicks = months.reduce<typeof months>((acc, m) => {
+    const last = acc[acc.length - 1];
+    if (last && m.col - last.col < minCols) {
+      // 맨 앞 라벨은 시작 주에 며칠만 걸친 조각 달이라 다음 달과 붙는다.
+      // 그럴 땐 조각을 버리고 온전한 다음 달을 보여준다(8월이 통째로 사라지던 자리).
+      if (acc.length === 1 && last.col === 0) acc[0] = m;
+      return acc;
+    }
+    acc.push(m);
+    return acc;
+  }, []);
 
   return (
     <div className={`overflow-x-auto ${className}`}>
-      {/* Month labels */}
-      <div className="flex mb-1 text-xs" style={{ color: 'var(--text-muted)', paddingLeft: 28 }}>
-        {months.map((m, i) => (
-          <span key={i} style={{ position: 'relative', left: m.col * (cellSize + gap) - (i > 0 ? months[i-1].col * (cellSize + gap) : 0), minWidth: 0 }}>
-            {m.label}
-          </span>
-        ))}
+      {/* Month labels — 열 위치에 절대 배치한다.
+          flex + position:relative로 밀면 relative가 원래 자리를 그대로 차지해서
+          글자 폭이 누적되고, 결국 '7월8월'·'12월1월'처럼 서로 겹쳐 붙는다. */}
+      <div className="mb-1 text-xs" style={{ paddingLeft: gridLeft }}>
+        <div className="relative" style={{ width: gridWidth, height: 16, color: 'var(--text-muted)' }}>
+          {monthTicks.map((m) => (
+            <span
+              key={m.col}
+              style={{ position: 'absolute', left: m.col * (cellSize + gap), top: 0, whiteSpace: 'nowrap' }}
+            >
+              {m.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="flex gap-0.5">

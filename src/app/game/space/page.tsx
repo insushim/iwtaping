@@ -392,12 +392,12 @@ export default function SpaceGamePage() {
       enemiesRef.current = alive;
 
       // 라벨 배치 — 적기·다른 라벨을 피해 밀어낸다.
-      resolveLabels(labels, spriteBoxes, { canvasH: H, maxShift: 150 });
+      resolveLabels(labels, spriteBoxes, { canvasH: H });
       for (const L of labels) {
         L.e.labelShift = easeLabelShift(L.e.labelShift, L.offset);
         const y = L.homeY + L.e.labelShift;
         ctx.globalAlpha = L.alpha;
-        drawBubbleLeader(ctx, L.x, L.e.y, L.spriteH, y, L.fs);
+        drawBubbleLeader(ctx, L.x, L.e.y, L.spriteH, y, L.fs, undefined, H);
         // 특수 적기: 금빛 후광 링 + 능력 라벨(말풍선 반대쪽)
         if (L.e.special && L.e.ability) {
           drawSpecialMarker(ctx, L.e.x, L.e.y, L.e.ability, time, L.e.id, L.e.y - L.spriteH / 2 - 8);

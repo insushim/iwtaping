@@ -372,7 +372,7 @@ export default function RainGamePage() {
 
       // 겹친 단어는 둘 다 못 읽어서 칠 수가 없다(실측: 두 단어가 77% 겹침).
       // y는 낙하 높이 = 게임 상태라 건드리면 안 되므로 가로로만 비켜 놓는다.
-      resolveLabels(labels, [], { canvasH: H, canvasW: W, axis: 'x', maxShift: 120, pad: 4 });
+      resolveLabels(labels, [], { canvasH: H, canvasW: W, axis: 'x', maxShift: 60, pad: 4 });
 
       for (const L of labels) {
         const word = L.word;

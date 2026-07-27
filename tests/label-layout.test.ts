@@ -70,6 +70,26 @@ describe('라벨 겹침 해소', () => {
     expect(overlap(a, b)).toBe(0);
   });
 
+  it('자리가 빡빡해도 라벨은 몸통 곁을 떠나지 않는다', () => {
+    // 라벨과 몸통을 잇는 연결선의 길이가 곧 이 이동량이다. 좀비 게임은 예전에
+    // 230px까지 허용했는데, 그러면 단어가 자기 좀비와 반 화면 떨어져 풍선끈처럼
+    // 보인다(실측 2026-07-27). 빠져나갈 자리가 아예 없어도 leash 안에 머물러야 한다.
+    const wall: LabelBox[] = Array.from({ length: 20 }, (_, i) => ({ x: 100, y: 150 + i * 14, w: 200, h: 14 }));
+    const labels = [req(100, 250)];
+    resolveLabels(labels, wall, { canvasH: 600 });
+    expect(Math.abs(labels[0].offset)).toBeLessThanOrEqual(72);
+  });
+
+  it('살짝 겹치는 가까운 자리가 멀리 떨어진 깨끗한 자리보다 낫다', () => {
+    // 겹침을 px²로 재면 스치기만 해도 수백 점이라 거리 벌점을 압도한다 —
+    // 그래서 라벨이 조금이라도 겹치면 무조건 멀리 도망갔다. 면적 비율로 환산해
+    // "통째로 가릴 때 120px만큼 움직인다"는 교환비로 바꾼 것을 지키는 테스트.
+    const labels = [req(100, 100)];
+    const sprites: LabelBox[] = [{ x: 100, y: 70, w: 40, h: 20 }]; // 라벨 위끝에 2px만 걸침
+    resolveLabels(labels, sprites, { canvasH: 500 });
+    expect(Math.abs(labels[0].offset)).toBe(0);
+  });
+
   it('자리가 없으면 라벨을 겹칠지언정 몬스터를 덮지 않는다', () => {
     // 위쪽이 몬스터로 꽉 막힌 상황: 라벨끼리 겹치는 쪽(가중치 1)이
     // 몬스터를 가리는 쪽(가중치 3)보다 낫다.

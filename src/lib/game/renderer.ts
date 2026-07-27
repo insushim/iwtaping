@@ -1362,6 +1362,9 @@ export interface LabelRequest extends LabelBox {
   offset: number;
 }
 
+/** 라벨이 대상을 100% 가릴 때 감수할 이동 거리(px). 거리 벌점과 같은 단위라 직접 비교된다. */
+const COVER_COST = 120;
+
 const overlapArea = (a: LabelBox, b: LabelBox) =>
   Math.max(0, Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2)) *
   Math.max(0, Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2));
@@ -1387,7 +1390,10 @@ export function resolveLabels(
     pad?: number;
   } = { canvasH: Infinity }
 ): void {
-  const { canvasH, canvasW = Infinity, axis = 'y', step = 6, maxShift = 96, pad = 8 } = opts;
+  // maxShift는 "라벨이 몸통에서 떨어질 수 있는 최대 거리"이자 곧 연결선의 최대 길이다.
+  // 크게 잡으면 겹침은 줄지만 라벨이 자기 적과 반 화면 떨어져 풍선끈처럼 보인다(실측 230px).
+  // 72 = 라벨 5개가 같은 자리에 겹쳐도 서로 완전히 비켜설 수 있는 최소값(±72 = 36px 간격 5칸).
+  const { canvasH, canvasW = Infinity, axis = 'y', step = 6, maxShift = 72, pad = 8 } = opts;
   // 몸통 상자에 여유를 준다. 적이 움직이면 최적 자리가 계속 바뀌는데 라벨은 부드럽게
   // 따라가므로(easeLabelShift) 늘 몇 프레임 뒤처진다 — 그 지연분을 여유로 흡수한다.
   const padded = sprites.map((s) => ({ ...s, w: s.w + pad * 2, h: s.h + pad * 2 }));
@@ -1411,10 +1417,15 @@ export function resolveLabels(
         let overlap = 0;
         for (const s of padded) overlap += overlapArea(probe, s) * (s.weight ?? 3);
         for (const p of placed) overlap += overlapArea(probe, p);
+        // 겹침은 **면적 비율**로 환산한다(1.0 = 라벨이 통째로 가려짐).
+        // 날것의 px²로 두면 살짝 스친 것만으로도 수백 점이 붙어 거리 벌점을 압도했고,
+        // 라벨이 허용 최대치까지 도망가 연결선이 풍선끈처럼 길어졌다(실측: 좀비).
+        const cover = overlap / (req.w * req.h);
         // 가깝고 기본 방향인 자리를 선호 — 완전히 빈 자리를 찾으면 더 안 본다.
         // 직전 자리에는 이력 보너스를 줘서 후보 사이를 오가는 떨림을 없앤다.
         const held = req.prefer != null && Math.abs(dir * dist - req.prefer) <= step / 2;
-        const score = overlap + dist * 0.5 + (dir === req.dir ? 0 : 40) - (held ? 12 : 0);
+        // COVER_COST = "몬스터 하나를 통째로 가리느니 이만큼은 움직인다"는 교환비(px).
+        const score = cover * COVER_COST + dist + (dir === req.dir ? 0 : 40) - (held ? 12 : 0);
         if (score < bestScore) {
           bestScore = score;
           bestOffset = dir * dist;
@@ -1454,8 +1465,13 @@ export function drawBubbleLeader(
   spriteH: number,
   bubbleY: number,
   fontSize: number,
-  color: string = 'rgba(255,255,255,0.25)'
+  color: string = 'rgba(255,255,255,0.25)',
+  /** 주면 화면 밖 스프라이트로 향하는 선을 그리지 않는다. */
+  canvasH?: number
 ) {
+  // 적은 화면 밖에서 스폰해 걸어 들어온다. 그동안 말풍선만 화면 안으로 끌려 들어오는데,
+  // 이때 연결선을 그리면 끝점이 보이지 않아 허공에 매달린 풍선끈이 된다(사용자 제보).
+  if (canvasH != null && (spriteY + spriteH / 2 < 0 || spriteY - spriteH / 2 > canvasH)) return;
   const half = wordBubbleHeight(fontSize) / 2;
   const [y1, y2] =
     bubbleY < spriteY
