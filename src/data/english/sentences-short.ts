@@ -6,7 +6,7 @@
 export const englishSentencesShort: { text: string; category: string }[] = [
   // Pangrams
   { text: 'The quick brown fox jumps over the lazy dog.', category: 'pangram' },
-  { text: 'Pack my box with five dozen liquor jugs.', category: 'pangram' },
+  { text: 'Jackdaws love my big sphinx of quartz.', category: 'pangram' },
   { text: 'How vexingly quick daft zebras jump.', category: 'pangram' },
   { text: 'The five boxing wizards jump quickly.', category: 'pangram' },
   { text: 'Sphinx of black quartz, judge my vow.', category: 'pangram' },

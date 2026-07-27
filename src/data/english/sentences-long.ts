@@ -1,8 +1,19 @@
+/**
+ * 긴 영어 지문 (연습 > 장문).
+ *
+ * 저작권 정책:
+ *  - 저작권이 만료된 저자의 원문만 싣는다. Robert Frost(1963년 사망, 국내 2033년까지
+ *    보호)처럼 보호기간이 남은 저자는 짧은 인용도 넣지 않는다.
+ *  - **번역문에는 번역자의 별도 저작권이 있다.** 원저자가 고대인이어도 현대 번역을
+ *    그대로 옮기면 안 된다(예: 손자병법 Giles 역 1910 → 역자 1958년 사망, 2028년까지
+ *    보호). 비영어권 고전은 번역 대신 **직접 쓴 해설·요약문**으로 싣는다.
+ *  - 미국 정부 공식 연설(게티스버그·취임사)은 저작권이 발생하지 않아 사용 가능하다.
+ */
 export const englishSentencesLong: { title: string; author: string; text: string }[] = [
   {
-    title: 'The Road Not Taken',
-    author: 'Robert Frost',
-    text: 'Two roads diverged in a yellow wood, and sorry I could not travel both and be one traveler, long I stood and looked down one as far as I could to where it bent in the undergrowth. Then took the other, as just as fair, and having perhaps the better claim, because it was grassy and wanted wear.',
+    title: 'I Wandered Lonely as a Cloud',
+    author: 'William Wordsworth',
+    text: 'I wandered lonely as a cloud that floats on high o\'er vales and hills, when all at once I saw a crowd, a host, of golden daffodils; beside the lake, beneath the trees, fluttering and dancing in the breeze. Continuous as the stars that shine and twinkle on the milky way, they stretched in never-ending line along the margin of a bay.',
   },
   {
     title: 'A Tale of Two Cities (Opening)',
@@ -82,7 +93,7 @@ export const englishSentencesLong: { title: string; author: string; text: string
   {
     title: 'The Art of War',
     author: 'Sun Tzu',
-    text: 'The supreme art of war is to subdue the enemy without fighting. If you know the enemy and know yourself, you need not fear the result of a hundred battles. If you know yourself but not the enemy, for every victory gained you will also suffer a defeat. If you know neither the enemy nor yourself, you will succumb in every battle.',
+    text: 'Sun Tzu argued that the finest victory is the one won before a single blow is struck. A commander who understands both the opposing side and his own strengths can enter a hundred contests without fear. Understanding only yourself leaves you winning and losing by turns, and understanding neither leaves every outcome to chance. The lesson has outlived its battlefield: preparation and honest self-knowledge decide most things.',
   },
   {
     title: 'Economic Principles',
