@@ -93,14 +93,14 @@ export function getFingerColor(finger: FingerType): string {
 
 export function getFingerName(finger: FingerType): string {
   const names: Record<FingerType, string> = {
-    'left-pinky': '왼손 새끼',
+    'left-pinky': '왼손 새끼손가락',
     'left-ring': '왼손 약지',
     'left-middle': '왼손 중지',
     'left-index': '왼손 검지',
     'right-index': '오른손 검지',
     'right-middle': '오른손 중지',
     'right-ring': '오른손 약지',
-    'right-pinky': '오른손 새끼',
+    'right-pinky': '오른손 새끼손가락',
     'thumb': '엄지',
   };
   return names[finger];

@@ -39,11 +39,9 @@ export default function AdaptivePracticePage() {
     return selectWeakKeys(keyAccuracy, problems);
   }, [stats.keyStats]);
 
-  const text = useMemo(
-    () => buildDrill(weakKeys, language, 24),
-    // round가 바뀌면 새 지문을 만든다
-    [weakKeys, language, round]
-  );
+  // round를 salt로 넘긴다 — 예전엔 deps에만 있고 인자로 안 줘서
+  // '새 지문 받기'를 눌러도 똑같은 지문이 다시 나왔다.
+  const text = useMemo(() => buildDrill(weakKeys, language, 24, round), [weakKeys, language, round]);
 
   const fingers = fingersForKeys(weakKeys);
 

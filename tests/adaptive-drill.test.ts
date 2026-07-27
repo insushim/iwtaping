@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   selectWeakKeys,
   buildKoreanDrill,
   buildEnglishDrill,
-  composeSyllable,
+  buildDrill,
   weakestFinger,
   fingersForKeys,
+  DRILL_WORD_POOLS,
 } from '@/lib/content/adaptive-drill';
 import { FingerType } from '@/types/typing';
 
@@ -36,12 +39,6 @@ describe('취약 키 선별', () => {
 });
 
 describe('한글 드릴 생성', () => {
-  it('초성+중성으로 올바른 음절을 조합한다', () => {
-    expect(composeSyllable('ㄱ', 'ㅏ')).toBe('가');
-    expect(composeSyllable('ㅎ', 'ㅣ')).toBe('히');
-    expect(composeSyllable('X', 'ㅏ')).toBe('');
-  });
-
   it('생성된 지문은 전부 완성형 한글이거나 공백이다', () => {
     const drill = buildKoreanDrill(['ㄱ', 'ㅏ'], 10);
     expect(drill.length).toBeGreaterThan(0);
@@ -67,6 +64,56 @@ describe('한글 드릴 생성', () => {
 
   it('데이터가 없어도 지문을 만든다', () => {
     expect(buildKoreanDrill([], 5).split(' ')).toHaveLength(5);
+  });
+
+  it('새 지문을 받으면 실제로 다른 지문이 나온다', () => {
+    // salt를 인자로 넘기지 않던 시절엔 '새 지문 받기'가 같은 지문을 다시 만들었다.
+    expect(buildDrill(['ㅋ'], 'ko', 12, 0)).not.toBe(buildDrill(['ㅋ'], 'ko', 12, 1));
+  });
+});
+
+/**
+ * 자모를 무작위 조합하던 시절엔 받침 없는 2~3음절이 실제 낱말이 될 수 있어
+ * '체위'·'에로'·'야매' 같은 부적절어가 우연히 만들어졌다(4만 회 시뮬레이션 실측).
+ * 지금은 검수된 낱말 목록에서만 고른다 — 그 계약을 지키는 래칫이다.
+ */
+describe('드릴 지문 안전성', () => {
+  // 차단목록의 마지막 절(6차)은 끝말잇기 사전에서 걷어낸 '조각·방언 표제어'로,
+  // 안전 문제가 아니라 품질 정리다('한과'·'보라'처럼 멀쩡한 낱말이 들어 있다).
+  // 여기서 보는 것은 안전 목록뿐이므로 그 절 앞까지만 읽는다.
+  const lines = fs
+    .readFileSync(path.resolve(__dirname, '../scripts/dictionary-blocklist.txt'), 'utf8')
+    .split('\n');
+  const cut = lines.findIndex((l) => l.includes('조각·방언'));
+  const blocklist = new Set(
+    lines
+      .slice(0, cut < 0 ? lines.length : cut)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'))
+  );
+
+  it('낱말 목록 자체에 차단어가 없다', () => {
+    const leaked = [...DRILL_WORD_POOLS.ko, ...DRILL_WORD_POOLS.en].filter((w) => blocklist.has(w));
+    expect(leaked, `드릴 낱말 목록에 차단어: ${leaked.join(' ')}`).toEqual([]);
+  });
+
+  it('어떤 취약 키 조합으로도 목록 밖 문자열은 나오지 않는다', () => {
+    const ko = new Set(DRILL_WORD_POOLS.ko);
+    const en = new Set(DRILL_WORD_POOLS.en);
+    const jamo = [...'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎㅏㅐㅑㅓㅔㅕㅗㅛㅜㅠㅡㅣ'];
+    const letters = [...'abcdefghijklmnopqrstuvwxyz'];
+    for (let salt = 0; salt < 20; salt++) {
+      for (const k of jamo) {
+        for (const w of buildKoreanDrill([k], 24, salt).split(' ')) {
+          expect(ko.has(w), `목록에 없는 한글 낱말: ${w}`).toBe(true);
+        }
+      }
+      for (const k of letters) {
+        for (const w of buildEnglishDrill([k], 24, salt).split(' ')) {
+          expect(en.has(w), `목록에 없는 영어 낱말: ${w}`).toBe(true);
+        }
+      }
+    }
   });
 });
 
